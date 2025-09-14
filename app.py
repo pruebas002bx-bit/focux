@@ -373,17 +373,28 @@ def get_ai_suggestions():
 
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
-        prompt = f"""Genera 3 versiones alternativas para el siguiente texto, mejorando claridad y profesionalismo.
-        Formatea tu respuesta como un array JSON de strings, sin texto adicional.
-        Texto original: '{text}'"""
+        
+        # --- PROMPT MEJORADO Y MÁS ESTRICTO ---
+        prompt = f"""
+        Eres un asistente de escritura experto. Reescribe el siguiente texto de 3 maneras diferentes, variando el tono (por ejemplo: uno más profesional, uno más conciso, uno más casual).
+        IMPORTANTE: Tu única respuesta debe ser las 3 sugerencias de texto, separadas exactamente por el delimitador '|||'.
+        No incluyas números, viñetas, comillas, la palabra JSON, introducciones, conclusiones ni explicaciones.
+
+        Texto original: "{text}"
+        """
         response = model.generate_content(prompt)
-        suggestions = [s.strip() for s in response.text.split('---')]
+        
+        # --- CÓDIGO DE PROCESAMIENTO CORREGIDO ---
+        # Limpiamos y dividimos la respuesta usando el delimitador para crear una lista real
+        clean_text = response.text.strip().replace('"', '')
+        suggestions = [s.strip() for s in clean_text.split('|||')]
         
         return jsonify(success=True, suggestions=suggestions)
+        
     except Exception as e:
         print(f"🚨 ERROR en /ai/writing-suggestions: {e}")
+        traceback.print_exc()
         return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
-
 
 
 @app.route('/ai/enhance-text', methods=['POST'])
@@ -393,44 +404,36 @@ def enhance_text_with_ai():
 
     data = request.get_json()
     text = data.get('text', '')
-    mode = data.get('mode', 'improve') # 'improve' o 'fix'
+    mode = data.get('mode', 'improve')
 
     if not text:
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        # Se puede usar 'gemini-pro' o 'gemini-1.5-flash' para un buen balance de costo/rendimiento
         model = genai.GenerativeModel('gemini-2.0-flash') 
         
-        # --- INICIO DE LA CORRECCIÓN: PROMPTS ESPECÍFICOS Y RESTRICTIVOS ---
-
-        # Se definen instrucciones muy claras para cada modo, prohibiendo explícitamente
-        # cualquier texto adicional, explicaciones o formato markdown.
+        # --- PROMPTS MEJORADOS Y MÁS RESTRICTIVOS ---
         prompts = {
             'improve': (
                 "Reformula el siguiente texto para que sea más claro, conciso y profesional. "
-                "Devuelve únicamente el texto mejorado. No añadas introducciones como 'Aquí tienes una versión mejorada' "
-                "ni explicaciones sobre los cambios. No uses markdown. El texto a reformular es:\n\n"
+                "Tu única respuesta debe ser el texto mejorado. No añadas introducciones, explicaciones ni markdown. "
+                "Texto a reformular:\n\n"
                 f"'{text}'"
             ),
             'fix': (
-                "Corrige únicamente los errores de ortografía y puntuación (tildes, comas, puntos, mayúsculas) del siguiente texto. "
-                "No cambies palabras, no reformules frases ni alteres el significado. "
-                "Devuelve exclusivamente el texto corregido, sin ningún texto adicional, introducción o explicación. "
-                "No utilices markdown. El texto es:\n\n"
+                "Tu única tarea es corregir la ortografía y puntuación (tildes, comas, puntos, mayúsculas) del siguiente texto. "
+                "NO cambies ninguna palabra. NO reformules frases. NO alteres el significado. "
+                "Actúa como un corrector de pruebas, no como un escritor. "
+                "Devuelve exclusivamente el texto corregido, sin introducciones, explicaciones ni markdown. "
+                "Texto a corregir:\n\n"
                 f"'{text}'"
             )
         }
         
-        # Se selecciona el prompt según el 'mode' enviado desde el frontend.
-        # Si el modo no coincide, por defecto se usará 'improve'.
         prompt_text = prompts.get(mode, prompts['improve'])
         
-        # --- FIN DE LA CORRECCIÓN ---
-
         response = model.generate_content(prompt_text)
         
-        # Limpieza adicional para remover comillas que la IA a veces añade al inicio y al final
         enhanced_text = response.text.strip()
         if enhanced_text.startswith('"') and enhanced_text.endswith('"'):
             enhanced_text = enhanced_text[1:-1]
@@ -439,8 +442,9 @@ def enhance_text_with_ai():
 
     except Exception as e:
         print(f"🚨 ERROR en /ai/enhance-text: {e}")
-        traceback.print_exc() # Imprime el error completo en tus logs de Render
+        traceback.print_exc()
         return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+
 
 
 @app.route('/notes/<int:note_id>', methods=['PUT', 'DELETE'])
