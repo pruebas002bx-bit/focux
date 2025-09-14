@@ -273,41 +273,6 @@ def init_db():
         if conn is not None:
             conn.close()
 
-
-
-def run_all_migrations():
-    """Verifica y aplica todas las migraciones de esquema necesarias."""
-    print("🚀 Verificando y migrando el esquema de la base de datos si es necesario...")
-    try:
-        with db_lock:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # --- MIGRACIÓN PARA LA TABLA 'scheduled_reminders' ---
-            cursor.execute("PRAGMA table_info(scheduled_reminders)")
-            columns_reminders = [row['name'] for row in cursor.fetchall()]
-            required_columns = {'board_name': 'TEXT', 'card_column': 'TEXT', 'card_description': 'TEXT', 'card_tags': 'TEXT'}
-            for col_name, col_type in required_columns.items():
-                if col_name not in columns_reminders:
-                    print(f"  -> Añadiendo columna: '{col_name}' a 'scheduled_reminders'...")
-                    cursor.execute(f"ALTER TABLE scheduled_reminders ADD COLUMN {col_name} {col_type}")
-
-            # --- MIGRACIÓN PARA LA TABLA 'assistants' ---
-            cursor.execute("PRAGMA table_info(assistants)")
-            columns_assistants = [row['name'] for row in cursor.fetchall()]
-            if 'description' not in columns_assistants:
-                print("  -> Añadiendo columna 'description' a 'assistants'...")
-                cursor.execute("ALTER TABLE assistants ADD COLUMN description TEXT")
-
-            conn.commit()
-            conn.close()
-        print("✅ Esquema de la base de datos verificado y actualizado.")
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema: {e}")
-
-
-
-
 CORS(app, origins=[
     'https://focux.netlify.app',
     'https://focuxadmin.netlify.app',
@@ -793,32 +758,37 @@ def get_focux_messages_admin():
         print(f"🚨 ERROR en GET /admin/focux_messages: {e}")
         return jsonify(success=False, message="Error al obtener mensajes."), 500
 
+
+
 @app.route('/admin/focux_messages/create', methods=['POST'])
 def create_focux_message():
     """Crea un único mensaje nuevo de Focux."""
     msg_data = request.get_json()
     new_id = str(uuid.uuid4())
     try:
-        with db_lock:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO focux_messages 
-                (id, title, content, color, image_url, button_text, button_url, is_active, start_date, end_date, target_info)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                new_id, msg_data.get('title'), msg_data.get('content'), msg_data.get('color'), msg_data.get('image_url'),
-                msg_data.get('button_text'), msg_data.get('button_url'), 1 if msg_data.get('is_active') else 0,
-                msg_data.get('start_date') if msg_data.get('start_date') else None,
-                msg_data.get('end_date') if msg_data.get('end_date') else None,
-                msg_data.get('target_info')
-            ))
-            conn.commit()
-            conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO focux_messages 
+            (id, title, content, color, image_url, button_text, button_url, is_active, start_date, end_date, target_info)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            new_id, msg_data.get('title'), msg_data.get('content'), msg_data.get('color'), msg_data.get('image_url'),
+            msg_data.get('button_text'), msg_data.get('button_url'), 1 if msg_data.get('is_active') else 0,
+            msg_data.get('start_date') if msg_data.get('start_date') else None,
+            msg_data.get('end_date') if msg_data.get('end_date') else None,
+            msg_data.get('target_info')
+        ))
+        conn.commit()
+        conn.close()
         return jsonify(success=True, message="Mensaje creado.", new_id=new_id)
     except Exception as e:
         print(f"🚨 ERROR en POST /admin/focux_messages/create: {e}")
         return jsonify(success=False, message="Error interno al crear el mensaje."), 500
+
+
+
+
 
 @app.route('/admin/focux_messages/update/<message_id>', methods=['PUT'])
 def update_focux_message(message_id):
@@ -1488,33 +1458,6 @@ def get_all_assistants():
         print(f"🚨 ERROR en GET /admin/assistants: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener asistentes."), 500
-
-
-
-def migrate_database_schema():
-    """
-    Verifica y actualiza el esquema de la base de datos para añadir columnas faltantes
-    sin necesidad de borrar el archivo de la base de datos.
-    """
-    print("🚀 Verificando y migrando el esquema de la base de datos si es necesario...")
-    try:
-        with db_lock:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # --- MIGRACIÓN PARA LA TABLA 'assistants' ---
-            cursor.execute("PRAGMA table_info(assistants)")
-            columns = [row['name'] for row in cursor.fetchall()]
-            if 'description' not in columns:
-                print("  -> Añadiendo columna 'description' a la tabla 'assistants'...")
-                cursor.execute("ALTER TABLE assistants ADD COLUMN description TEXT")
-            
-            conn.commit()
-            conn.close()
-        print("✅ Esquema de la base de datos verificado y actualizado.")
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema: {e}")
-        traceback.print_exc()
 
 @app.route('/admin/assistants/<assistant_id>', methods=['DELETE'])
 def delete_assistant(assistant_id):
@@ -3112,7 +3055,84 @@ def test_telegram_connection():
         return jsonify(success=False, message=str(e)), 500
 
 
+@app.route('/telegram/connect', methods=['POST'])
+def connect_telegram():
+    """
+    Conecta la cuenta de un usuario con un Chat ID de Telegram, envía un mensaje
+    de bienvenida y guarda la conexión en la base de datos PostgreSQL.
+    """
+    data = request.get_json()
+    chat_id = data.get('chat_id')
+    user_email = data.get('user_email')
 
+    if not chat_id or not user_email:
+        return jsonify(success=False, message="Chat ID y Email son requeridos"), 400
+
+    try:
+        # 1. Preparar el mensaje de bienvenida y la imagen
+        welcome_message = """🎉 <b>¡Conexión exitosa con Telegram!</b>
+
+Tu cuenta de <b>FOCUX</b> está ahora conectada. Recibirás:
+
+✅ Notificaciones importantes
+✅ Tareas del día
+✅ Información valiosa para tu productividad
+
+<i>¡Comienza a recibir tus actualizaciones!</i>"""
+        
+        image_url = "https://i.ibb.co/7thk5T94/imagen-2025-08-13-042219068.png"
+        
+        # 2. Intentar enviar el mensaje de confirmación a Telegram
+        result = send_telegram_message(chat_id, welcome_message, image_url)
+        
+        # 3. Si el mensaje se envía correctamente, guardar la conexión en la base de datos
+        if result.get('success'):
+            conn = None
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                now = datetime.now(timezone.utc).isoformat()
+                
+                # Sintaxis correcta para PostgreSQL:
+                # Inserta una nueva conexión. Si el email ya existe (conflicto),
+                # actualiza los datos del registro existente.
+                cursor.execute("""
+                    INSERT INTO telegram_connections (user_email, chat_id, connected_at, is_active) 
+                    VALUES (%s, %s, %s, 1)
+                    ON CONFLICT (user_email) DO UPDATE SET
+                        chat_id = EXCLUDED.chat_id,
+                        connected_at = EXCLUDED.connected_at,
+                        is_active = 1
+                """, (user_email, chat_id, now))
+                
+                conn.commit()
+                
+                return jsonify(
+                    success=True, 
+                    message="¡Conexión exitosa y guardada permanentemente!",
+                    telegram_data=result.get('data')
+                )
+            except Exception as db_error:
+                print(f"🚨 ERROR guardando conexión Telegram en BD: {db_error}")
+                traceback.print_exc()
+                return jsonify(
+                    success=False, 
+                    message="El mensaje de prueba se envió, pero NO se pudo guardar la conexión. Contacta al administrador.",
+                ), 500
+            finally:
+                if conn: conn.close()
+        else:
+            # Si el envío del mensaje a Telegram falla, notificar al frontend
+            print(f"❌ Error enviando mensaje a Telegram: {result.get('error')}")
+            return jsonify(
+                success=False, 
+                message=f"No se pudo enviar el mensaje de confirmación a tu Telegram: {result.get('error')}"
+            ), 500
+            
+    except Exception as e:
+        print(f"🚨 ERROR en /telegram/connect: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error interno del servidor: {str(e)}"), 500
 
 @app.route('/admin/notifications/<int:notification_id>', methods=['DELETE'])
 def delete_notification(notification_id):
@@ -3211,97 +3231,6 @@ def test_telegram_bot():
     except Exception as e:
         print(f"🚨 ERROR en /telegram/test: {e}")
         return jsonify(success=False, message=f"Error: {str(e)}"), 500
-
-@app.route('/telegram/connect', methods=['POST'])
-def connect_telegram():
-    """
-    Conecta con Telegram y envía mensaje de bienvenida
-    """
-    data = request.get_json()
-    chat_id = data.get('chat_id')
-    user_email = data.get('user_email')
-    
-    print(f"🔗 Intentando conectar Telegram - Chat ID: {chat_id}, Usuario: {user_email}")
-    
-    if not chat_id:
-        return jsonify(success=False, message="Chat ID es requerido"), 400
-    
-    if not user_email:
-        return jsonify(success=False, message="Email del usuario es requerido"), 400
-    
-    try:
-        welcome_message = """🎉 <b>¡Conexión exitosa con Telegram!</b>
-
-Tu cuenta de <b>FOCUX</b> está ahora conectada. Recibirás:
-
-✅ Notificaciones importantes 
-✅ Tareas del día 
-✅ Información valiosa para tu productividad
-
-FOCUX + Telegram = Tu productividad al máximo nivel.
-
-<i>¡Comienza a recibir tus actualizaciones!</i>"""
-        
-        image_url = "https://i.ibb.co/7thk5T94/imagen-2025-08-13-042219068.png"
-        
-        print(f"📤 Enviando mensaje de bienvenida...")
-        result = send_telegram_message(chat_id, welcome_message, image_url)
-        print(f"📤 Resultado envío: {result}")
-        
-        if result['success']:
-            try:
-                with db_lock:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    
-                    cursor.execute("SELECT id FROM telegram_connections WHERE user_email = %s", (user_email,))
-                    existing = cursor.fetchone()
-                    
-                    if existing:
-                        cursor.execute(
-                            "UPDATE telegram_connections SET chat_id = %s, connected_at = %s, is_active = 1 WHERE user_email = %s",
-                            (chat_id, datetime.now(timezone.utc).isoformat(), user_email)
-                        )
-                        print(f"📝 Conexión actualizada para {user_email}")
-                    else:
-                        cursor.execute(
-                            "INSERT INTO telegram_connections (user_email, chat_id, connected_at, is_active) VALUES (?, ?, ?, 1)",
-                            (user_email, chat_id, datetime.now(timezone.utc).isoformat())
-                        )
-                        print(f"📝 Nueva conexión creada para {user_email}")
-                    
-                    conn.commit()
-                    conn.close()
-                
-                return jsonify(
-                    success=True, 
-                    message="¡Conexión exitosa y guardada permanentemente!",
-                    telegram_data=result['data']
-                )
-                
-            except Exception as db_error:
-                # --- INICIO DE LA CORRECCIÓN DE MANEJO DE ERROR ---
-                # Ahora, si falla el guardado, se le informa al usuario con un error real.
-                print(f"🚨 ERROR guardando conexión Telegram en BD: {db_error}")
-                return jsonify(
-                    success=False, 
-                    message="El mensaje de prueba se envió, pero NO se pudo guardar la conexión en la base de datos. Contacta al administrador.",
-                ), 500
-                # --- FIN DE LA CORRECCIÓN DE MANEJO DE ERROR ---
-        else:
-            print(f"❌ Error enviando mensaje: {result['error']}")
-            return jsonify(
-                success=False, 
-                message=f"Error enviando mensaje: {result['error']}"
-            ), 500
-            
-    except Exception as e:
-        print(f"🚨 ERROR en /telegram/connect: {e}")
-        traceback.print_exc()
-        return jsonify(success=False, message=f"Error interno del servidor: {str(e)}"), 500
-
-
-
 
 def upload_to_google_drive(file_stream, filename):
     """
@@ -3816,22 +3745,19 @@ def update_board(board_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        # 1. Verifica si el usuario es un colaborador para permitir la edición.
+        
         cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
         if not cursor.fetchone():
             conn.close()
-            return jsonify(success=False, message="Acceso denegado, no eres colaborador de este tablero."), 403
+            return jsonify(success=False, message="Acceso denegado, no eres colaborador."), 403
 
-        # 2. Si tiene permiso, actualiza la columna board_data con la nueva estructura.
         now = datetime.now(timezone.utc).isoformat()
         cursor.execute(
             "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
             (json.dumps(board_data), now, board_id)
         )
         conn.commit()
-
-        # 3. Notifica a otros usuarios conectados sobre el cambio.
+        
         socketio.emit('board_was_updated', {'board_id': board_id, 'boardData': board_data}, room=str(board_id))
         return jsonify(success=True, message="Tablero actualizado")
 
@@ -3842,7 +3768,7 @@ def update_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
     finally:
         if conn: conn.close()
-        
+
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
@@ -4076,7 +4002,7 @@ def find_user_in_any_db(email_to_find):
         return None
 
 def find_board_and_owner_db(board_id_to_find):
-    """Busca un tablero por su ID en la base de datos única."""
+    """Busca un tablero por su ID en la base de datos única y sus colaboradores."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -4085,15 +4011,18 @@ def find_board_and_owner_db(board_id_to_find):
         if not board_data:
             conn.close()
             return None
-
+        
         board_info = dict(board_data)
         cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id_to_find,))
-        board_info['collaborators'] = [{'email': r['user_email'], 'permission_level': r['permission_level']} for r in cursor.fetchall()]
+        board_info['collaborators'] = [dict(r) for r in cursor.fetchall()]
         conn.close()
         return board_info
     except Exception as e:
         print(f"🚨 ERROR en find_board_and_owner_db: {e}")
         return None
+
+
+
 
 def check_editor_permission(board_id, user_email):
     """Verifica si un usuario tiene permisos de 'editor' en un tablero."""
