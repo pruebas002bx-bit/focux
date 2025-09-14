@@ -3697,7 +3697,6 @@ def create_board():
         return jsonify(success=False, message="Error interno del servidor"), 500
 
 
-
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
     """Obtiene los datos de un tablero específico y verifica permisos."""
@@ -3717,6 +3716,7 @@ def get_single_board(board_id):
 
         board_to_send = dict(board_info)
         try:
+            # El campo en la DB es JSONB, pero se recibe como string, hay que cargarlo
             board_to_send['data'] = json.loads(board_to_send['board_data'])
         except (TypeError, json.JSONDecodeError):
             board_to_send['data'] = {}
@@ -3731,6 +3731,7 @@ def get_single_board(board_id):
         print(f"🚨 ERROR en GET /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
+
 
 
 @app.route('/boards/<int:board_id>', methods=['PUT'])
@@ -3773,7 +3774,6 @@ def update_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
     finally:
         if conn: conn.close()
-
 
 
 
@@ -3995,7 +3995,6 @@ def get_boards():
         return jsonify(success=False, message="Error interno del servidor al obtener tableros."), 500
 
 
-
 def find_user_in_any_db(email_to_find):
     """Busca un usuario por email en la base de datos única."""
     try:
@@ -4038,7 +4037,6 @@ def find_board_and_owner_db(board_id_to_find):
         print(f"🚨 ERROR en find_board_and_owner_db: {e}")
         traceback.print_exc()
         return None
-
 
 def check_editor_permission(board_id, user_email):
     """Verifica si un usuario tiene permisos de 'editor' en un tablero."""
