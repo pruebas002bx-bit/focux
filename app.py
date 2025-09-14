@@ -184,9 +184,14 @@ def login():
     finally:
         if conn: conn.close()
 
+
+
 @app.route('/boards', methods=['GET'])
 def get_boards():
     email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
     conn = None
     try:
         conn = get_db_connection()
@@ -196,17 +201,29 @@ def get_boards():
         """, (email,))
         user_boards = [dict(row) for row in cursor.fetchall()]
 
+        # --- INICIO DE LA CORRECCIÓN CLAVE ---
+        # PostgreSQL con psycopg2 ya devuelve el JSONB como un diccionario de Python.
+        # No es necesario usar json.loads(). Este era el error.
         for board in user_boards:
-            board['data'] = json.loads(board['board_data']) if board.get('board_data') else {}
-            if 'board_data' in board: del board['board_data']
+            board['data'] = board.get('board_data') or {}
+            if 'board_data' in board:
+                del board['board_data']
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        return jsonify(success=True, boards=user_boards)
+        # Obtener stickers y otras cosas que tu app necesita al cargar
+        cursor.execute("SELECT id, name, category, url FROM stickers")
+        stickers = [dict(row) for row in cursor.fetchall()]
+
+        return jsonify(success=True, boards=user_boards, stickers=stickers)
+
     except Exception as e:
         print(f"🚨 ERROR en GET /boards: {e}")
+        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
-        
+
+
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
     email = request.args.get('email', '').lower().strip()
