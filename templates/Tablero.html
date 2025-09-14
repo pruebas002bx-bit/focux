@@ -8422,14 +8422,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateBoardSelector() {
         const currentBoard = boardsData.find(b => b.id === currentBoardId);
         currentBoardName.textContent = currentBoard ? currentBoard.name : 'Tablero no encontrado';
-        
+
         currentBoardName.removeEventListener('dblclick', openEditNameModal);
         currentBoardName.addEventListener('dblclick', openEditNameModal);
 
-        boardDropdownMenu.innerHTML = ''; 
+        boardDropdownMenu.innerHTML = '';
 
         const searchContainer = document.createElement('div');
-        searchContainer.innerHTML = `<input type="text" id="board-filter-input" placeholder="Buscar tablero...">`;
+        searchContainer.innerHTML = `<input type="text" id="board-filter-input" placeholder="Buscar tablero..." class="w-full px-3 py-2 text-sm border-b border-gray-200 outline-none">`;
         boardDropdownMenu.appendChild(searchContainer);
 
         const listContainer = document.createElement('div');
@@ -8454,13 +8454,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const item = document.createElement('div');
                 item.className = `board-dropdown-item ${boardData.id === currentBoardId ? 'active' : ''}`;
                 
-                // --- INICIO DE LA CORRECCIÓN CLAVE Y ROBUSTA ---
-                // Se elimina por completo la suposición del orden de la lista.
-                // Ahora se compara directamente con el campo 'owner_email' que viene del servidor.
-                // Esta es la única fuente de verdad para la propiedad.
                 const isOwner = boardData.owner_email && (boardData.owner_email.toLowerCase() === currentUser.email.toLowerCase());
-                // --- FIN DE LA CORRECCIÓN CLAVE Y ROBUSTA ---
-
                 const isShared = boardData.shared_with && boardData.shared_with.length > 1;
                 
                 const sharedIndicatorHtml = isShared 
@@ -8478,8 +8472,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (category === 'Institucional') categoryClass = 'board-category-institucional';
 
                 item.innerHTML = `
-                    <div class="flex flex-col flex-grow">
-                        <span class="board-name-text">${boardData.name}</span>
+                    <div class="flex flex-col flex-grow min-w-0">
+                        <span class="board-name-text truncate">${boardData.name}</span>
                         <div class="board-meta-container">
                             <span class="board-category-tag ${categoryClass}" title="Cambiar categoría">${category}</span>
                             ${sharedIndicatorHtml}
@@ -8497,16 +8491,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
                 
-                item.addEventListener('click', async (e) => {
-                    if (e.target.classList.contains('delete-board-btn')) {
+                // --- INICIO DE LA CORRECCIÓN CLAVE ---
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-board-btn')) {
                         e.stopPropagation();
                         showConfirmDelete('board', boardData.id, boardData.name);
                     } else if (!e.target.closest('.board-category-tag')) {
-                        await loadBoardData(boardData.id); 
-                        updateBoardSelector();
-                        boardDropdownMenu.classList.add('hidden');
+                        const selectedBoard = boardsData.find(b => b.id === boardData.id);
+                        if (selectedBoard) {
+                            processAndRenderBoard(selectedBoard);
+                            updateBoardSelector();
+                            boardDropdownMenu.classList.add('hidden');
+                        }
                     }
                 });
+                // --- FIN DE LA CORRECCIÓN CLAVE ---
                 listContainer.appendChild(item);
             });
         };
