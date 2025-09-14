@@ -3735,6 +3735,7 @@ def create_board():
     if not email:
         return jsonify(success=False, message="Email es requerido"), 400
 
+    conn = None
     try:
         with db_lock:
             conn = get_db_connection()
@@ -3761,6 +3762,7 @@ def create_board():
 
         return jsonify(success=True, message="Tablero creado", board_id=board_id), 201
     except Exception as e:
+        if conn: conn.rollback()
         print(f"🚨 ERROR en POST /boards: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor"), 500
@@ -3800,10 +3802,9 @@ def get_single_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
 
 
-
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
-    """Actualiza los datos de un tablero."""
+    """Actualiza los datos de un tablero (columnas y tarjetas)."""
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_data = data.get('boardData')
@@ -3811,30 +3812,36 @@ def update_board(board_id):
     if not email or board_data is None:
         return jsonify(success=False, message="Email y boardData son requeridos"), 400
 
-    if not check_editor_permission(board_id, email):
-        return jsonify(success=False, message="Acceso denegado: Se requieren permisos de editor."), 403
-
+    conn = None
     try:
         conn = get_db_connection()
-        with db_lock:
-            cursor = conn.cursor()
-            now = datetime.now(timezone.utc).isoformat()
-            cursor.execute(
-                "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
-                (json.dumps(board_data), now, board_id)
-            )
-            conn.commit()
-            conn.close()
+        cursor = conn.cursor()
         
+        # Verifica si el usuario es un colaborador para permitir la edición
+        cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify(success=False, message="Acceso denegado, no eres colaborador de este tablero."), 403
+
+        now = datetime.now(timezone.utc).isoformat()
+        # Actualiza la columna board_data con la nueva estructura
+        cursor.execute(
+            "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
+            (json.dumps(board_data), now, board_id)
+        )
+        conn.commit()
+        
+        # Notifica a otros usuarios conectados sobre el cambio
         socketio.emit('board_was_updated', {'board_id': board_id, 'boardData': board_data}, room=str(board_id))
         return jsonify(success=True, message="Tablero actualizado")
 
     except Exception as e:
+        if conn: conn.rollback()
         print(f"🚨 ERROR en PUT /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
-
-
+    finally:
+        if conn: conn.close()
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
