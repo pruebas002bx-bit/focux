@@ -13548,10 +13548,47 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDrawer(addCardOverlay, addCardContent);
     });
 
-    /**
-     * FUNCIÓN MODIFICADA: saveCardDataFromModal
-     * Compara el estado anterior y actual de la fecha de vencimiento para registrar cambios.
-     */
+
+    function attachRealtimeSaveListeners() {
+        const form = document.getElementById('add-card-form');
+        if (!form) return;
+
+        const trixEditor = form.querySelector('trix-editor');
+        const titleInput = form.querySelector('[name="title"]');
+        const startDateInput = form.querySelector('[name="startDate"]');
+        const endDateInput = form.querySelector('[name="endDate"]');
+        const customTagsInput = form.querySelector('[name="custom_tags"]');
+        const colorSwatches = form.querySelector('#card-color-swatches-container');
+
+        // Se añaden verificaciones para evitar errores si un elemento no existe
+        if (titleInput) {
+            titleInput.addEventListener('input', debouncedSaveFromModal);
+        }
+        if (startDateInput) {
+            startDateInput.addEventListener('change', debouncedSaveFromModal);
+        }
+        if (endDateInput) {
+            endDateInput.addEventListener('change', debouncedSaveFromModal);
+        }
+        if (customTagsInput) {
+            customTagsInput.addEventListener('input', debouncedSaveFromModal);
+        }
+        if (trixEditor) {
+            trixEditor.addEventListener('trix-change', () => {
+                if (isProgrammaticallyChangingTrix) {
+                    return;
+                }
+                debouncedSaveFromModal();
+            });
+        }
+        if (colorSwatches) {
+            colorSwatches.addEventListener('click', saveCardDataFromModal);
+        }
+    }
+
+
+
+
     function saveCardDataFromModal() {
         if (!currentCardId) return;
 
