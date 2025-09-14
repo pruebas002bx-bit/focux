@@ -273,82 +273,7 @@ def init_db():
         if conn is not None:
             conn.close()
 
-def run_master_db_migrations():
-    """
-    Verifica y actualiza el esquema de la base de datos maestra para añadir nuevas columnas
-    sin necesidad de borrar el archivo.
-    """
-    print("🚀 Verificando y migrando el esquema de la base de datos maestra...")
-    try:
-        with db_lock:
-            conn = psycopg2.connect(MASTER_DB)
-            cursor = conn.cursor()
 
-            # Verificar si la columna 'logo_url' existe en 'database_settings'
-            cursor.execute("PRAGMA table_info(database_settings)")
-            # El nombre de la columna es el segundo elemento (índice 1)
-            columns = [row[1] for row in cursor.fetchall()] 
-            
-            if 'logo_url' not in columns:
-                print("  -> Migrando: Añadiendo columna 'logo_url' a la tabla 'database_settings'...")
-                cursor.execute("ALTER TABLE database_settings ADD COLUMN logo_url TEXT")
-                conn.commit()
-                print("  -> ¡Éxito! Columna 'logo_url' añadida.")
-            else:
-                print("  -> El esquema de 'database_settings' ya está actualizado.")
-            
-            conn.close()
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema maestro: {e}")
-        traceback.print_exc()
-
-def run_migrations():
-    """
-    Itera sobre todas las bases de datos existentes y aplica las migraciones de esquema necesarias.
-    """
-    print("🚀 [MIGRACIÓN] Iniciando verificación del esquema de todas las bases de datos...")
-    try:
-        # 1. Obtener la lista de todas las bases de datos registradas
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT name FROM managed_databases")
-        db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
-        master_conn.close()
-
-        # 2. Iterar sobre cada base de datos para verificar y aplicar la migración
-        for db_name in set(db_names):
-            conn = get_db_connection_for_manager(db_name)
-            if not conn:
-                print(f"  -> [MIGRACIÓN] Omitiendo base de datos no encontrada: {db_name}.db")
-                continue
-
-            try:
-                with db_lock:
-                    cursor = conn.cursor()
-                    
-                    # Verificar si la columna 'permission_level' existe en 'collaborators'
-                    cursor.execute("PRAGMA table_info(collaborators)")
-                    columns = [row['name'] for row in cursor.fetchall()]
-                    
-                    if 'permission_level' not in columns:
-                        print(f"  -> [MIGRACIÓN] Aplicando migración a '{db_name}.db': Añadiendo 'permission_level' a la tabla 'collaborators'...")
-                        cursor.execute("ALTER TABLE collaborators ADD COLUMN permission_level TEXT NOT NULL DEFAULT 'editor'")
-                        conn.commit()
-                        print(f"  -> [MIGRACIÓN] ¡Éxito! Columna añadida en '{db_name}.db'.")
-                    else:
-                        print(f"  -> [MIGRACIÓN] El esquema de '{db_name}.db' ya está actualizado.")
-
-            except Exception as e:
-                print(f"🚨 [MIGRACIÓN] ERROR al migrar la base de datos '{db_name}.db': {e}")
-            finally:
-                if conn:
-                    conn.close()
-        
-        print("✅ [MIGRACIÓN] Verificación del esquema completada.")
-
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante el proceso de migración: {e}")
-        traceback.print_exc()
 
 def run_all_migrations():
     """Verifica y aplica todas las migraciones de esquema necesarias."""
@@ -386,7 +311,7 @@ def run_all_migrations():
 CORS(app, origins=[
     'https://focux.netlify.app',
     'https://focuxadmin.netlify.app',
-    'https://tu-nombre-de-servicio.onrender.com', # <-- AÑADE ESTA LÍNEA
+    'https://focux-app.onrender.com', # <-- AÑADE ESTA LÍNEA
     'http://localhost:3000', 
     '*'
 ])
@@ -399,6 +324,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 if __name__ == '__main__':
+    print("🚀 Iniciando servidor de desarrollo local...")
     socketio.run(app, host='0.0.0.0', port=8080)
 
 
@@ -1194,54 +1120,6 @@ def check_and_send_reminders():
 reminder_thread = threading.Thread(target=check_and_send_reminders, daemon=True)
 if not reminder_thread.is_alive():
     reminder_thread.start()
-
-# ============================================================================
-# FIN: Bloque MEJORADO para Recordatorios de Telegram
-# ============================================================================
-
-
-# ============================================================================
-# INICIO: Bloque de Migración Automática de Base de Datos (NUEVO)
-# ============================================================================
-def migrate_database_schema():
-    """
-    Verifica y actualiza el esquema de la base de datos para añadir nuevas columnas
-    sin necesidad de borrar el archivo de la base de datos.
-    """
-    print("🚀 Verificando y migrando el esquema de la base de datos si es necesario...")
-    try:
-        with db_lock:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # Obtener las columnas actuales de la tabla scheduled_reminders
-            cursor.execute("PRAGMA table_info(scheduled_reminders)")
-            columns = [row['name'] for row in cursor.fetchall()]
-
-            # Definir las columnas que deberían existir
-            required_columns = {
-                'board_name': 'TEXT',
-                'card_column': 'TEXT',
-                'card_description': 'TEXT',
-                'card_tags': 'TEXT'
-            }
-
-            # Añadir las columnas que falten
-            for col_name, col_type in required_columns.items():
-                if col_name not in columns:
-                    print(f"  -> Añadiendo columna faltante: '{col_name}' a la tabla 'scheduled_reminders'...")
-                    cursor.execute(f"ALTER TABLE scheduled_reminders ADD COLUMN {col_name} {col_type}")
-            
-            conn.commit()
-            conn.close()
-        print("✅ Esquema de la base de datos verificado y actualizado.")
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema de la base de datos: {e}")
-        traceback.print_exc()
-# ============================================================================
-# FIN: Bloque de Migración de Base de Datos
-# ============================================================================
-
 
 
 @app.route('/admin/focux-view/delete-board', methods=['DELETE'])
