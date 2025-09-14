@@ -6941,26 +6941,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     `);
 
-    addUserBtn.addEventListener('click', async () => {
-        const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
-        const permissionLevel = document.getElementById('invite-permission-level').value; // <-- Obtener permiso
-        if (!recipientEmail) return;
-        // ...
-        body: JSON.stringify({ 
-            sharer_email: currentUser.email, 
-            recipient_email: recipientEmail,
-            permission_level: permissionLevel // <-- Enviar permiso al backend
-        })
-        // ... (resto de la función)
-    });
 
-    collaboratorsList.addEventListener('change', (e) => {
-        if (e.target.classList.contains('permission-select')) {
-            const email = e.target.dataset.email;
-            const newPermission = e.target.value;
-            handlePermissionChange(email, newPermission);
-        }
-    });
+
+
+
 
     // Evento para el botón "Gestionar Acceso" en el panel de opciones
     document.getElementById('open-share-modal-btn').addEventListener('click', openShareModal);
@@ -7022,16 +7006,103 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Evento delegado para eliminar colaboradores
+
+
+    addUserBtn.addEventListener('click', async () => {
+        const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
+        const permissionLevel = document.getElementById('invite-permission-level').value;
+        if (!recipientEmail) return;
+
+        shareModalStatus.textContent = 'Invitando...';
+        shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/share`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify({ 
+                    sharer_email: currentUser.email, 
+                    recipient_email: recipientEmail,
+                    permission_level: permissionLevel
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                shareModalStatus.textContent = '¡Invitación enviada!';
+                shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
+                document.getElementById('share-new-recipient-email').value = '';
+                
+                // --- CORRECCIÓN CLAVE ---
+                // Reemplazamos el tablero completo en nuestra lista local
+                const boardIndex = boardsData.findIndex(b => b.id === currentBoardId);
+                if (boardIndex !== -1) {
+                    boardsData[boardIndex] = result.board;
+                }
+                
+                populateShareModal(); // Refresca la lista de colaboradores en el modal
+                updateBoardSelector(); // Refresca el dropdown principal
+            } else {
+                shareModalStatus.textContent = `Error: ${result.message}`;
+                shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+            }
+        } catch (error) {
+            shareModalStatus.textContent = 'Error de conexión.';
+            shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+        }
+    });
+
+    // REEMPLAZA el listener de 'change' en collaboratorsList
+    collaboratorsList.addEventListener('change', async (e) => {
+        if (e.target.classList.contains('permission-select')) {
+            const email = e.target.dataset.email;
+            const newPermission = e.target.value;
+            
+            shareModalStatus.textContent = 'Actualizando permiso...';
+            shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/collaborators/update`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    body: JSON.stringify({
+                        owner_email: currentUser.email,
+                        collaborator_email: email,
+                        permission_level: newPermission
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    shareModalStatus.textContent = 'Permiso actualizado.';
+                    shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
+                    
+                    // --- CORRECCIÓN CLAVE ---
+                    const boardIndex = boardsData.findIndex(b => b.id === currentBoardId);
+                    if (boardIndex !== -1) {
+                        boardsData[boardIndex] = result.board;
+                    }
+                    
+                } else {
+                    shareModalStatus.textContent = `Error: ${result.message}`;
+                    shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+                }
+            } catch (error) {
+                shareModalStatus.textContent = 'Error de conexión.';
+                shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+            }
+        }
+    });
+
+    // REEMPLAZA el listener de 'click' en collaboratorsList
     collaboratorsList.addEventListener('click', async (e) => {
         if (e.target.classList.contains('remove-collaborator-btn')) {
             const emailToRemove = e.target.dataset.email;
             
             const confirmed = await showGenericConfirmModal(
                 'Quitar Acceso', 
-                `¿Estás seguro de que quieres quitar el acceso a ${emailToRemove}? Esta acción no se puede deshacer.`
+                `¿Estás seguro de que quieres quitar el acceso a ${emailToRemove}?`
             );
-
             if (!confirmed) return;
 
             shareModalStatus.textContent = 'Quitando acceso...';
@@ -7041,14 +7112,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/share`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                    // --- INICIO DE LA CORRECIÓN ---
-                    // También se añade el manager_id al eliminar para consistencia.
                     body: JSON.stringify({ 
                         remover_by_email: currentUser.email, 
-                        email_to_remove: emailToRemove,
-                        manager_id: currentUser.manager_id
+                        email_to_remove: emailToRemove
                     })
-                    // --- FIN DE LA CORRECIÓN ---
                 });
                 const result = await response.json();
 
@@ -7056,8 +7123,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     shareModalStatus.textContent = 'Acceso eliminado correctamente.';
                     shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
                     
-                    const boardToUpdate = boardsData.find(b => b.id === currentBoardId);
-                    if (boardToUpdate) boardToUpdate.shared_with = result.shared_with;
+                    // --- CORRECCIÓN CLAVE ---
+                    const boardIndex = boardsData.findIndex(b => b.id === currentBoardId);
+                    if (boardIndex !== -1) {
+                        boardsData[boardIndex] = result.board;
+                    }
+
                     populateShareModal();
                 } else {
                     shareModalStatus.textContent = `Error: ${result.message}`;
@@ -7069,6 +7140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
 
     // Evento delegado para eliminar colaboradores
     collaboratorsList.addEventListener('click', async (e) => {
