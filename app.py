@@ -46,6 +46,364 @@ except ImportError:
 # Configuración de la aplicación Flask
 app = Flask(__name__)
 
+
+def init_db():
+    """
+    Inicializa el esquema de la base de datos PostgreSQL.
+    Crea todas las tablas necesarias si no existen.
+    Esta función es para la base de datos única en la nube.
+    """
+    # NOTA: En PostgreSQL, 'SERIAL PRIMARY KEY' reemplaza a 'INTEGER PRIMARY KEY AUTOINCREMENT'.
+    #       'JSONB' es un tipo de dato binario optimizado para almacenar y consultar JSON.
+    commands = [
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            first_name TEXT,
+            last_name TEXT,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT,
+            registration_date TEXT,
+            last_login TEXT,
+            manager_id TEXT,
+            access_expires_on TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS boards (
+            id SERIAL PRIMARY KEY,
+            owner_email TEXT,
+            name TEXT,
+            board_data JSONB,
+            created_date TEXT,
+            updated_date TEXT,
+            category TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS collaborators (
+            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            permission_level TEXT NOT NULL DEFAULT 'editor',
+            PRIMARY KEY (board_id, user_email)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS notes (
+            id SERIAL PRIMARY KEY,
+            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT,
+            content TEXT,
+            color TEXT,
+            created_date TEXT,
+            updated_date TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS assistants (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            avatar_url TEXT,
+            description TEXT,
+            prompt TEXT,
+            knowledge_base TEXT,
+            is_public INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS board_chats (
+            id SERIAL PRIMARY KEY,
+            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT,
+            user_name TEXT,
+            message TEXT,
+            timestamp TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS assistant_sharing (
+            assistant_id TEXT NOT NULL REFERENCES assistants(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            PRIMARY KEY (assistant_id, user_email)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            title TEXT,
+            message TEXT,
+            timestamp TEXT,
+            type TEXT,
+            target_info TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS notification_views (
+            notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            PRIMARY KEY (notification_id, user_email)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS conversations (
+            id TEXT PRIMARY KEY,
+            participants_json TEXT,
+            last_ts TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS direct_messages (
+            id SERIAL PRIMARY KEY,
+            conv_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+            ts TEXT,
+            sender_email TEXT,
+            receiver_email TEXT,
+            text TEXT,
+            is_read INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS stickers (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            category TEXT,
+            url TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS focux_messages (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            content TEXT,
+            color TEXT,
+            image_url TEXT,
+            button_text TEXT,
+            button_url TEXT,
+            is_active INTEGER DEFAULT 0,
+            start_date TEXT,
+            end_date TEXT,
+            target_info TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS scheduled_reminders (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            telegram_chat_id TEXT NOT NULL,
+            notification_time TEXT NOT NULL,
+            sent INTEGER DEFAULT 0,
+            card_title TEXT NOT NULL,
+            board_name TEXT,
+            card_column TEXT,
+            card_description TEXT,
+            card_tags TEXT
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS telegram_connections (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL UNIQUE,
+            chat_id TEXT NOT NULL,
+            connected_at TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS ai_generated_boards (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            board_json JSONB NOT NULL,
+            notes_json JSONB NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS documents (
+            id SERIAL PRIMARY KEY,
+            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            title TEXT NOT NULL,
+            version TEXT,
+            google_drive_file_id TEXT,
+            cloudinary_public_id TEXT,
+            thumbnail_url TEXT,
+            password TEXT,
+            page_count INTEGER,
+            created_date TEXT NOT NULL,
+            updated_date TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "references" (
+            id SERIAL PRIMARY KEY,
+            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            created_date TEXT NOT NULL,
+            updated_date TEXT NOT NULL
+        )
+        """
+    ]
+    
+    conn = None
+    try:
+        with db_lock:
+            # Usa la nueva función de conexión a PostgreSQL
+            conn = get_db_connection()
+            cur = conn.cursor()
+            # Ejecuta cada comando de creación de tabla
+            for command in commands:
+                cur.execute(command)
+            
+            cur.close()
+            # Guarda (commit) los cambios en la base de datos
+            conn.commit()
+            print("✅ Esquema de PostgreSQL verificado/creado exitosamente.")
+            
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f"🚨 Error al inicializar la base de datos PostgreSQL: {error}")
+        # Si hay un error, revierte cualquier cambio
+        if conn:
+            conn.rollback()
+            
+    finally:
+        # Asegúrate de cerrar la conexión
+        if conn is not None:
+            conn.close()
+
+def init_master_db():
+    """Inicializa la base de datos maestra que contiene las otras bases de datos y sus credenciales."""
+    os.makedirs(DB_FOLDER, exist_ok=True)
+    conn = psycopg2.connect(MASTER_DB)
+    cursor = conn.cursor()
+    cursor.execute('CREATE TABLE IF NOT EXISTS managed_databases (name TEXT PRIMARY KEY, password_hash TEXT)')
+    
+    # --- MODIFICACIÓN ---
+    # Se añade la columna 'logo_url' para guardar el logo de cada base de datos.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS database_settings (
+            name TEXT PRIMARY KEY,
+            background_url TEXT,
+            logo_url TEXT,
+            FOREIGN KEY(name) REFERENCES managed_databases(name) ON DELETE CASCADE
+        )
+    ''')
+    # --- FIN DE LA MODIFICACIÓN ---
+
+    conn.commit()
+    conn.close()
+
+def run_master_db_migrations():
+    """
+    Verifica y actualiza el esquema de la base de datos maestra para añadir nuevas columnas
+    sin necesidad de borrar el archivo.
+    """
+    print("🚀 Verificando y migrando el esquema de la base de datos maestra...")
+    try:
+        with db_lock:
+            conn = psycopg2.connect(MASTER_DB)
+            cursor = conn.cursor()
+
+            # Verificar si la columna 'logo_url' existe en 'database_settings'
+            cursor.execute("PRAGMA table_info(database_settings)")
+            # El nombre de la columna es el segundo elemento (índice 1)
+            columns = [row[1] for row in cursor.fetchall()] 
+            
+            if 'logo_url' not in columns:
+                print("  -> Migrando: Añadiendo columna 'logo_url' a la tabla 'database_settings'...")
+                cursor.execute("ALTER TABLE database_settings ADD COLUMN logo_url TEXT")
+                conn.commit()
+                print("  -> ¡Éxito! Columna 'logo_url' añadida.")
+            else:
+                print("  -> El esquema de 'database_settings' ya está actualizado.")
+            
+            conn.close()
+    except Exception as e:
+        print(f"🚨 ERROR CRÍTICO durante la migración del esquema maestro: {e}")
+        traceback.print_exc()
+
+def run_migrations():
+    """
+    Itera sobre todas las bases de datos existentes y aplica las migraciones de esquema necesarias.
+    """
+    print("🚀 [MIGRACIÓN] Iniciando verificación del esquema de todas las bases de datos...")
+    try:
+        # 1. Obtener la lista de todas las bases de datos registradas
+        master_conn = psycopg2.connect(MASTER_DB)
+        master_cursor = master_conn.cursor()
+        master_cursor.execute("SELECT name FROM managed_databases")
+        db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
+        master_conn.close()
+
+        # 2. Iterar sobre cada base de datos para verificar y aplicar la migración
+        for db_name in set(db_names):
+            conn = get_db_connection_for_manager(db_name)
+            if not conn:
+                print(f"  -> [MIGRACIÓN] Omitiendo base de datos no encontrada: {db_name}.db")
+                continue
+
+            try:
+                with db_lock:
+                    cursor = conn.cursor()
+                    
+                    # Verificar si la columna 'permission_level' existe en 'collaborators'
+                    cursor.execute("PRAGMA table_info(collaborators)")
+                    columns = [row['name'] for row in cursor.fetchall()]
+                    
+                    if 'permission_level' not in columns:
+                        print(f"  -> [MIGRACIÓN] Aplicando migración a '{db_name}.db': Añadiendo 'permission_level' a la tabla 'collaborators'...")
+                        cursor.execute("ALTER TABLE collaborators ADD COLUMN permission_level TEXT NOT NULL DEFAULT 'editor'")
+                        conn.commit()
+                        print(f"  -> [MIGRACIÓN] ¡Éxito! Columna añadida en '{db_name}.db'.")
+                    else:
+                        print(f"  -> [MIGRACIÓN] El esquema de '{db_name}.db' ya está actualizado.")
+
+            except Exception as e:
+                print(f"🚨 [MIGRACIÓN] ERROR al migrar la base de datos '{db_name}.db': {e}")
+            finally:
+                if conn:
+                    conn.close()
+        
+        print("✅ [MIGRACIÓN] Verificación del esquema completada.")
+
+    except Exception as e:
+        print(f"🚨 ERROR CRÍTICO durante el proceso de migración: {e}")
+        traceback.print_exc()
+
+def run_all_migrations():
+    """Verifica y aplica todas las migraciones de esquema necesarias."""
+    print("🚀 Verificando y migrando el esquema de la base de datos si es necesario...")
+    try:
+        with db_lock:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            # --- MIGRACIÓN PARA LA TABLA 'scheduled_reminders' ---
+            cursor.execute("PRAGMA table_info(scheduled_reminders)")
+            columns_reminders = [row['name'] for row in cursor.fetchall()]
+            required_columns = {'board_name': 'TEXT', 'card_column': 'TEXT', 'card_description': 'TEXT', 'card_tags': 'TEXT'}
+            for col_name, col_type in required_columns.items():
+                if col_name not in columns_reminders:
+                    print(f"  -> Añadiendo columna: '{col_name}' a 'scheduled_reminders'...")
+                    cursor.execute(f"ALTER TABLE scheduled_reminders ADD COLUMN {col_name} {col_type}")
+
+            # --- MIGRACIÓN PARA LA TABLA 'assistants' ---
+            cursor.execute("PRAGMA table_info(assistants)")
+            columns_assistants = [row['name'] for row in cursor.fetchall()]
+            if 'description' not in columns_assistants:
+                print("  -> Añadiendo columna 'description' a 'assistants'...")
+                cursor.execute("ALTER TABLE assistants ADD COLUMN description TEXT")
+
+            conn.commit()
+            conn.close()
+        print("✅ Esquema de la base de datos verificado y actualizado.")
+    except Exception as e:
+        print(f"🚨 ERROR CRÍTICO durante la migración del esquema: {e}")
+
+
+
+
 CORS(app, origins=[
     'https://focux.netlify.app',
     'https://focuxadmin.netlify.app',
@@ -58,6 +416,13 @@ CORS(app, origins=[
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=8080)
+
+
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -387,13 +752,15 @@ def get_focux_view_data():
 
 @app.route('/', methods=['GET'])
 def serve_index():
-    """Sirve la página de login principal."""
-    try:
-        # Lee el contenido del archivo Index.html que está en la misma carpeta.
-        with open('Index.html', 'r', encoding='utf-8') as f:
-            return render_template_string(f.read())
-    except FileNotFoundError:
-        return "Error: No se encontró el archivo Index.html en la misma carpeta que app.py.", 404
+    """Sirve la página de login principal desde la carpeta de plantillas."""
+    return render_template('Index.html')
+
+@app.route('/Tablero.html', methods=['GET'])
+def serve_tablero():
+    """Sirve la página del tablero principal."""
+    return render_template('Tablero.html')
+
+
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -407,27 +774,6 @@ def health_check():
 DB_FOLDER = "databases"
 MASTER_DB = os.path.join(DB_FOLDER, "master_control.db")
 
-def init_master_db():
-    """Inicializa la base de datos maestra que contiene las otras bases de datos y sus credenciales."""
-    os.makedirs(DB_FOLDER, exist_ok=True)
-    conn = psycopg2.connect(MASTER_DB)
-    cursor = conn.cursor()
-    cursor.execute('CREATE TABLE IF NOT EXISTS managed_databases (name TEXT PRIMARY KEY, password_hash TEXT)')
-    
-    # --- MODIFICACIÓN ---
-    # Se añade la columna 'logo_url' para guardar el logo de cada base de datos.
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS database_settings (
-            name TEXT PRIMARY KEY,
-            background_url TEXT,
-            logo_url TEXT,
-            FOREIGN KEY(name) REFERENCES managed_databases(name) ON DELETE CASCADE
-        )
-    ''')
-    # --- FIN DE LA MODIFICACIÓN ---
-
-    conn.commit()
-    conn.close()
 
 def get_dynamic_db_connection(db_name):
     """Conecta a una base de datos específica por su nombre de manager."""
@@ -439,230 +785,6 @@ def get_dynamic_db_connection(db_name):
     conn.row_factory = psycopg2.Row
     return conn
 
-def init_db():
-    """
-    Inicializa el esquema de la base de datos PostgreSQL.
-    Crea todas las tablas necesarias si no existen.
-    Esta función es para la base de datos única en la nube.
-    """
-    # NOTA: En PostgreSQL, 'SERIAL PRIMARY KEY' reemplaza a 'INTEGER PRIMARY KEY AUTOINCREMENT'.
-    #       'JSONB' es un tipo de dato binario optimizado para almacenar y consultar JSON.
-    commands = [
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT,
-            registration_date TEXT,
-            last_login TEXT,
-            manager_id TEXT,
-            access_expires_on TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS boards (
-            id SERIAL PRIMARY KEY,
-            owner_email TEXT,
-            name TEXT,
-            board_data JSONB,
-            created_date TEXT,
-            updated_date TEXT,
-            category TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS collaborators (
-            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            permission_level TEXT NOT NULL DEFAULT 'editor',
-            PRIMARY KEY (board_id, user_email)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS notes (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT,
-            content TEXT,
-            color TEXT,
-            created_date TEXT,
-            updated_date TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS assistants (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            avatar_url TEXT,
-            description TEXT,
-            prompt TEXT,
-            knowledge_base TEXT,
-            is_public INTEGER DEFAULT 0
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS board_chats (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT,
-            user_name TEXT,
-            message TEXT,
-            timestamp TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS assistant_sharing (
-            assistant_id TEXT NOT NULL REFERENCES assistants(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            PRIMARY KEY (assistant_id, user_email)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS notifications (
-            id SERIAL PRIMARY KEY,
-            title TEXT,
-            message TEXT,
-            timestamp TEXT,
-            type TEXT,
-            target_info TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS notification_views (
-            notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            PRIMARY KEY (notification_id, user_email)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS conversations (
-            id TEXT PRIMARY KEY,
-            participants_json TEXT,
-            last_ts TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS direct_messages (
-            id SERIAL PRIMARY KEY,
-            conv_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
-            ts TEXT,
-            sender_email TEXT,
-            receiver_email TEXT,
-            text TEXT,
-            is_read INTEGER DEFAULT 0
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS stickers (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            category TEXT,
-            url TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS focux_messages (
-            id TEXT PRIMARY KEY,
-            title TEXT,
-            content TEXT,
-            color TEXT,
-            image_url TEXT,
-            button_text TEXT,
-            button_url TEXT,
-            is_active INTEGER DEFAULT 0,
-            start_date TEXT,
-            end_date TEXT,
-            target_info TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS scheduled_reminders (
-            id SERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL,
-            telegram_chat_id TEXT NOT NULL,
-            notification_time TEXT NOT NULL,
-            sent INTEGER DEFAULT 0,
-            card_title TEXT NOT NULL,
-            board_name TEXT,
-            card_column TEXT,
-            card_description TEXT,
-            card_tags TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS telegram_connections (
-            id SERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL UNIQUE,
-            chat_id TEXT NOT NULL,
-            connected_at TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS ai_generated_boards (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            board_json JSONB NOT NULL,
-            notes_json JSONB NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS documents (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            title TEXT NOT NULL,
-            version TEXT,
-            google_drive_file_id TEXT,
-            cloudinary_public_id TEXT,
-            thumbnail_url TEXT,
-            password TEXT,
-            page_count INTEGER,
-            created_date TEXT NOT NULL,
-            updated_date TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS "references" (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            created_date TEXT NOT NULL,
-            updated_date TEXT NOT NULL
-        )
-        """
-    ]
-    
-    conn = None
-    try:
-        with db_lock:
-            # Usa la nueva función de conexión a PostgreSQL
-            conn = get_db_connection()
-            cur = conn.cursor()
-            # Ejecuta cada comando de creación de tabla
-            for command in commands:
-                cur.execute(command)
-            
-            cur.close()
-            # Guarda (commit) los cambios en la base de datos
-            conn.commit()
-            print("✅ Esquema de PostgreSQL verificado/creado exitosamente.")
-            
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(f"🚨 Error al inicializar la base de datos PostgreSQL: {error}")
-        # Si hay un error, revierte cualquier cambio
-        if conn:
-            conn.rollback()
-            
-    finally:
-        # Asegúrate de cerrar la conexión
-        if conn is not None:
-            conn.close()
 
 
 
@@ -3818,34 +3940,6 @@ def find_board_and_owner_db(board_id_to_find):
         traceback.print_exc()
         return None
 
-def run_master_db_migrations():
-    """
-    Verifica y actualiza el esquema de la base de datos maestra para añadir nuevas columnas
-    sin necesidad de borrar el archivo.
-    """
-    print("🚀 Verificando y migrando el esquema de la base de datos maestra...")
-    try:
-        with db_lock:
-            conn = psycopg2.connect(MASTER_DB)
-            cursor = conn.cursor()
-
-            # Verificar si la columna 'logo_url' existe en 'database_settings'
-            cursor.execute("PRAGMA table_info(database_settings)")
-            # El nombre de la columna es el segundo elemento (índice 1)
-            columns = [row[1] for row in cursor.fetchall()] 
-            
-            if 'logo_url' not in columns:
-                print("  -> Migrando: Añadiendo columna 'logo_url' a la tabla 'database_settings'...")
-                cursor.execute("ALTER TABLE database_settings ADD COLUMN logo_url TEXT")
-                conn.commit()
-                print("  -> ¡Éxito! Columna 'logo_url' añadida.")
-            else:
-                print("  -> El esquema de 'database_settings' ya está actualizado.")
-            
-            conn.close()
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema maestro: {e}")
-        traceback.print_exc()
 
 
 @app.route('/login', methods=['POST'])
@@ -4457,54 +4551,6 @@ def share_board(board_id):
             return jsonify(success=False, message="Error interno del servidor al eliminar acceso."), 500
 
 
-
-def run_migrations():
-    """
-    Itera sobre todas las bases de datos existentes y aplica las migraciones de esquema necesarias.
-    """
-    print("🚀 [MIGRACIÓN] Iniciando verificación del esquema de todas las bases de datos...")
-    try:
-        # 1. Obtener la lista de todas las bases de datos registradas
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT name FROM managed_databases")
-        db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
-        master_conn.close()
-
-        # 2. Iterar sobre cada base de datos para verificar y aplicar la migración
-        for db_name in set(db_names):
-            conn = get_db_connection_for_manager(db_name)
-            if not conn:
-                print(f"  -> [MIGRACIÓN] Omitiendo base de datos no encontrada: {db_name}.db")
-                continue
-
-            try:
-                with db_lock:
-                    cursor = conn.cursor()
-                    
-                    # Verificar si la columna 'permission_level' existe en 'collaborators'
-                    cursor.execute("PRAGMA table_info(collaborators)")
-                    columns = [row['name'] for row in cursor.fetchall()]
-                    
-                    if 'permission_level' not in columns:
-                        print(f"  -> [MIGRACIÓN] Aplicando migración a '{db_name}.db': Añadiendo 'permission_level' a la tabla 'collaborators'...")
-                        cursor.execute("ALTER TABLE collaborators ADD COLUMN permission_level TEXT NOT NULL DEFAULT 'editor'")
-                        conn.commit()
-                        print(f"  -> [MIGRACIÓN] ¡Éxito! Columna añadida en '{db_name}.db'.")
-                    else:
-                        print(f"  -> [MIGRACIÓN] El esquema de '{db_name}.db' ya está actualizado.")
-
-            except Exception as e:
-                print(f"🚨 [MIGRACIÓN] ERROR al migrar la base de datos '{db_name}.db': {e}")
-            finally:
-                if conn:
-                    conn.close()
-        
-        print("✅ [MIGRACIÓN] Verificación del esquema completada.")
-
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante el proceso de migración: {e}")
-        traceback.print_exc()
 
 
 
@@ -5398,41 +5444,3 @@ def get_chat_partners():
 # # SECCIÓN 10: INICIALIZACIÓN Y EJECUCIÓN DEL SERVIDOR                      #
 # ############################################################################
 
-def run_all_migrations():
-    """Verifica y aplica todas las migraciones de esquema necesarias."""
-    print("🚀 Verificando y migrando el esquema de la base de datos si es necesario...")
-    try:
-        with db_lock:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            # --- MIGRACIÓN PARA LA TABLA 'scheduled_reminders' ---
-            cursor.execute("PRAGMA table_info(scheduled_reminders)")
-            columns_reminders = [row['name'] for row in cursor.fetchall()]
-            required_columns = {'board_name': 'TEXT', 'card_column': 'TEXT', 'card_description': 'TEXT', 'card_tags': 'TEXT'}
-            for col_name, col_type in required_columns.items():
-                if col_name not in columns_reminders:
-                    print(f"  -> Añadiendo columna: '{col_name}' a 'scheduled_reminders'...")
-                    cursor.execute(f"ALTER TABLE scheduled_reminders ADD COLUMN {col_name} {col_type}")
-
-            # --- MIGRACIÓN PARA LA TABLA 'assistants' ---
-            cursor.execute("PRAGMA table_info(assistants)")
-            columns_assistants = [row['name'] for row in cursor.fetchall()]
-            if 'description' not in columns_assistants:
-                print("  -> Añadiendo columna 'description' a 'assistants'...")
-                cursor.execute("ALTER TABLE assistants ADD COLUMN description TEXT")
-
-            conn.commit()
-            conn.close()
-        print("✅ Esquema de la base de datos verificado y actualizado.")
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO durante la migración del esquema: {e}")
-
-# En el bloque if __name__ == '__main__':
-if __name__ == '__main__':
-    init_db() 
-    init_master_db()
-    run_master_db_migrations()
-    run_migrations()
-    run_all_migrations() # <-- AÑADIR ESTA LÍNEA
-    socketio.run(app, debug=True, host='0.0.0.0', port=8080, use_reloader=False)
