@@ -930,12 +930,17 @@ def get_active_focux_messages():
         
         # Obtener todos los mensajes activos y dentro del rango de fechas
         now_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
         cursor.execute("""
             SELECT * FROM focux_messages 
             WHERE is_active = 1 
             AND (start_date IS NULL OR start_date <= %s)
-            AND (end_date IS NULL OR end_date >= ?)
+            AND (end_date IS NULL OR end_date >= %s)
         """, (now_date, now_date))
+
+
+
+
         
         potential_messages = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -3768,9 +3773,12 @@ def create_board():
             # --- FIN DE LA CORRECCIÓN ---
 
             cursor.execute(
-                "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 (email, board_name, json.dumps(default_board_data), now, now, "Personal")
             )
+
+
+
             board_id = cursor.lastrowid
             
             cursor.execute("INSERT INTO collaborators (board_id, user_email) VALUES (?, ?)", (board_id, email))
@@ -3827,7 +3835,6 @@ def get_single_board(board_id):
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
 
-
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
     """Actualiza los datos de un tablero."""
@@ -3838,25 +3845,11 @@ def update_board(board_id):
     if not email or board_data is None:
         return jsonify(success=False, message="Email y boardData son requeridos"), 400
 
-    # --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
-
-    # 1. Verificar permisos usando la función que SÍ busca en todas las bases de datos.
     if not check_editor_permission(board_id, email):
         return jsonify(success=False, message="Acceso denegado: Se requieren permisos de editor."), 403
 
     try:
-        # 2. Encontrar la base de datos correcta donde reside el tablero.
-        board_info = find_board_and_owner_db(board_id)
-        if not board_info:
-            return jsonify(success=False, message="Tablero no encontrado al intentar guardar."), 404
-        
-        db_name_to_update = board_info['found_in_db']
-        conn = get_db_connection_for_manager(db_name_to_update)
-
-        if not conn:
-            return jsonify(success=False, message=f"No se pudo conectar a la base de datos '{db_name_to_update}' para guardar."), 500
-
-        # 3. Realizar la actualización en la conexión a la base de datos CORRECTA.
+        conn = get_db_connection()
         with db_lock:
             cursor = conn.cursor()
             now = datetime.now(timezone.utc).isoformat()
@@ -3867,7 +3860,6 @@ def update_board(board_id):
             conn.commit()
             conn.close()
         
-        # 4. Notificar a otros usuarios a través de sockets.
         socketio.emit('board_was_updated', {'board_id': board_id, 'boardData': board_data}, room=str(board_id))
         return jsonify(success=True, message="Tablero actualizado")
 
@@ -3875,8 +3867,6 @@ def update_board(board_id):
         print(f"🚨 ERROR en PUT /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
-    # --- FIN DE LA CORRECCIÓN DEFINITIVA ---
-
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
