@@ -226,7 +226,7 @@ def get_boards():
 
 @app.route('/boards', methods=['POST'])
 def create_board():
-    """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas."""
+    """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas opcional."""
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_name = data.get('name', 'Nuevo Tablero').strip()
@@ -240,28 +240,29 @@ def create_board():
         conn = get_db_connection()
         cursor = conn.cursor()
         now = datetime.now(timezone.utc).isoformat()
-
-        # Si se envía una plantilla de columnas, úsala. Si no, usa la por defecto.
+        
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Si el frontend envía una plantilla de columnas, la usamos.
+        # Si no, usamos la plantilla por defecto.
         board_columns = template_columns if template_columns and isinstance(template_columns, list) else [
             {"id": "col-1", "title": "Por hacer", "color": "bg-red-200"},
             {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
             {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
         ]
+        # --- FIN DE LA CORRECCIÓN ---
+
         default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
 
-        # Inserta el nuevo tablero y pide que te devuelva el ID creado
         cursor.execute(
             "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
             (email, board_name, json.dumps(default_board_data), now, now, "Personal")
         )
         board_id = cursor.fetchone()['id']
-
-        # Añade al creador como colaborador con permisos de editor
+        
         cursor.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
-
+        
         conn.commit()
         return jsonify(success=True, message="Tablero creado", board_id=board_id), 201
-
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en POST /boards: {e}")
@@ -270,6 +271,41 @@ def create_board():
     finally:
         if conn: conn.close()
 
+
+@app.route('/boards/<int:board_id>/name', methods=['PATCH'])
+def update_board_name(board_id):
+    """Actualiza solo el nombre de un tablero."""
+    data = request.get_json()
+    email = data.get('email', '').lower().strip()
+    new_name = data.get('boardName', '').strip()
+
+    if not email or not new_name:
+        return jsonify(success=False, message="Email y nuevo nombre son requeridos"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verifica que el usuario tenga permisos de editor
+        cursor.execute("SELECT permission_level FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
+        permission = cursor.fetchone()
+        if not permission or permission['permission_level'] != 'editor':
+            return jsonify(success=False, message="Permiso de editor requerido."), 403
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "UPDATE boards SET name = %s, updated_date = %s WHERE id = %s",
+            (new_name, now, board_id)
+        )
+        conn.commit()
+        return jsonify(success=True, message="Nombre del tablero actualizado.")
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en PATCH /boards/{board_id}/name: {e}")
+        return jsonify(success=False, message="Error interno del servidor al actualizar el nombre."), 500
+    finally:
+        if conn: conn.close()
 
 @app.route('/notes', methods=['GET', 'POST'])
 def handle_notes():
@@ -356,7 +392,6 @@ def delete_board(board_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verificar si el usuario es el propietario antes de eliminar
         cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
         board = cursor.fetchone()
 
@@ -366,7 +401,6 @@ def delete_board(board_id):
         if board['owner_email'] != email:
             return jsonify(success=False, message="Solo el propietario puede eliminar el tablero."), 403
 
-        # Eliminar el tablero (ON DELETE CASCADE se encargará de los colaboradores)
         cursor.execute("DELETE FROM boards WHERE id = %s", (board_id,))
         conn.commit()
         
@@ -374,10 +408,14 @@ def delete_board(board_id):
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en DELETE /boards/{board_id}: {e}")
-        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor"), 500
     finally:
         if conn: conn.close()
+
+
+
+
+
 
 @app.route('/notifications/pending', methods=['GET'])
 def get_pending_notifications():
