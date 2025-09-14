@@ -13161,6 +13161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
+            // 1. Le dice al servidor que cree una nueva nota vacía
             const response = await fetch(`${API_BASE_URL}/notes`, {
                 method: 'POST',
                 headers: { 
@@ -13169,20 +13170,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ 
                     email: currentUser.email, 
-                    content: '',
+                    content: '', // Crea la nota vacía
                     color: 'note-yellow',
                     board_id: currentBoardId 
                 })
             });
-            
+
             const data = await response.json();
+
+            // 2. Si el servidor responde con éxito...
             if (data.success && data.note) {
-                // <-- LÍNEAS A ELIMINAR -->
-                // notesCache.unshift(data.note); // <<-- ELIMINAR ESTA LÍNEA
-                // renderNotes();                // <<-- ELIMINAR ESTA LÍNEA
-                
-                // Mantenemos esta línea para abrir el editor de la nueva nota
+                // --- INICIO DE LA CORRECCIÓN ---
+                // a. Añade la nueva nota a la lista local (caché)
+                notesCache.unshift(data.note);
+
+                // b. Refresca la vista para que aparezca la nueva nota vacía
+                renderNotes();
+
+                // c. Abre inmediatamente el editor para esa nueva nota
                 openNoteModal(data.note.id); 
+                // --- FIN DE LA CORRECCIÓN ---
             } else {
                 alert('No se pudo crear la nota: ' + data.message);
             }
