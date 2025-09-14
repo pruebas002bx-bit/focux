@@ -273,28 +273,6 @@ def init_db():
         if conn is not None:
             conn.close()
 
-def init_master_db():
-    """Inicializa la base de datos maestra que contiene las otras bases de datos y sus credenciales."""
-    os.makedirs(DB_FOLDER, exist_ok=True)
-    conn = psycopg2.connect(MASTER_DB)
-    cursor = conn.cursor()
-    cursor.execute('CREATE TABLE IF NOT EXISTS managed_databases (name TEXT PRIMARY KEY, password_hash TEXT)')
-    
-    # --- MODIFICACIÓN ---
-    # Se añade la columna 'logo_url' para guardar el logo de cada base de datos.
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS database_settings (
-            name TEXT PRIMARY KEY,
-            background_url TEXT,
-            logo_url TEXT,
-            FOREIGN KEY(name) REFERENCES managed_databases(name) ON DELETE CASCADE
-        )
-    ''')
-    # --- FIN DE LA MODIFICACIÓN ---
-
-    conn.commit()
-    conn.close()
-
 def run_master_db_migrations():
     """
     Verifica y actualiza el esquema de la base de datos maestra para añadir nuevas columnas
@@ -774,20 +752,6 @@ def health_check():
 
 DB_FOLDER = "databases"
 MASTER_DB = os.path.join(DB_FOLDER, "master_control.db")
-
-
-def get_dynamic_db_connection(db_name):
-    """Conecta a una base de datos específica por su nombre de manager."""
-    safe_db_name = os.path.basename(db_name)
-    db_path = os.path.join(DB_FOLDER, f"{safe_db_name}.db")
-    if not os.path.exists(db_path):
-        return None
-    conn = psycopg2.connect(db_path)
-    conn.row_factory = psycopg2.Row
-    return conn
-
-
-
 
 
 @app.route('/admin/dashboard', methods=['GET'])
@@ -1612,26 +1576,19 @@ def delete_user_and_data():
 
 @app.route('/admin/available-databases', methods=['GET'])
 def get_available_databases():
-    """Obtiene la lista de bases de datos desde la base de datos maestra."""
-    try:
-        init_master_db() # Se asegura que la carpeta y DB maestra existan
-        conn = psycopg2.connect(MASTER_DB)
-        conn.row_factory = psycopg2.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM managed_databases ORDER BY name ASC")
-        
-        # El frontend espera 'filename' y 'display_name'
-        databases = [{"filename": row['name'], "display_name": row['name']} for row in cursor.fetchall()]
-        
-        # Añadir la base de datos "Principal" por defecto si no existe, para compatibilidad
-        if not any(d['filename'] == 'Principal' for d in databases):
-            databases.insert(0, {"filename": "Principal", "display_name": "Principal"})
-
-        conn.close()
-        return jsonify(success=True, databases=databases)
-    except Exception as e:
-        print(f"🚨 ERROR en /admin/available-databases: {e}")
-        return jsonify(success=False, message="Error al obtener la lista de bases de datos."), 500
+    """
+    Devuelve la lista de 'manager_ids' disponibles.
+    En el nuevo sistema, esto puede venir de una tabla de managers o ser una lista fija.
+    Para empezar, devolveremos una lista que permite que el login funcione.
+    """
+    # A futuro, podrías obtener esta lista consultando los manager_id únicos de la tabla users.
+    # Por ahora, esto permite que tu frontend funcione correctamente.
+    available_dbs = [
+        {"filename": "Principal", "display_name": "Principal"}
+    ]
+    # Aquí puedes agregar otras bases de datos si las necesitas para el registro
+    # ej: available_dbs.append({"filename": "EquipoA", "display_name": "Equipo A"})
+    return jsonify(success=True, databases=available_dbs)
 
 @app.route('/admin/assistants', methods=['GET'])
 def get_all_assistants():
