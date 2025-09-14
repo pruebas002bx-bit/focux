@@ -21,7 +21,8 @@ import fitz  # PyMuPDF
 import io
 from dotenv import load_dotenv
 # Importaciones de Flask y extensiones
-from flask import Flask, request, jsonify, render_template_string
+
+from flask import Flask, request, jsonify, render_template_string, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import cloudinary
