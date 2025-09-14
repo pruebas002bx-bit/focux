@@ -212,6 +212,139 @@ def login():
 
 
 
+@app.route('/boards/<int:board_id>/share', methods=['POST'])
+def share_board(board_id):
+    """Invita a un nuevo usuario a colaborar en un tablero."""
+    data = request.get_json()
+    sharer_email = data.get('sharer_email')
+    recipient_email = data.get('recipient_email', '').lower().strip()
+    permission_level = data.get('permission_level', 'viewer') # 'viewer' por defecto
+
+    if not all([sharer_email, recipient_email]):
+        return jsonify(success=False, message="Faltan datos para compartir."), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 1. Verificar que quien comparte es el dueño del tablero
+        cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
+        board = cursor.fetchone()
+        if not board or board['owner_email'] != sharer_email:
+            return jsonify(success=False, message="Solo el propietario puede compartir el tablero."), 403
+
+        # 2. Verificar que el usuario invitado existe en el sistema
+        cursor.execute("SELECT id FROM users WHERE email = %s", (recipient_email,))
+        if not cursor.fetchone():
+            return jsonify(success=False, message=f"El usuario '{recipient_email}' no fue encontrado en Focux."), 404
+
+        # 3. Añadir o actualizar al colaborador
+        cursor.execute("""
+            INSERT INTO collaborators (board_id, user_email, permission_level)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (board_id, user_email) DO UPDATE SET
+                permission_level = EXCLUDED.permission_level
+        """, (board_id, recipient_email, permission_level))
+        
+        # 4. Devolver la lista actualizada de colaboradores
+        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
+        updated_collaborators = [dict(row) for row in cursor.fetchall()]
+        
+        conn.commit()
+        return jsonify(success=True, message="Tablero compartido exitosamente.", shared_with=updated_collaborators)
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en POST /boards/{board_id}/share: {e}")
+        return jsonify(success=False, message="Error interno del servidor al compartir."), 500
+    finally:
+        if conn: conn.close()
+
+
+@app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
+def update_collaborator_permission(board_id):
+    """Actualiza el nivel de permiso de un colaborador."""
+    data = request.get_json()
+    owner_email = data.get('owner_email')
+    collaborator_email = data.get('collaborator_email')
+    permission_level = data.get('permission_level')
+
+    if not all([owner_email, collaborator_email, permission_level]):
+        return jsonify(success=False, message="Faltan datos para actualizar permisos."), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar que quien actualiza es el dueño
+        cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
+        board = cursor.fetchone()
+        if not board or board['owner_email'] != owner_email:
+            return jsonify(success=False, message="Solo el propietario puede cambiar permisos."), 403
+
+        # Actualizar el permiso
+        cursor.execute(
+            "UPDATE collaborators SET permission_level = %s WHERE board_id = %s AND user_email = %s",
+            (permission_level, board_id, collaborator_email)
+        )
+
+        # Devolver la lista actualizada de colaboradores
+        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
+        updated_collaborators = [dict(row) for row in cursor.fetchall()]
+        
+        conn.commit()
+        return jsonify(success=True, message="Permiso actualizado.", shared_with=updated_collaborators)
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en PUT /boards/.../collaborators/update: {e}")
+        return jsonify(success=False, message="Error interno del servidor al actualizar."), 500
+    finally:
+        if conn: conn.close()
+        
+@app.route('/boards/<int:board_id>/share', methods=['DELETE'])
+def remove_collaborator(board_id):
+    """Elimina a un colaborador de un tablero."""
+    data = request.get_json()
+    remover_by_email = data.get('remover_by_email')
+    email_to_remove = data.get('email_to_remove')
+
+    if not all([remover_by_email, email_to_remove]):
+        return jsonify(success=False, message="Faltan datos para eliminar."), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que quien elimina es el dueño
+        cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
+        board = cursor.fetchone()
+        if not board or board['owner_email'] != remover_by_email:
+            return jsonify(success=False, message="Solo el propietario puede quitar acceso."), 403
+
+        if board['owner_email'] == email_to_remove:
+            return jsonify(success=False, message="No puedes eliminar al propietario del tablero."), 400
+
+        # Eliminar al colaborador
+        cursor.execute("DELETE FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email_to_remove))
+
+        # Devolver la lista actualizada de colaboradores
+        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
+        updated_collaborators = [dict(row) for row in cursor.fetchall()]
+
+        conn.commit()
+        return jsonify(success=True, message="Colaborador eliminado.", shared_with=updated_collaborators)
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en DELETE /boards/{board_id}/share: {e}")
+        return jsonify(success=False, message="Error interno del servidor al eliminar."), 500
+    finally:
+        if conn: conn.close()
+
 @app.route('/boards', methods=['GET'])
 def get_boards():
     email = request.args.get('email', '').lower().strip()
