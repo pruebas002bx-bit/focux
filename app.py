@@ -323,9 +323,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 
-if __name__ == '__main__':
-    print("🚀 Iniciando servidor de desarrollo local...")
-    socketio.run(app, host='0.0.0.0', port=8080)
 
 
 
@@ -5240,3 +5237,14 @@ def get_chat_partners():
 # # SECCIÓN 10: INICIALIZACIÓN Y EJECUCIÓN DEL SERVIDOR                      #
 # ############################################################################
 
+try:
+    print("🚀 Inicializando esquema de la base de datos PostgreSQL...")
+    init_db()  # Llama a la función que crea todas las tablas.
+    print("✅ Esquema de base de datos verificado.")
+except Exception as e:
+    print(f"🚨 ERROR CRÍTICO DURANTE LA INICIALIZACIÓN DE LA BASE DE DATOS: {e}")
+
+# Este bloque es ignorado por Render, solo sirve para pruebas locales.
+if __name__ == '__main__':
+    print("🚀 Iniciando servidor de desarrollo local...")
+    socketio.run(app, host='0.0.0.0', port=8080)
