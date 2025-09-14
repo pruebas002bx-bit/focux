@@ -224,6 +224,53 @@ def get_boards():
         if conn: conn.close()
 
 
+@app.route('/boards', methods=['POST'])
+def create_board():
+    """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas."""
+    data = request.get_json()
+    email = data.get('email', '').lower().strip()
+    board_name = data.get('name', 'Nuevo Tablero').strip()
+    template_columns = data.get('columns')
+
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Si se envía una plantilla de columnas, úsala. Si no, usa la por defecto.
+        board_columns = template_columns if template_columns and isinstance(template_columns, list) else [
+            {"id": "col-1", "title": "Por hacer", "color": "bg-red-200"},
+            {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
+            {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
+        ]
+        default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
+
+        # Inserta el nuevo tablero y pide que te devuelva el ID creado
+        cursor.execute(
+            "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (email, board_name, json.dumps(default_board_data), now, now, "Personal")
+        )
+        board_id = cursor.fetchone()['id']
+
+        # Añade al creador como colaborador con permisos de editor
+        cursor.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
+
+        conn.commit()
+        return jsonify(success=True, message="Tablero creado", board_id=board_id), 201
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en POST /boards: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor al crear el tablero."), 500
+    finally:
+        if conn: conn.close()
+
+
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
     email = request.args.get('email', '').lower().strip()
