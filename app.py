@@ -3732,83 +3732,64 @@ def create_telegram_connections_table():
 
 @app.route('/register', methods=['POST'])
 def register():
-    """Registra un nuevo usuario, validando la contraseña de la base de datos."""
+    """Registra un nuevo usuario en la base de datos única de PostgreSQL."""
     data = request.get_json()
-    required = ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'manager_id', 'db_password']
+    required = ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'manager_id']
     if not all(field in data for field in required):
         return jsonify(success=False, message="Todos los campos son requeridos."), 400
 
     if data['password'] != data['confirmPassword']:
-        return jsonify(success=False, message="Las contraseñas personales no coinciden."), 400
+        return jsonify(success=False, message="Las contraseñas no coinciden."), 400
 
-    manager_id = data['manager_id']
-    db_password = data['db_password']
+    # La validación de la contraseña de la DB ya no es necesaria con el nuevo sistema.
+    # Nos conectamos directamente a la única base de datos.
+
     email = data['email'].lower().strip()
+    manager_id = data['manager_id'] # Guardamos esto para mantener la estructura
 
-    # 1. Autenticar contra la contraseña de la base de datos
-    if manager_id != 'Principal':
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT password_hash FROM managed_databases WHERE name = %s", (manager_id,))
-        db_row = master_cursor.fetchone()
-        master_conn.close()
-
-        if not db_row:
-            return jsonify(success=False, message="La base de datos seleccionada no es válida."), 404
-        
-        if db_row[0] != db_password:
-            return jsonify(success=False, message="Contraseña de la Base de Datos incorrecta."), 403
-
-    # 2. Conectar a la base de datos específica del usuario
-    user_db_conn = get_db_connection_for_manager(manager_id)
-    if not user_db_conn:
-        return jsonify(success=False, message="No se pudo conectar a la base de datos del manager."), 500
-
+    conn = None
     try:
         with db_lock:
-            cursor = user_db_conn.cursor()
+            conn = get_db_connection() # Usamos la conexión única a PostgreSQL
+            cursor = conn.cursor()
+
             cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
             if cursor.fetchone():
-                user_db_conn.close()
-                return jsonify(success=False, message="El correo ya está registrado en esta base de datos."), 409
+                return jsonify(success=False, message="El correo ya está registrado."), 409
 
             now = datetime.now(timezone.utc).isoformat()
-            # Insertar el nuevo usuario
+
             cursor.execute(
-                "INSERT INTO users (first_name, last_name, email, password, registration_date, manager_id) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO users (first_name, last_name, email, password, registration_date, manager_id) VALUES (%s, %s, %s, %s, %s, %s)",
                 (data['firstName'], data['lastName'], email, data['password'], now, manager_id)
             )
-            
-            # --- INICIO DE LA CORRECCIÓN ---
-            # Crear el primer tablero por defecto para el nuevo usuario
+
             default_board_data = {
                 "columns": [
-                    {"id": "col-1", "title": "Por hacer (To Do)", "color": "bg-red-200"},
-                    {"id": "col-2", "title": "En proceso (In Progress)", "color": "bg-yellow-200"},
-                    {"id": "col-3", "title": "En revisión (In Review)", "color": "bg-indigo-200"},
-                    {"id": "col-4", "title": "Hecho (Done)", "color": "bg-green-200"}
+                    {"id": "col-1", "title": "Por hacer", "color": "bg-red-200"},
+                    {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
+                    {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
                 ], "cards": [], "boardOptions": {}
             }
             cursor.execute(
-                "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 (email, "Mi Primer Tablero", json.dumps(default_board_data), now, now, "Personal")
             )
-            board_id = cursor.lastrowid
-            # Asignar al usuario como colaborador de su propio tablero
-            cursor.execute("INSERT INTO collaborators (board_id, user_email) VALUES (?, ?)", (board_id, email))
-            # --- FIN DE LA CORRECCIÓN ---
+            board_id = cursor.fetchone()['id']
 
-            user_db_conn.commit()
-            user_db_conn.close()
+            cursor.execute("INSERT INTO collaborators (board_id, user_email) VALUES (%s, %s)", (board_id, email))
+
+            conn.commit()
 
         return jsonify(success=True, message="Registro exitoso"), 201
 
     except Exception as e:
-        if 'user_db_conn' in locals() and user_db_conn: user_db_conn.close()
+        if conn: conn.rollback()
         print(f"🚨 ERROR en /register: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor durante el registro."), 500
-
+    finally:
+        if conn: conn.close()
 
 def find_user_in_any_db(email_to_find):
     """
@@ -3899,68 +3880,47 @@ def find_board_and_owner_db(board_id_to_find):
         return None
 
 
-
 @app.route('/login', methods=['POST'])
 def login():
-    """Autentica a un usuario contra su base de datos específica."""
+    """Autentica a un usuario contra la base de datos única de PostgreSQL."""
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     password = data.get('password')
+    # manager_id ya no es crucial para la conexión, pero lo mantenemos por consistencia
     manager_id = data.get('manager_id')
 
     if not all([email, password, manager_id]):
         return jsonify(success=False, message="Email, contraseña y base de datos son requeridos."), 400
 
-    conn = get_db_connection_for_manager(manager_id)
-    if not conn:
-        return jsonify(success=False, message="La base de datos seleccionada no es válida o no se pudo conectar."), 404
-
+    conn = None
     try:
+        conn = get_db_connection() # Usamos la conexión única a PostgreSQL
         cursor = conn.cursor()
+
+        # Buscamos al usuario por email y contraseña en la tabla de usuarios
         cursor.execute("SELECT * FROM users WHERE email = %s AND password = %s", (email, password))
         user = cursor.fetchone()
 
         if user:
-            if user['access_expires_on']:
-                expiry_date = datetime.fromisoformat(user['access_expires_on']).date()
-                if expiry_date < datetime.now(timezone.utc).date():
-                    conn.close()
-                    return jsonify(success=False, reason="expired", message="Tu cuenta ha expirado."), 403
-
             now = datetime.now(timezone.utc).isoformat()
             cursor.execute("UPDATE users SET last_login = %s WHERE id = %s", (now, user['id']))
             conn.commit()
-            
-            # --- INICIO DE LA MODIFICACIÓN ---
-            # Busca el logo de la base de datos en la DB maestra para enviarlo al frontend
-            master_conn = psycopg2.connect(MASTER_DB)
-            master_conn.row_factory = psycopg2.Row
-            master_cursor = master_conn.cursor()
-            master_cursor.execute("SELECT logo_url FROM database_settings WHERE name = %s", (manager_id,))
-            setting = master_cursor.fetchone()
-            master_conn.close()
-            logo_url_for_db = setting['logo_url'] if setting else None
-            # --- FIN DE LA MODIFICACIÓN ---
-            
+
             user_data = dict(user)
             user_data_to_send = {
-                "id": user_data['id'],
-                "firstName": user_data['first_name'],
-                "lastName": user_data['last_name'],
-                "email": user_data['email'],
+                "id": user_data['id'], "firstName": user_data['first_name'],
+                "lastName": user_data['last_name'], "email": user_data['email'],
                 "access_expires_on": user_data['access_expires_on'],
-                "manager_id": user_data['manager_id'],
-                "logo_url": logo_url_for_db # Se añade el logo a la respuesta
+                "manager_id": user_data['manager_id'], "logo_url": None # Puedes añadir lógica para logos más adelante
             }
-            conn.close()
             return jsonify(success=True, message="Login exitoso", user=user_data_to_send)
         else:
-            conn.close()
-            return jsonify(success=False, message="Credenciales incorrectas para la base de datos seleccionada."), 401
+            return jsonify(success=False, message="Credenciales incorrectas."), 401
     except Exception as e:
-        if 'conn' in locals(): conn.close()
         print(f"🚨 ERROR en /login: {e}")
         return jsonify(success=False, message="Error interno del servidor durante el login."), 500
+    finally:
+        if conn: conn.close()
 
 # ############################################################################
 # # SECCIÓN 6: ENDPOINTS DE TABLEROS (BOARDS)                                #
