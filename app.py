@@ -3666,93 +3666,8 @@ def register():
     finally:
         if conn: conn.close()
 
-def find_user_in_any_db(email_to_find):
-    """
-    Busca un usuario por su email en TODAS las bases de datos gestionadas y la principal.
-    Devuelve un diccionario con la información del usuario si lo encuentra, o None si no.
-    """
-    try:
-        # 1. Obtener la lista de todas las bases de datos
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT name FROM managed_databases")
-        db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
-        master_conn.close()
-
-        # 2. Iterar sobre cada base de datos
-        for db_name in set(db_names): # Usar set para evitar duplicados
-            conn = get_db_connection_for_manager(db_name)
-            if not conn:
-                continue
-
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE email = %s", (email_to_find,))
-            user = cursor.fetchone()
-            conn.close()
-
-            if user:
-                # Si se encuentra el usuario, devolver sus datos y en qué DB se encontró
-                user_data = dict(user)
-                user_data['found_in_db'] = db_name
-                return user_data
-
-        # 3. Si no se encontró en ninguna base de datos
-        return None
-    except Exception as e:
-        print(f"🚨 ERROR en find_user_in_any_db: {e}")
-        traceback.print_exc()
-        return None
 
 
-def find_board_and_owner_db(board_id_to_find):
-    """
-    Busca un tablero por su ID en TODAS las bases de datos y devuelve sus datos
-    (incluyendo colaboradores con permisos) y el nombre de la base de datos donde fue encontrado.
-    """
-    try:
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT name FROM managed_databases")
-        db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
-        master_conn.close()
-
-        for db_name in set(db_names):
-            conn = get_db_connection_for_manager(db_name)
-            if not conn:
-                continue
-
-            cursor = conn.cursor()
-            
-            # --- INICIO DE LA CORRECCIÓN CLAVE ---
-            # La consulta ahora construye un objeto JSON completo para cada colaborador,
-            # incluyendo su email y su nivel de permiso.
-            cursor.execute("""
-                SELECT 
-                    b.*, 
-                    (SELECT json_group_array(
-                        json_object('email', c.user_email, 'permission_level', c.permission_level)
-                    ) FROM collaborators c WHERE c.board_id = b.id) as collaborators_json
-                FROM boards b 
-                WHERE b.id = ?
-            """, (board_id_to_find,))
-            # --- FIN DE LA CORRECCIÓN CLAVE ---
-
-            board_data = cursor.fetchone()
-            conn.close()
-
-            if board_data:
-                board_info = dict(board_data)
-                board_info['found_in_db'] = db_name
-                # El JSON de colaboradores ahora contiene objetos completos
-                board_info['collaborators'] = json.loads(board_info['collaborators_json'] or '[]')
-                del board_info['collaborators_json']
-                return board_info
-
-        return None
-    except Exception as e:
-        print(f"🚨 ERROR en find_board_and_owner_db: {e}")
-        traceback.print_exc()
-        return None
 
 
 @app.route('/login', methods=['POST'])
@@ -3814,75 +3729,7 @@ def get_all_stickers_from_db():
         print(f"Error al cargar stickers: {e}")
         return []
 
-@app.route('/boards', methods=['GET'])
-def get_boards():
-    """
-    Obtiene todos los tableros a los que un usuario tiene acceso,
-    buscando a través de TODAS las bases de datos disponibles.
-    """
-    email = request.args.get('email', '').lower().strip()
-    if not email:
-        return jsonify(success=False, message="Email es requerido"), 400
 
-    try:
-        # 1. Obtener la lista de todas las bases de datos existentes
-        master_conn = psycopg2.connect(MASTER_DB)
-        master_cursor = master_conn.cursor()
-        master_cursor.execute("SELECT name FROM managed_databases")
-        all_db_names = [row[0] for row in master_cursor.fetchall()] + ['Principal']
-        master_conn.close()
-
-        user_boards = []
-        seen_board_ids = set()
-
-        # 2. Iterar sobre cada base de datos para encontrar los tableros del usuario
-        for db_name in set(all_db_names):
-            conn = get_db_connection_for_manager(db_name)
-            if not conn:
-                continue
-
-            cursor = conn.cursor()
-            
-            # Buscar todos los tableros donde el usuario es colaborador en esta DB
-            cursor.execute("""
-                SELECT b.id, b.owner_email, b.name, b.board_data, b.created_date, b.updated_date, b.category
-                FROM boards b
-                JOIN collaborators c ON b.id = c.board_id
-                WHERE c.user_email = %s
-            """, (email,))
-            
-            boards_in_db = [dict(row) for row in cursor.fetchall()]
-            
-            for board in boards_in_db:
-                if board['id'] in seen_board_ids:
-                    continue
-                seen_board_ids.add(board['id'])
-
-                # Para cada tablero encontrado, obtener su lista completa de colaboradores
-                cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board['id'],))
-                board['shared_with'] = [{'email': r['user_email'], 'permission_level': r['permission_level']} for r in cursor.fetchall()]
-                
-                try:
-                    # Intenta cargar los datos del tablero (columnas, tarjetas, etc.)
-                    board['data'] = json.loads(board['board_data'])
-                except (json.JSONDecodeError, TypeError):
-                    # Si falla (está vacío o corrupto), asigna un objeto vacío
-                    board['data'] = {}
-                
-                del board['board_data'] # Elimina el JSON crudo para no enviarlo al frontend
-                
-                user_boards.append(board)
-
-            conn.close()
-
-        stickers = get_all_stickers_from_db()
-
-        return jsonify(success=True, boards=user_boards, stickers=stickers)
-
-    except Exception as e:
-        print(f"🚨 ERROR en GET /boards: {e}")
-        traceback.print_exc()
-        return jsonify(success=False, message="Error interno del servidor al obtener tableros."), 500
 
 @app.route('/boards', methods=['POST'])
 def create_board():
@@ -4211,34 +4058,96 @@ def update_collaborator_permission(board_id):
         return jsonify(success=False, message="Error interno del servidor."), 500
 
 
+# REEMPLAZA ESTAS CUATRO FUNCIONES EN TU app.py
+
+def get_boards():
+    """Obtiene todos los tableros a los que un usuario tiene acceso desde la DB única."""
+    email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Consulta que une boards y collaborators para encontrar todos los tableros del usuario
+        cursor.execute("""
+            SELECT b.id, b.owner_email, b.name, b.board_data, b.created_date, b.updated_date, b.category
+            FROM boards b
+            JOIN collaborators c ON b.id = c.board_id
+            WHERE c.user_email = %s
+        """, (email,))
+
+        user_boards = [dict(row) for row in cursor.fetchall()]
+
+        for board in user_boards:
+            # Obtener la lista completa de colaboradores para cada tablero
+            cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board['id'],))
+            board['shared_with'] = [{'email': r['user_email'], 'permission_level': r['permission_level']} for r in cursor.fetchall()]
+
+            try:
+                board['data'] = json.loads(board['board_data'])
+            except:
+                board['data'] = {}
+            del board['board_data']
+
+        stickers = get_all_stickers_from_db()
+        conn.close()
+        return jsonify(success=True, boards=user_boards, stickers=stickers)
+
+    except Exception as e:
+        print(f"🚨 ERROR en GET /boards: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor al obtener tableros."), 500
+
+def find_user_in_any_db(email_to_find):
+    """Busca un usuario por email en la base de datos única."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email_to_find,))
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except Exception as e:
+        print(f"🚨 ERROR en find_user_in_any_db: {e}")
+        return None
+
+def find_board_and_owner_db(board_id_to_find):
+    """Busca un tablero por su ID en la base de datos única."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM boards WHERE id = %s", (board_id_to_find,))
+        board_data = cursor.fetchone()
+        if not board_data:
+            conn.close()
+            return None
+
+        board_info = dict(board_data)
+        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id_to_find,))
+        board_info['collaborators'] = [{'email': r['user_email'], 'permission_level': r['permission_level']} for r in cursor.fetchall()]
+        conn.close()
+        return board_info
+    except Exception as e:
+        print(f"🚨 ERROR en find_board_and_owner_db: {e}")
+        return None
 
 def check_editor_permission(board_id, user_email):
     """Verifica si un usuario tiene permisos de 'editor' en un tablero."""
     try:
         board_info = find_board_and_owner_db(board_id)
-        if not board_info:
-            return False
+        if not board_info: return False
 
-        # El propietario siempre tiene permisos de editor.
-        if board_info['owner_email'] == user_email:
-            return True
+        if board_info['owner_email'] == user_email: return True
 
-        owner_db = board_info['found_in_db']
-        conn = get_db_connection_for_manager(owner_db)
-        if not conn:
-            return False
-
-        cursor = conn.cursor()
-        cursor.execute("SELECT permission_level FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, user_email))
-        result = cursor.fetchone()
-        conn.close()
-        
-        return result and result['permission_level'] == 'editor'
+        for collaborator in board_info.get('collaborators', []):
+            if collaborator['email'] == user_email and collaborator['permission_level'] == 'editor':
+                return True
+        return False
     except Exception as e:
         print(f"🚨 ERROR en check_editor_permission: {e}")
         return False
-#
-
 
 
 @app.route('/boards/<int:board_id>/share', methods=['POST', 'DELETE'])
