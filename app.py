@@ -157,7 +157,17 @@ def register():
             (data['firstName'], data['lastName'], email, data['password'], now, data['manager_id'])
         )
         
-        default_board_data = {"columns": [{"id": "col-1", "title": "Por hacer"}, {"id": "col-2", "title": "En proceso"}, {"id": "col-3", "title": "Hecho"}], "cards": []}
+        # --- LÍNEA MODIFICADA ---
+        default_board_data = {
+            "columns": [
+                {"id": "col-1", "title": "Por hacer (To Do)", "color": "bg-red-200"},
+                {"id": "col-2", "title": "En proceso (In Progress)", "color": "bg-yellow-200"},
+                {"id": "col-3", "title": "En revisión (In Review)", "color": "bg-indigo-200"},
+                {"id": "col-4", "title": "Hecho (Done)", "color": "bg-green-200"}
+            ], "cards": [], "boardOptions": {}
+        }
+        # ------------------------
+
         cursor.execute(
             "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
             (email, "Mi Primer Tablero", json.dumps(default_board_data), now, now, "Personal")
