@@ -28,6 +28,22 @@ CORS(app, origins="*")
 DATABASE_URL = os.getenv("DATABASE_URL")
 db_lock = threading.Lock()
 
+# --- PEGA TU BLOQUE DE CÓDIGO AQUÍ ---
+try:
+    import google.generativeai as genai
+    # Configurar la API de Gemini usando la variable de entorno
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+        print("✅ API de Gemini configurada exitosamente.")
+    else:
+        print("⚠️ Advertencia: No se encontró la GEMINI_API_KEY. Las funciones de IA estarán desactivadas.")
+        genai = None
+except ImportError:
+    print("⚠️ Advertencia: La librería 'google-generativeai' no está instalada. Las funciones de IA estarán desactivadas.")
+    genai = None
+# --- FIN DEL BLOQUE A PEGAR ---
+
 # ############################################################################
 # # SECCIÓN 2: MANEJO DE LA BASE DE DATOS                                    #
 # ############################################################################
@@ -343,6 +359,61 @@ def handle_notes():
         return jsonify(success=False, message="Error interno del servidor"), 500
     finally:
         if conn: conn.close()
+
+
+@app.route('/ai/writing-suggestions', methods=['POST'])
+def get_ai_suggestions():
+    if not genai:
+        return jsonify(success=False, message="El servicio de IA no está configurado en el servidor."), 500
+
+    data = request.get_json()
+    text = data.get('text', '')
+    if not text:
+        return jsonify(success=False, message="No se proporcionó texto."), 400
+
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        prompt = f"""
+        Eres un asistente de escritura experto. Reescribe el siguiente texto de 3 maneras diferentes, manteniendo el significado original pero variando el tono y el estilo (por ejemplo: uno más profesional, uno más conciso, uno más casual).
+        Devuelve únicamente las 3 sugerencias, separadas por '---'. No agregues introducciones ni conclusiones.
+
+        Texto original: "{text}"
+        """
+        response = model.generate_content(prompt)
+        suggestions = [s.strip() for s in response.text.split('---')]
+        
+        return jsonify(success=True, suggestions=suggestions)
+    except Exception as e:
+        print(f"🚨 ERROR en /ai/writing-suggestions: {e}")
+        return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+
+@app.route('/ai/enhance-text', methods=['POST'])
+def enhance_text_with_ai():
+    if not genai:
+        return jsonify(success=False, message="El servicio de IA no está configurado en el servidor."), 500
+
+    data = request.get_json()
+    text = data.get('text', '')
+    mode = data.get('mode', 'improve') # 'improve' o 'fix'
+
+    if not text:
+        return jsonify(success=False, message="No se proporcionó texto."), 400
+
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        
+        if mode == 'fix':
+            prompt = f"Eres un corrector de estilo experto. Corrige únicamente la ortografía y la gramática del siguiente texto, sin cambiar el significado. Devuelve solo el texto corregido.\n\nTexto: \"{text}\""
+        else: # improve
+            prompt = f"Eres un escritor experto. Mejora la redacción del siguiente texto para que sea más claro, profesional y conciso. Devuelve solo el texto mejorado.\n\nTexto: \"{text}\""
+
+        response = model.generate_content(prompt)
+        
+        return jsonify(success=True, enhancedText=response.text.strip())
+    except Exception as e:
+        print(f"🚨 ERROR en /ai/enhance-text: {e}")
+        return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+
 
 @app.route('/notes/<int:note_id>', methods=['PUT', 'DELETE'])
 def handle_single_note(note_id):

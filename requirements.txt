@@ -9,3 +9,4 @@ requests
 PyMuPDF  # <-- LÍNEA CORRECTA
 gevent
 gevent-websocket
+google-generativeai
