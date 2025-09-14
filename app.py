@@ -3843,6 +3843,8 @@ def update_board(board_id):
     finally:
         if conn: conn.close()
 
+
+
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
     """Elimina un tablero. Solo el propietario puede hacerlo."""

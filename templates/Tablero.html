@@ -13625,23 +13625,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function attachRealtimeSaveListeners() {
         const form = document.getElementById('add-card-form');
-        const trixEditor = form.querySelector('trix-editor');
+        if (!form) return;
 
-        form.querySelector('[name="title"]').addEventListener('input', debouncedSaveFromModal);
-        form.querySelector('[name="dueDate"]').addEventListener('change', debouncedSaveFromModal);
-        form.querySelector('[name="custom_tags"]').addEventListener('input', debouncedSaveFromModal);
-        
-        trixEditor.addEventListener('trix-change', () => {
-            // --- INICIO DE CORRECCIÓN ---
-            // Solo se activa el auto-guardado si el cambio NO fue hecho por el código.
-            if (isProgrammaticallyChangingTrix) {
-                return; 
-            }
-            debouncedSaveFromModal();
-            // --- FIN DE CORRECCIÓN ---
-        });
-        
-        form.querySelector('#card-color-swatches-container').addEventListener('click', saveCardDataFromModal);
+        const trixEditor = form.querySelector('trix-editor');
+        const titleInput = form.querySelector('[name="title"]');
+        const startDateInput = form.querySelector('[name="startDate"]');
+        const endDateInput = form.querySelector('[name="endDate"]');
+        const customTagsInput = form.querySelector('[name="custom_tags"]');
+        const colorSwatches = form.querySelector('#card-color-swatches-container');
+
+        // Se añaden verificaciones para evitar errores si un elemento no existe
+        if (titleInput) {
+            titleInput.addEventListener('input', debouncedSaveFromModal);
+        }
+        if (startDateInput) {
+            startDateInput.addEventListener('change', debouncedSaveFromModal);
+        }
+        if (endDateInput) {
+            endDateInput.addEventListener('change', debouncedSaveFromModal);
+        }
+        if (customTagsInput) {
+            customTagsInput.addEventListener('input', debouncedSaveFromModal);
+        }
+        if (trixEditor) {
+            trixEditor.addEventListener('trix-change', () => {
+                if (isProgrammaticallyChangingTrix) {
+                    return;
+                }
+                debouncedSaveFromModal();
+            });
+        }
+        if (colorSwatches) {
+            colorSwatches.addEventListener('click', saveCardDataFromModal);
+        }
     }
 
     
