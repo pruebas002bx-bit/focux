@@ -3698,7 +3698,6 @@ def create_board():
 
 
 
-
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
     """Obtiene los datos de un tablero específico y verifica permisos."""
@@ -3707,40 +3706,32 @@ def get_single_board(board_id):
         return jsonify(success=False, message="Email es requerido"), 400
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # 1. Verificar si el usuario es colaborador del tablero solicitado
-        cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
-        if not cursor.fetchone():
-            conn.close()
-            return jsonify(success=False, message="Acceso denegado a este tablero."), 403
-
-        # 2. Si tiene permiso, obtener los datos completos del tablero
-        cursor.execute("SELECT * FROM boards WHERE id = %s", (board_id,))
-        board_info = cursor.fetchone()
+        board_info = find_board_and_owner_db(board_id)
         if not board_info:
-            conn.close()
             return jsonify(success=False, message="Tablero no encontrado."), 404
+
+        # Verificar si el usuario tiene permiso (si está en la lista de colaboradores)
+        collaborator_emails = [c.get('email', '').lower().strip() for c in board_info.get('collaborators', [])]
+        if email not in collaborator_emails:
+            return jsonify(success=False, message="Acceso denegado a este tablero."), 403
 
         board_to_send = dict(board_info)
         try:
             board_to_send['data'] = json.loads(board_to_send['board_data'])
-        except:
+        except (TypeError, json.JSONDecodeError):
             board_to_send['data'] = {}
-        del board_to_send['board_data'] # No enviar el JSON crudo
+        
+        # Renombrar 'collaborators' a 'shared_with' para el frontend y eliminar el JSON crudo
+        board_to_send['shared_with'] = board_to_send.pop('collaborators', [])
+        del board_to_send['board_data']
 
-        # 3. Obtener la lista de todos los colaboradores de ese tablero
-        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
-        board_to_send['shared_with'] = [dict(r) for r in cursor.fetchall()]
-
-        conn.close()
         return jsonify(success=True, board=board_to_send)
-
+        
     except Exception as e:
         print(f"🚨 ERROR en GET /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
+
 
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
@@ -3757,11 +3748,13 @@ def update_board(board_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 1. Verifica si el usuario es un colaborador para permitir la edición.
         cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
         if not cursor.fetchone():
             conn.close()
             return jsonify(success=False, message="Acceso denegado, no eres colaborador."), 403
 
+        # 2. Si tiene permiso, actualiza la columna board_data con la nueva estructura.
         now = datetime.now(timezone.utc).isoformat()
         cursor.execute(
             "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
@@ -3769,6 +3762,7 @@ def update_board(board_id):
         )
         conn.commit()
         
+        # 3. Notifica a otros usuarios conectados sobre el cambio.
         socketio.emit('board_was_updated', {'board_id': board_id, 'boardData': board_data}, room=str(board_id))
         return jsonify(success=True, message="Tablero actualizado")
 
@@ -3779,6 +3773,9 @@ def update_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
     finally:
         if conn: conn.close()
+
+
+
 
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
@@ -4013,26 +4010,34 @@ def find_user_in_any_db(email_to_find):
         return None
 
 def find_board_and_owner_db(board_id_to_find):
-    """Busca un tablero por su ID en la base de datos única y sus colaboradores."""
+    """
+    Busca un tablero por su ID en la base de datos única de PostgreSQL
+    y obtiene la lista de sus colaboradores.
+    """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Obtener los datos principales del tablero
         cursor.execute("SELECT * FROM boards WHERE id = %s", (board_id_to_find,))
         board_data = cursor.fetchone()
+        
         if not board_data:
             conn.close()
             return None
         
         board_info = dict(board_data)
+        
+        # Obtener la lista de todos los colaboradores para ese tablero
         cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id_to_find,))
         board_info['collaborators'] = [dict(r) for r in cursor.fetchall()]
+        
         conn.close()
         return board_info
     except Exception as e:
         print(f"🚨 ERROR en find_board_and_owner_db: {e}")
+        traceback.print_exc()
         return None
-
-
 
 
 def check_editor_permission(board_id, user_email):
