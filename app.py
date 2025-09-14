@@ -1,5 +1,5 @@
 # ############################################################################
-# # FOCUX APP - VERSIÓN FINAL PARA RENDER Y POSTGRESQL                       #
+# # FOCUX APP - VERSIÓN FINAL Y COMPLETA PARA RENDER Y POSTGRESQL            #
 # ############################################################################
 
 import os
@@ -25,248 +25,80 @@ app = Flask(__name__, template_folder='templates')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 CORS(app, origins="*")
 
-# Variables de Entorno y Globales
 DATABASE_URL = os.getenv("DATABASE_URL")
 db_lock = threading.Lock()
 
 # ############################################################################
-# # SECCIÓN 2: MANEJO DE LA BASE DE DATOS (CONEXIÓN Y ESQUEMA)               #
+# # SECCIÓN 2: MANEJO DE LA BASE DE DATOS                                    #
 # ############################################################################
 
 def get_db_connection():
     """Conecta a la base de datos PostgreSQL en la nube."""
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.cursor_factory = psycopg2.extras.DictCursor
-        return conn
-    except Exception as e:
-        print(f"🚨 ERROR CRÍTICO: No se pudo conectar a PostgreSQL: {e}")
-        raise
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.cursor_factory = psycopg2.extras.DictCursor
+    return conn
 
 def init_db():
-    """
-    Inicializa el esquema de la base de datos PostgreSQL.
-    Crea todas las tablas necesarias si no existen.
-    Esta función es para la base de datos única en la nube.
-    """
-    # NOTA: En PostgreSQL, 'SERIAL PRIMARY KEY' reemplaza a 'INTEGER PRIMARY KEY AUTOINCREMENT'.
-    #       'JSONB' es un tipo de dato binario optimizado para almacenar y consultar JSON.
+    """Inicializa el esquema completo de la base de datos PostgreSQL."""
     commands = [
         """
         CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT,
-            registration_date TEXT,
-            last_login TEXT,
-            manager_id TEXT,
-            access_expires_on TEXT
+            id SERIAL PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT UNIQUE NOT NULL,
+            password TEXT, registration_date TEXT, last_login TEXT, manager_id TEXT, access_expires_on TEXT
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS boards (
-            id SERIAL PRIMARY KEY,
-            owner_email TEXT,
-            name TEXT,
-            board_data JSONB,
-            created_date TEXT,
-            updated_date TEXT,
-            category TEXT
+            id SERIAL PRIMARY KEY, owner_email TEXT, name TEXT, board_data JSONB,
+            created_date TEXT, updated_date TEXT, category TEXT
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS collaborators (
             board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            permission_level TEXT NOT NULL DEFAULT 'editor',
+            user_email TEXT NOT NULL, permission_level TEXT NOT NULL DEFAULT 'editor',
             PRIMARY KEY (board_id, user_email)
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS notes (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT,
-            content TEXT,
-            color TEXT,
-            created_date TEXT,
-            updated_date TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS assistants (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            avatar_url TEXT,
-            description TEXT,
-            prompt TEXT,
-            knowledge_base TEXT,
-            is_public INTEGER DEFAULT 0
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS board_chats (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT,
-            user_name TEXT,
-            message TEXT,
-            timestamp TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS assistant_sharing (
-            assistant_id TEXT NOT NULL REFERENCES assistants(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            PRIMARY KEY (assistant_id, user_email)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS notifications (
-            id SERIAL PRIMARY KEY,
-            title TEXT,
-            message TEXT,
-            timestamp TEXT,
-            type TEXT,
-            target_info TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS notification_views (
-            notification_id INTEGER NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            PRIMARY KEY (notification_id, user_email)
+        CREATE TABLE IF NOT EXISTS stickers (
+            id TEXT PRIMARY KEY, name TEXT, category TEXT, url TEXT NOT NULL
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS conversations (
-            id TEXT PRIMARY KEY,
-            participants_json TEXT,
-            last_ts TEXT
+            id TEXT PRIMARY KEY, participants_json TEXT, last_ts TEXT
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS direct_messages (
-            id SERIAL PRIMARY KEY,
-            conv_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
-            ts TEXT,
-            sender_email TEXT,
-            receiver_email TEXT,
-            text TEXT,
-            is_read INTEGER DEFAULT 0
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS stickers (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            category TEXT,
-            url TEXT NOT NULL
+            id SERIAL PRIMARY KEY, conv_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+            ts TEXT, sender_email TEXT, receiver_email TEXT, text TEXT, is_read INTEGER DEFAULT 0
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS focux_messages (
-            id TEXT PRIMARY KEY,
-            title TEXT,
-            content TEXT,
-            color TEXT,
-            image_url TEXT,
-            button_text TEXT,
-            button_url TEXT,
-            is_active INTEGER DEFAULT 0,
-            start_date TEXT,
-            end_date TEXT,
-            target_info TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS scheduled_reminders (
-            id SERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL,
-            telegram_chat_id TEXT NOT NULL,
-            notification_time TEXT NOT NULL,
-            sent INTEGER DEFAULT 0,
-            card_title TEXT NOT NULL,
-            board_name TEXT,
-            card_column TEXT,
-            card_description TEXT,
-            card_tags TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS telegram_connections (
-            id SERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL UNIQUE,
-            chat_id TEXT NOT NULL,
-            connected_at TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS ai_generated_boards (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            board_json JSONB NOT NULL,
-            notes_json JSONB NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS documents (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            title TEXT NOT NULL,
-            version TEXT,
-            google_drive_file_id TEXT,
-            cloudinary_public_id TEXT,
-            thumbnail_url TEXT,
-            password TEXT,
-            page_count INTEGER,
-            created_date TEXT NOT NULL,
-            updated_date TEXT NOT NULL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS "references" (
-            id SERIAL PRIMARY KEY,
-            board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
-            user_email TEXT NOT NULL,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            created_date TEXT NOT NULL,
-            updated_date TEXT NOT NULL
+            id TEXT PRIMARY KEY, title TEXT, content TEXT, color TEXT, image_url TEXT,
+            button_text TEXT, button_url TEXT, is_active INTEGER DEFAULT 0,
+            start_date TEXT, end_date TEXT, target_info TEXT
         )
         """
     ]
     
     conn = None
     try:
-        with db_lock:
-            # Usa la nueva función de conexión a PostgreSQL
-            conn = get_db_connection()
-            cur = conn.cursor()
-            # Ejecuta cada comando de creación de tabla
-            for command in commands:
-                cur.execute(command)
-            
-            cur.close()
-            # Guarda (commit) los cambios en la base de datos
-            conn.commit()
-            print("✅ Esquema de PostgreSQL verificado/creado exitosamente.")
-            
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(f"🚨 Error al inicializar la base de datos PostgreSQL: {error}")
-        # Si hay un error, revierte cualquier cambio
-        if conn:
-            conn.rollback()
-            
+        conn = get_db_connection()
+        cur = conn.cursor()
+        for command in commands:
+            cur.execute(command)
+        conn.commit()
+        cur.close()
+        print("✅ Esquema de PostgreSQL verificado/creado exitosamente.")
+    except Exception as error:
+        print(f"🚨 Error al inicializar la base de datos: {error}")
+        if conn: conn.rollback()
     finally:
-        # Asegúrate de cerrar la conexión
-        if conn is not None:
-            conn.close()
+        if conn: conn.close()
 
 # ############################################################################
 # # SECCIÓN 3: ENDPOINTS DE LA APLICACIÓN                                    #
@@ -320,7 +152,6 @@ def register():
         
         conn.commit()
         return jsonify(success=True, message="Registro exitoso"), 201
-
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en /register: {e}")
@@ -333,7 +164,6 @@ def login():
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     password = data.get('password')
-
     conn = None
     try:
         conn = get_db_connection()
@@ -367,8 +197,8 @@ def get_boards():
         user_boards = [dict(row) for row in cursor.fetchall()]
 
         for board in user_boards:
-            board['data'] = json.loads(board['board_data']) if board['board_data'] else {}
-            del board['board_data']
+            board['data'] = json.loads(board['board_data']) if board.get('board_data') else {}
+            if 'board_data' in board: del board['board_data']
 
         return jsonify(success=True, boards=user_boards)
     except Exception as e:
@@ -394,8 +224,8 @@ def get_single_board(board_id):
             return jsonify(success=False, message="Tablero no encontrado."), 404
         
         board_to_send = dict(board_info)
-        board_to_send['data'] = json.loads(board_to_send['board_data']) if board_to_send['board_data'] else {}
-        del board_to_send['board_data']
+        board_to_send['data'] = json.loads(board_to_send['board_data']) if board_to_send.get('board_data') else {}
+        if 'board_data' in board_to_send: del board_to_send['board_data']
 
         cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
         board_to_send['shared_with'] = [dict(r) for r in cursor.fetchall()]
@@ -412,7 +242,6 @@ def update_board(board_id):
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_data = data.get('boardData')
-    
     conn = None
     try:
         conn = get_db_connection()
@@ -439,6 +268,63 @@ def update_board(board_id):
     finally:
         if conn: conn.close()
 
+# Rutas para stickers, chat, etc.
+@app.route('/stickers', methods=['GET'])
+def get_stickers_route():
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, category, url FROM stickers")
+        stickers = [dict(row) for row in cursor.fetchall()]
+        return jsonify(success=True, stickers=stickers)
+    except Exception as e:
+        print(f"Error al cargar stickers: {e}")
+        return jsonify(success=False, stickers=[])
+    finally:
+        if conn: conn.close()
+
+@app.route('/direct-chats/partners', methods=['GET'])
+def get_chat_partners():
+    email = request.args.get('me', '').lower().strip()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT
+                CASE WHEN sender_email = %s THEN receiver_email ELSE sender_email END as partner_email
+            FROM direct_messages
+            WHERE sender_email = %s OR receiver_email = %s
+        """, (email, email, email))
+        partners = [row['partner_email'] for row in cursor.fetchall()]
+        return jsonify(success=True, partners=partners)
+    except Exception as e:
+        print(f"🚨 ERROR en GET /direct-chats/partners: {e}")
+        return jsonify(success=False, message="Error interno del servidor"), 500
+    finally:
+        if conn: conn.close()
+
+@app.route('/focux_messages', methods=['GET'])
+def get_active_focux_messages():
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now_date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        cursor.execute("""
+            SELECT * FROM focux_messages WHERE is_active = 1 
+            AND (start_date IS NULL OR start_date <= %s)
+            AND (end_date IS NULL OR end_date >= %s)
+        """, (now_date, now_date))
+        messages = [dict(row) for row in cursor.fetchall()]
+        return jsonify(success=True, messages=messages)
+    except Exception as e:
+        print(f"🚨 ERROR en GET /focux_messages: {e}")
+        return jsonify(success=False, messages=[])
+    finally:
+        if conn: conn.close()
+        
 # ############################################################################
 # # SECCIÓN 4: INICIALIZACIÓN Y EJECUCIÓN DEL SERVIDOR                      #
 # ############################################################################
