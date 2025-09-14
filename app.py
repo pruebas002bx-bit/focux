@@ -372,7 +372,7 @@ def get_ai_suggestions():
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         prompt = f"""
         Eres un asistente de escritura experto. Reescribe el siguiente texto de 3 maneras diferentes, manteniendo el significado original pero variando el tono y el estilo (por ejemplo: uno más profesional, uno más conciso, uno más casual).
         Devuelve únicamente las 3 sugerencias, separadas por '---'. No agregues introducciones ni conclusiones.
@@ -400,7 +400,7 @@ def enhance_text_with_ai():
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         if mode == 'fix':
             prompt = f"Eres un corrector de estilo experto. Corrige únicamente la ortografía y la gramática del siguiente texto, sin cambiar el significado. Devuelve solo el texto corregido.\n\nTexto: \"{text}\""
