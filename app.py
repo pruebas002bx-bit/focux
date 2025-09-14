@@ -3816,22 +3816,22 @@ def update_board(board_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Verifica si el usuario es un colaborador para permitir la edición
+
+        # 1. Verifica si el usuario es un colaborador para permitir la edición.
         cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
         if not cursor.fetchone():
             conn.close()
             return jsonify(success=False, message="Acceso denegado, no eres colaborador de este tablero."), 403
 
+        # 2. Si tiene permiso, actualiza la columna board_data con la nueva estructura.
         now = datetime.now(timezone.utc).isoformat()
-        # Actualiza la columna board_data con la nueva estructura
         cursor.execute(
             "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
             (json.dumps(board_data), now, board_id)
         )
         conn.commit()
-        
-        # Notifica a otros usuarios conectados sobre el cambio
+
+        # 3. Notifica a otros usuarios conectados sobre el cambio.
         socketio.emit('board_was_updated', {'board_id': board_id, 'boardData': board_data}, room=str(board_id))
         return jsonify(success=True, message="Tablero actualizado")
 
@@ -3842,8 +3842,7 @@ def update_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
     finally:
         if conn: conn.close()
-
-
+        
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
