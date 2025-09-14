@@ -240,7 +240,7 @@ def create_board():
         conn = get_db_connection()
         cursor = conn.cursor()
         now = datetime.now(timezone.utc).isoformat()
-        
+
         # --- INICIO DE LA CORRECCIÓN ---
         # Si el frontend envía una plantilla de columnas, la usamos.
         # Si no, usamos la plantilla por defecto.
@@ -249,6 +249,10 @@ def create_board():
             {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
             {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
         ]
+        # Aseguramos que cada columna tenga un ID único
+        for i, col in enumerate(board_columns):
+            if 'id' not in col:
+                col['id'] = f'col-{Date.now()}-{i}'
         # --- FIN DE LA CORRECCIÓN ---
 
         default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
@@ -258,9 +262,9 @@ def create_board():
             (email, board_name, json.dumps(default_board_data), now, now, "Personal")
         )
         board_id = cursor.fetchone()['id']
-        
+
         cursor.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
-        
+
         conn.commit()
         return jsonify(success=True, message="Tablero creado", board_id=board_id), 201
     except Exception as e:
