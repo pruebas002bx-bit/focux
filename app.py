@@ -3724,7 +3724,6 @@ def get_all_stickers_from_db():
         return []
 
 
-
 @app.route('/boards', methods=['POST'])
 def create_board():
     """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas opcional."""
@@ -3767,13 +3766,9 @@ def create_board():
         return jsonify(success=False, message="Error interno del servidor"), 500
 
 
-
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
-    """
-    Obtiene los datos de un tablero específico, localizándolo primero
-    a través de todas las bases de datos y luego verificando permisos.
-    """
+    """Obtiene los datos de un tablero específico y verifica permisos."""
     email = request.args.get('email', '').lower().strip()
     if not email:
         return jsonify(success=False, message="Email es requerido"), 400
@@ -3783,33 +3778,28 @@ def get_single_board(board_id):
         if not board_info:
             return jsonify(success=False, message="Tablero no encontrado."), 404
 
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Ahora se verifica si el usuario es el PROPIETARIO o si está en la lista de colaboradores.
-        is_owner = board_info.get('owner_email', '').lower().strip() == email
+        # Verificamos si el usuario es colaborador para darle acceso
         collaborator_emails = [c.get('email', '').lower().strip() for c in board_info.get('collaborators', [])]
-        
-        if not is_owner and email not in collaborator_emails:
+        if email not in collaborator_emails:
             return jsonify(success=False, message="Acceso denegado a este tablero."), 403
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
 
         board_to_send = dict(board_info)
-        
         try:
             board_to_send['data'] = json.loads(board_to_send['board_data'])
-        except (json.JSONDecodeError, TypeError):
+        except:
             board_to_send['data'] = {}
-            
+
         board_to_send['shared_with'] = board_to_send.pop('collaborators', [])
-        
-        del board_to_send['board_data']
-        del board_to_send['found_in_db']
+        del board_to_send['board_data'] # Eliminamos el JSON crudo
 
         return jsonify(success=True, board=board_to_send)
-            
+
     except Exception as e:
         print(f"🚨 ERROR en GET /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
+
+
 
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
@@ -3846,7 +3836,6 @@ def update_board(board_id):
 
 
 
-
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
     """Elimina un tablero. Solo el propietario puede hacerlo."""
@@ -3880,7 +3869,6 @@ def delete_board(board_id):
         print(f"🚨 ERROR en DELETE /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor"), 500
-
 
 
 @app.route('/dashboard-data', methods=['GET'])
