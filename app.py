@@ -271,6 +271,114 @@ def create_board():
         if conn: conn.close()
 
 
+@app.route('/notes', methods=['GET', 'POST'])
+def handle_notes():
+    """Maneja la obtención de todas las notas de un tablero y la creación de una nueva."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if request.method == 'GET':
+            board_id = request.args.get('board_id')
+            cursor.execute("SELECT * FROM notes WHERE board_id = %s ORDER BY updated_date DESC", (board_id,))
+            notes = [dict(row) for row in cursor.fetchall()]
+            return jsonify(success=True, notes=notes)
+
+        if request.method == 'POST':
+            data = request.get_json()
+            now = datetime.now(timezone.utc).isoformat()
+            cursor.execute(
+                "INSERT INTO notes (board_id, user_email, content, color, created_date, updated_date) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+                (data['board_id'], data['email'], data['content'], data['color'], now, now)
+            )
+            new_note = dict(cursor.fetchone())
+            conn.commit()
+            socketio.emit('note_created', {'board_id': data['board_id'], 'note': new_note}, room=str(data['board_id']))
+            return jsonify(success=True, note=new_note), 201
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en /notes: {e}")
+        return jsonify(success=False, message="Error interno del servidor"), 500
+    finally:
+        if conn: conn.close()
+
+@app.route('/notes/<int:note_id>', methods=['PUT', 'DELETE'])
+def handle_single_note(note_id):
+    """Maneja la actualización y eliminación de una nota específica."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if request.method == 'PUT':
+            data = request.get_json()
+            now = datetime.now(timezone.utc).isoformat()
+            cursor.execute(
+                "UPDATE notes SET content = %s, color = %s, updated_date = %s WHERE id = %s RETURNING *",
+                (data['content'], data['color'], now, note_id)
+            )
+            updated_note = dict(cursor.fetchone())
+            conn.commit()
+            socketio.emit('note_updated', {'board_id': updated_note['board_id'], 'note': updated_note}, room=str(updated_note['board_id']))
+            return jsonify(success=True, note=updated_note)
+
+        if request.method == 'DELETE':
+            email = request.args.get('email')
+            # Primero obtenemos el board_id para notificar a la sala correcta
+            cursor.execute("SELECT board_id FROM notes WHERE id = %s", (note_id,))
+            note = cursor.fetchone()
+            if note:
+                board_id = note['board_id']
+                cursor.execute("DELETE FROM notes WHERE id = %s", (note_id,))
+                conn.commit()
+                socketio.emit('note_deleted', {'board_id': board_id, 'note_id': note_id}, room=str(board_id))
+                return jsonify(success=True, message="Nota eliminada")
+            return jsonify(success=False, message="Nota no encontrada"), 404
+            
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en /notes/{note_id}: {e}")
+        return jsonify(success=False, message="Error interno del servidor"), 500
+    finally:
+        if conn: conn.close()
+
+@app.route('/boards/<int:board_id>', methods=['DELETE'])
+def delete_board(board_id):
+    """Elimina un tablero. Solo el propietario puede hacerlo."""
+    email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar si el usuario es el propietario antes de eliminar
+        cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
+        board = cursor.fetchone()
+
+        if not board:
+            return jsonify(success=False, message="Tablero no encontrado."), 404
+        
+        if board['owner_email'] != email:
+            return jsonify(success=False, message="Solo el propietario puede eliminar el tablero."), 403
+
+        # Eliminar el tablero (ON DELETE CASCADE se encargará de los colaboradores)
+        cursor.execute("DELETE FROM boards WHERE id = %s", (board_id,))
+        conn.commit()
+        
+        return jsonify(success=True, message="Tablero eliminado")
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en DELETE /boards/{board_id}: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor"), 500
+    finally:
+        if conn: conn.close()
+
 @app.route('/notifications/pending', methods=['GET'])
 def get_pending_notifications():
     """Obtiene notificaciones no leídas para un usuario."""
