@@ -373,12 +373,9 @@ def get_ai_suggestions():
 
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
-        prompt = f"""
-        Eres un asistente de escritura experto. Reescribe el siguiente texto de 3 maneras diferentes, manteniendo el significado original pero variando el tono y el estilo (por ejemplo: uno más profesional, uno más conciso, uno más casual).
-        Devuelve únicamente las 3 sugerencias, separadas por '---'. No agregues introducciones ni conclusiones.
-
-        Texto original: "{text}"
-        """
+        prompt = f"""Genera 3 versiones alternativas para el siguiente texto, mejorando claridad y profesionalismo.
+        Formatea tu respuesta como un array JSON de strings, sin texto adicional.
+        Texto original: '{text}'"""
         response = model.generate_content(prompt)
         suggestions = [s.strip() for s in response.text.split('---')]
         
@@ -386,6 +383,8 @@ def get_ai_suggestions():
     except Exception as e:
         print(f"🚨 ERROR en /ai/writing-suggestions: {e}")
         return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+
+
 
 @app.route('/ai/enhance-text', methods=['POST'])
 def enhance_text_with_ai():
@@ -400,18 +399,47 @@ def enhance_text_with_ai():
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        # Se puede usar 'gemini-pro' o 'gemini-1.5-flash' para un buen balance de costo/rendimiento
+        model = genai.GenerativeModel('gemini-2.0-flash') 
         
-        if mode == 'fix':
-            prompt = f"Eres un corrector de estilo experto. Corrige únicamente la ortografía y la gramática del siguiente texto, sin cambiar el significado. Devuelve solo el texto corregido.\n\nTexto: \"{text}\""
-        else: # improve
-            prompt = f"Eres un escritor experto. Mejora la redacción del siguiente texto para que sea más claro, profesional y conciso. Devuelve solo el texto mejorado.\n\nTexto: \"{text}\""
+        # --- INICIO DE LA CORRECCIÓN: PROMPTS ESPECÍFICOS Y RESTRICTIVOS ---
 
-        response = model.generate_content(prompt)
+        # Se definen instrucciones muy claras para cada modo, prohibiendo explícitamente
+        # cualquier texto adicional, explicaciones o formato markdown.
+        prompts = {
+            'improve': (
+                "Reformula el siguiente texto para que sea más claro, conciso y profesional. "
+                "Devuelve únicamente el texto mejorado. No añadas introducciones como 'Aquí tienes una versión mejorada' "
+                "ni explicaciones sobre los cambios. No uses markdown. El texto a reformular es:\n\n"
+                f"'{text}'"
+            ),
+            'fix': (
+                "Corrige únicamente los errores de ortografía y puntuación (tildes, comas, puntos, mayúsculas) del siguiente texto. "
+                "No cambies palabras, no reformules frases ni alteres el significado. "
+                "Devuelve exclusivamente el texto corregido, sin ningún texto adicional, introducción o explicación. "
+                "No utilices markdown. El texto es:\n\n"
+                f"'{text}'"
+            )
+        }
         
-        return jsonify(success=True, enhancedText=response.text.strip())
+        # Se selecciona el prompt según el 'mode' enviado desde el frontend.
+        # Si el modo no coincide, por defecto se usará 'improve'.
+        prompt_text = prompts.get(mode, prompts['improve'])
+        
+        # --- FIN DE LA CORRECCIÓN ---
+
+        response = model.generate_content(prompt_text)
+        
+        # Limpieza adicional para remover comillas que la IA a veces añade al inicio y al final
+        enhanced_text = response.text.strip()
+        if enhanced_text.startswith('"') and enhanced_text.endswith('"'):
+            enhanced_text = enhanced_text[1:-1]
+            
+        return jsonify(success=True, enhancedText=enhanced_text)
+
     except Exception as e:
         print(f"🚨 ERROR en /ai/enhance-text: {e}")
+        traceback.print_exc() # Imprime el error completo en tus logs de Render
         return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
 
 
