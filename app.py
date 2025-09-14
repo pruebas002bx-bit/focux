@@ -4058,8 +4058,7 @@ def update_collaborator_permission(board_id):
         return jsonify(success=False, message="Error interno del servidor."), 500
 
 
-# REEMPLAZA ESTAS CUATRO FUNCIONES EN TU app.py
-
+@app.route('/boards', methods=['GET'])
 def get_boards():
     """Obtiene todos los tableros a los que un usuario tiene acceso desde la DB única."""
     email = request.args.get('email', '').lower().strip()
@@ -4099,6 +4098,8 @@ def get_boards():
         print(f"🚨 ERROR en GET /boards: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al obtener tableros."), 500
+
+
 
 def find_user_in_any_db(email_to_find):
     """Busca un usuario por email en la base de datos única."""
