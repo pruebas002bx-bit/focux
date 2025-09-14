@@ -271,35 +271,64 @@ def create_board():
         if conn: conn.close()
 
 
+@app.route('/notifications/pending', methods=['GET'])
+def get_pending_notifications():
+    """Obtiene notificaciones no leídas para un usuario."""
+    email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+    
+    # Esta es una función básica. A futuro puedes mejorarla para que
+    # realmente consulte notificaciones desde la base de datos.
+    # Por ahora, evita el error 404.
+    return jsonify(success=True, notifications=[])
+
+
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
+    """Obtiene los datos de un tablero específico y verifica permisos."""
     email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        # 1. Verificar si el usuario es colaborador del tablero solicitado
         cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
         if not cursor.fetchone():
+            conn.close()
             return jsonify(success=False, message="Acceso denegado a este tablero."), 403
 
+        # 2. Si tiene permiso, obtener los datos completos del tablero
         cursor.execute("SELECT * FROM boards WHERE id = %s", (board_id,))
         board_info = cursor.fetchone()
         if not board_info:
+            conn.close()
             return jsonify(success=False, message="Tablero no encontrado."), 404
         
         board_to_send = dict(board_info)
-        board_to_send['data'] = json.loads(board_to_send['board_data']) if board_to_send.get('board_data') else {}
-        if 'board_data' in board_to_send: del board_to_send['board_data']
+        
+        # --- CORRECCIÓN CLAVE ---
+        # PostgreSQL ya devuelve un diccionario, no necesitamos json.loads()
+        board_to_send['data'] = board_to_send.get('board_data') or {}
+        if 'board_data' in board_to_send:
+            del board_to_send['board_data']
+        # --- FIN DE LA CORRECCIÓN ---
 
+        # 3. Obtener la lista de todos los colaboradores de ese tablero
         cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
         board_to_send['shared_with'] = [dict(r) for r in cursor.fetchall()]
         
+        conn.close()
         return jsonify(success=True, board=board_to_send)
+        
     except Exception as e:
         print(f"🚨 ERROR en GET /boards/{board_id}: {e}")
-        return jsonify(success=False, message="Error interno del servidor."), 500
-    finally:
-        if conn: conn.close()
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
         
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
