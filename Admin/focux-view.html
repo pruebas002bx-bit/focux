@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Focux View • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-orange: #f97316;
+      --primary-orange-dark: #ea580c;
+      --bg-light: #f4f5f7;
+      --panel-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-muted: #6b7280;
+      --border-light: #e5e7eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #d97706;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow-y: auto; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text-dark);
+      background-color: var(--bg-light);
+    }
+
+    main { padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .header h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+    .header .pill { display: inline-block; margin-top: 4px; padding: 4px 10px; background-color: #f3f4f6; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; border-radius: 999px; }
+
+    .card { background: var(--panel-bg); border: 1px solid var(--border-light); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); padding: 24px; }
+
+    .toolbar { display: flex; align-items: center; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: var(--panel-bg); color: var(--text-dark); font-weight: 600; cursor: pointer; transition: all var(--transition); box-shadow: var(--shadow-sm); }
+    .btn:hover { transform: translateY(-1px); border-color: #d1d5db; }
+    .btn.primary { background: var(--primary-orange); color: #fff; border-color: var(--primary-orange); }
+    .btn.primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+
+    .select-container { position: relative; flex-grow: 1; }
+    .user-search { width: 100%; padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); font-size: 0.9rem; background-color: #fff; transition: all var(--transition); box-sizing: border-box; }
+    .user-search:focus { outline: none; border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249,115,22,.2); }
+    .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background-color: var(--panel-bg); border: 1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); max-height: 240px; overflow-y: auto; list-style: none; margin-top: 4px; padding: 4px; display: none; }
+    .autocomplete-list li { padding: 10px 16px; cursor: pointer; font-size: 0.9rem; border-radius: var(--radius-lg); }
+    .autocomplete-list li:hover { background-color: var(--bg-light); }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    .data-tabs { display: flex; border-bottom: 2px solid var(--border-light); margin-bottom: 16px; }
+    .tab-button { padding: 12px 18px; cursor: pointer; font-weight: 700; color: var(--text-muted); border: none; background: transparent; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all var(--transition); }
+    .tab-button:hover { color: var(--text-dark); }
+    .tab-button.active { color: var(--primary-orange); border-bottom: 2px solid var(--primary-orange); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Tabla base (tableros y tarjetas) */
+    table { width: 100%; border-collapse: collapse; table-layout: auto; }
+    thead th { text-align: left; font-size: 0.75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); background-color: #f9fafb; padding: 12px 16px; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--border-light); }
+    tbody td { padding: 12px 16px; border-top: 1px solid var(--border-light); font-size: 0.9rem; vertical-align: top; white-space: normal; }
+    tbody tr:first-child td { border-top: none; }
+    tbody tr:hover { background-color: #f9fafb; }
+
+    .btn-delete-item {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background-color: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: 999px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      font-weight: bold;
+      font-size: 1.2rem;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all var(--transition);
+      z-index: 5;
+    }
+    .card-item:hover .btn-delete-item, .table-row-actions .btn-delete-item {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .btn-delete-item:hover {
+      background-color: var(--danger);
+      color: white;
+    }
+
+
+    /* Grid de tarjetas/notes */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+
+    .card-item { background-color: #f9fafb; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .card-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .card-item.expanded { cursor: default; }
+    .card-item .card-image { width: 100%; height: 200px; margin-top: 12px; border-radius: var(--radius-lg); object-fit: cover; display: block; }
+
+    .card-item strong.card-title { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+    .card-item .card-board-info { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+    .card-item .description-preview { font-size: 0.9rem; line-height: 1.5; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; max-height: 3em; margin-top: 8px; }
+
+    .card-item .card-details { display: none; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-light); margin-top: 12px; }
+    .card-item.expanded .card-details { display: flex; }
+    .card-item .card-description { font-size: 0.9rem; line-height: 1.5; color: var(--text-dark); word-break: break-word; }
+
+    /* Metadatos de tarjeta */
+    .meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+    .badge { font-size: .72rem; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border-light); background: #fff; color: var(--text-dark); font-weight: 600; }
+    .badge.due { background: #fff7ed; border-color: #fed7aa; }
+    .badge.overdue { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+    .badge.status { background: #eff6ff; border-color: #bfdbfe; }
+    .badge.priority { background: #f0f9ff; border-color: #bae6fd; }
+    
+    /* Estilos específicos para fechas de vencimiento con días restantes */
+    .badge.due, .badge.overdue {
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .assignee { display: inline-flex; align-items: center; gap: 6px; }
+    .avatar { width: 24px; height: 24px; border-radius: 999px; background: #e5e7eb; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: .72rem; }
+
+    .labels { display: flex; flex-wrap: wrap; gap: 6px; }
+    .label { font-size: .72rem; padding: 3px 8px; border-radius: 999px; border: 1px solid #e5e7eb; background: #f9fafb; font-weight: 600; }
+
+    .progress { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: var(--primary-orange); width: var(--w,0%); }
+
+    .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .counters { display: flex; gap: 12px; color: var(--text-muted); font-size: .85rem; align-items: center; }
+    .counter-item { display: inline-flex; align-items: center; gap: 6px; }
+    .counter-item svg { width: 16px; height: 16px; }
+
+    .pill { font-size: 0.7rem; padding: 2px 8px; margin-right: 4px; background-color: #e5e7eb; color: var(--text-dark); border-radius: 999px; }
+
+    /* ===========  NOTAS  =========== */
+    .note-item.card-item { background: #fff; }
+    .note-item::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 6px; border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+    .note-yellow::before { background-color: #fde047; }
+    .note-purple::before { background-color: #c084fc; }
+    .note-blue::before   { background-color: #60a5fa; }
+    .note-green::before  { background-color: #4ade80; }
+    .note-pink::before   { background-color: #f9a8d4; }
+    .note-gray::before   { background-color: #9ca3af; }
+
+    /* ✅ Nunca se debe salir el contenido ni la imagen de su tarjeta */
+    .note-item { overflow: hidden; }
+    .note-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .note-title { font-weight: 700; font-size: .95rem; }
+    .note-meta { font-size: .8rem; color: var(--text-muted); }
+
+    /* Contenedor visual consistente con tarjetas */
+    .note-media { width: 100%; border-radius: var(--radius-lg); overflow: hidden; margin-top: 10px; }
+    .note-media img { width: 100%; height: 200px; display: block; object-fit: cover; }
+
+    .note-content { font-size: .95rem; line-height: 1.55; word-break: break-word; white-space: normal; margin-top: 10px; }
+    .note-content p { margin: .4rem 0; }
+
+    .empty { text-align: center; padding: 26px 10px; color: var(--text-muted); }
+
+    @media (max-width: 768px) {
+      main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Focux View</h2>
+        <div class="pill">Visualizador de datos por usuario</div>
+      </div>
+    </div>
+
+    <div class="card toolbar">
+      <div class="select-container">
+        <input type="search" id="user-search" class="user-search" placeholder="Buscar por correo o nombre...">
+        <ul id="autocomplete-list" class="autocomplete-list"></ul>
+      </div>
+      <button id="load-data-btn" class="btn primary" disabled>Cargar Datos</button>
+    </div>
+
+    <div class="card" id="data-display" style="display:none;">
+      <div id="data-loading" class="loading" style="display:none;">Cargando datos del usuario...</div>
+      <div id="user-data-content" style="display:none;">
+        <div class="data-tabs">
+          <button class="tab-button active" data-tab="tableros">Tableros</button>
+          <button class="tab-button" data-tab="tarjetas">Tarjetas</button>
+          <button class="tab-button" data-tab="notas">Notas</button>
+        </div>
+        <div id="tableros" class="tab-content active"></div>
+        <div id="tarjetas" class="tab-content"></div>
+        <div id="notas" class="tab-content"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE_DEFAULT = 'http://localhost:8080';
+    let API_BASE_URL = window.API_BASE_URL || localStorage.getItem('FOCUX_API_BASE') || API_BASE_DEFAULT;
+
+    function apiUrl(path){
+      if (!path) return API_BASE_URL;
+      if (/^https?:\/\//i.test(path)) return path;
+      // Limpiar barras duplicadas
+      const base = API_BASE_URL.replace(/\/$/, '');
+      const cleanPath = path.startsWith('/') ? path : '/' + path;
+      return base + cleanPath;
+    }
+
+    async function fetchJSON(path, {method='GET', body=null, headers={}} = {}){
+      const opts = { method, headers: { 'ngrok-skip-browser-warning':'true', ...headers }, mode:'cors', credentials:'omit' };
+      if (body !== null){ opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+      const res = await fetch(apiUrl(path), opts);
+      if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const contentType = res.headers.get('Content-Type') || '';
+      return contentType.includes('application/json') ? await res.json() : await res.text();
+    }
+
+    // ===================  Autocomplete  =====================
+    let allUsers = [];
+    let currentSelectedUserEmail = '';
+    let currentData = { boards: [], cards: [], notes: [] };
+
+    function setupAutocomplete(){
+      const input = document.getElementById('user-search');
+      const list  = document.getElementById('autocomplete-list');
+      function close() { list.style.display = 'none'; list.innerHTML = ''; }
+
+      input.addEventListener('input', () => {
+        const term = input.value.trim().toLowerCase();
+        const results = term ? allUsers.filter(u => (u.email||'').toLowerCase().includes(term) || (u.name||'').toLowerCase().includes(term)).slice(0, 20) : [];
+        list.innerHTML = results.map(u => `<li data-email="${u.email}"><strong>${u.name||u.email}</strong><br><span style="font-size:.8rem; color:var(--text-muted)">${u.email}</span></li>`).join('');
+        list.style.display = results.length ? 'block' : 'none';
+      });
+
+      list.addEventListener('click', (e) => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        const email = li.dataset.email;
+        const user  = allUsers.find(u => u.email === email) || {email, name: email};
+        input.value = `${user.name||''} <${user.email}>`;
+        currentSelectedUserEmail = user.email;
+        document.getElementById('load-data-btn').disabled = !currentSelectedUserEmail;
+        close();
+      });
+
+      document.addEventListener('click', (e)=>{ if(!list.contains(e.target) && e.target !== input) close(); });
+    }
+
+    async function loadUsers(){
+      try {
+        const response = await fetchJSON('/admin/dashboard');
+        if (response.success) {
+          allUsers = response.stats.detailed_users.map(u => ({ name: u.name || u.email, email: u.email }));
+          setupAutocomplete();
+        }
+      } catch (err) { console.error('Error loading users', err); }
+    }
+
+    // ===================  Render helpers  =====================
+    function byDateStrAsc(a,b){ return String(a.created_date||'').localeCompare(String(b.created_date||'')); }
+
+    // Resuelve URLs relativas a la API o deja pasar http(s) y data:
+    function resolveUrl(u){
+      if (!u) return u;
+      
+      console.log('🔗 Resolviendo URL:', u);
+      
+      // URLs de datos base64
+      if (/^data:image\//i.test(u)) {
+        console.log('✅ URL data: detectada');
+        return u;
+      }
+      
+      // URLs absolutas HTTP/HTTPS
+      if (/^https?:\/\//i.test(u)) {
+        console.log('✅ URL absoluta detectada');
+        return u;
+      }
+      
+      // URLs que empiezan con //
+      if (u.startsWith('//')) {
+        const resolved = `${location.protocol}${u}`;
+        console.log('✅ URL // resuelta a:', resolved);
+        return resolved;
+      }
+      
+      // URLs que empiezan con /
+      if (u.startsWith('/')) {
+        const resolved = apiUrl(u);
+        console.log('✅ URL / resuelta a:', resolved);
+        return resolved;
+      }
+      
+      // URLs relativas simples (sin protocolo ni barra inicial)
+      if (u && !u.includes('://')) {
+        const resolved = apiUrl('/' + u);
+        console.log('✅ URL relativa resuelta a:', resolved);
+        return resolved;
+      }
+      
+      console.log('⚠️ URL no procesada, devolviendo tal como está:', u);
+      return u;
+    }
+
+    // Extrae primera imagen del HTML/Texto (soporta <img>, http(s), data: y rutas relativas)
+    function extractFirstImageFromText(text){
+      if (!text) return null;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = String(text);
+      const tag = tmp.querySelector('img');
+      if (tag){
+        const src = tag.getAttribute('src') || tag.src;
+        if (src) {
+          console.log('🖼️ Imagen encontrada en HTML tag:', src);
+          return src;
+        }
+      }
+      // Buscar URLs de imágenes en el texto
+      const patterns = [
+        /(data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+)/i,
+        /(https?:\/\/[^\s"']+\.(?:png|jpe?g|gif|webp|bmp|svg))/i,
+        /([^\s"']+\.(?:png|jpe?g|gif|webp|bmp|svg))/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = pattern.exec(String(text));
+        if (match) {
+          console.log('🖼️ Imagen encontrada por regex:', match[0]);
+          return match[0];
+        }
+      }
+      
+      return null;
+    }
+
+    function isImageLike(attach){
+      if (!attach) return false;
+      const url = attach.url || attach.link || attach.href;
+      const mime = attach.mime || attach.contentType || attach.type || '';
+      return (typeof url === 'string' && /(\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$)/i.test(url)) || /^image\//i.test(mime);
+    }
+
+    // ✅ Selección robusta de imagen de tarjeta
+    function getCardImageUrl(card, descriptionText = ''){
+      console.log('🔍 Buscando imagen para tarjeta:', card.title || card.name);
+      console.log('📊 Datos de la tarjeta:', JSON.stringify({
+        imageUrl: card.imageUrl,
+        image: card.image,
+        coverUrl: card.coverUrl,
+        cover: card.cover,
+        attachment: card.attachment,
+        attachments: card.attachments,
+        adjuntos: card.adjuntos
+      }, null, 2));
+
+      const attachments = Array.isArray(card.attachments) ? card.attachments : (Array.isArray(card.adjuntos) ? card.adjuntos : []);
+      const coverFromAttachmentObj = attachments.find(a => a?.isCover && isImageLike(a)) || attachments.find(isImageLike);
+      const coverFromAttachment = coverFromAttachmentObj ? (coverFromAttachmentObj.url || coverFromAttachmentObj.link || coverFromAttachmentObj.href) : null;
+
+      // Expanded candidates list con más posibilidades
+      const candidates = [
+        card.imageUrl,
+        card.image,
+        card.coverUrl,
+        card.cover,
+        card.attachment, // Nuevo: campo attachment directo
+        card.attachmentUrl, // Nuevo: attachmentUrl
+        card.photo, // Nuevo: campo photo
+        card.picture, // Nuevo: campo picture
+        (card.cover && typeof card.cover === 'object' && (card.cover.url || card.cover.link || card.cover.href)),
+        coverFromAttachment,
+        extractFirstImageFromText(descriptionText),
+        extractFirstImageFromText(card.content || ''), // Nuevo: buscar en content
+        // Buscar en metadatos
+        (card.metadata && card.metadata.image),
+        (card.data && card.data.image),
+        // Buscar en custom fields
+        (card.customFields && card.customFields.image),
+        (card.fields && card.fields.image)
+      ];
+      
+      console.log('🔍 Candidatos para imagen:', candidates.filter(c => c));
+      
+      const found = candidates.find(u => {
+        if (typeof u === 'string' && u.trim()) {
+          console.log('✅ Candidato string encontrado:', u);
+          return true;
+        }
+        if (typeof u === 'object' && u && (u.url || u.link || u.href)) {
+          console.log('✅ Candidato objeto encontrado:', u);
+          return true;
+        }
+        return false;
+      });
+      
+      let imageUrl = '';
+      if (typeof found === 'string') {
+        imageUrl = found.trim();
+      } else if (typeof found === 'object' && found) {
+        imageUrl = found.url || found.link || found.href || '';
+      }
+      
+      const finalUrl = imageUrl ? resolveUrl(imageUrl) : '';
+      console.log('🖼️ URL final resuelta:', finalUrl);
+      
+      return finalUrl;
+    }
+
+    // Sanitizadores: permitir formato básico (negrita, listas, saltos de línea, links)
+    function stripImages(html){ return String(html||'').replace(/<img[^>]*>/gi,''); }
+
+    function sanitizeHTML(html){
+      const allowed = new Set(['b','strong','i','em','u','br','p','ul','ol','li','blockquote','code','pre','h1','h2','h3','a']);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = String(html||'');
+      (function walk(node){
+        Array.from(node.childNodes).forEach(child => {
+          if (child.nodeType === Node.ELEMENT_NODE){
+            const tag = child.tagName.toLowerCase();
+            if (!allowed.has(tag)){
+              const frag = document.createDocumentFragment();
+              while(child.firstChild) frag.appendChild(child.firstChild);
+              child.replaceWith(frag);
+            } else {
+              const attrs = Array.from(child.attributes).map(a=>a.name);
+              attrs.forEach(a => {
+                if (tag === 'a' && ['href','title','target','rel'].includes(a)) return;
+                child.removeAttribute(a);
+              });
+              if (tag === 'a'){
+                child.setAttribute('target','_blank');
+                child.setAttribute('rel','noopener noreferrer');
+              }
+            }
+          }
+          if (child.childNodes && child.childNodes.length) walk(child);
+        });
+      })(tmp);
+      return tmp.innerHTML;
+    }
+
+    function safeText(s){ return (s||'').replace(/<[^>]+>/g,''); }
+
+    function withLineBreaks(text){ return String(text||'').replace(/\n/g,'<br>'); }
+
+    function formatDate(d){
+      if(!d) return '';
+      const dt = new Date(d);
+      if(isNaN(dt.getTime())) return String(d);
+      return dt.toLocaleDateString('es-CO', {year:'numeric', month:'2-digit', day:'2-digit'});
+    }
+
+    function isOverdue(d){
+      if(!d) return false;
+      const due = new Date(d);
+      const today = new Date();
+      due.setHours(0,0,0,0); today.setHours(0,0,0,0);
+      return !isNaN(due.getTime()) && due < today;
+    }
+
+    function getDaysRemaining(d){
+      if(!d) return null;
+      const due = new Date(d);
+      const today = new Date();
+      due.setHours(0,0,0,0); today.setHours(0,0,0,0);
+      if(isNaN(due.getTime())) return null;
+      
+      const diffTime = due.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    }
+
+    function formatDueDate(d){
+      if(!d) return '';
+      const days = getDaysRemaining(d);
+      const dateStr = formatDate(d);
+      
+      if(days === null) return dateStr;
+      
+      if(days < 0) {
+        return `${dateStr} (vencida hace ${Math.abs(days)} día${Math.abs(days) === 1 ? '' : 's'})`;
+      } else if(days === 0) {
+        return `${dateStr} (vence hoy)`;
+      } else if(days === 1) {
+        return `${dateStr} (vence mañana)`;
+      } else {
+        return `${dateStr} (faltan ${days} día${days === 1 ? '' : 's'})`;
+      }
+    }
+
+    function getInitials(nameOrEmail){
+      const s = (nameOrEmail||'').trim();
+      if(!s) return '?';
+      if(s.includes('@')) return s.split('@')[0].slice(0,2).toUpperCase();
+      const parts = s.split(/\s+/).filter(Boolean);
+      return (parts[0]?.[0]||'').toUpperCase() + (parts[1]?.[0]||'').toUpperCase();
+    }
+
+    function makeLabelHTML(label){
+      if(!label) return '';
+      let name = '';
+      let color = '';
+      if (typeof label === 'string') { name = label; }
+      else { name = label.name || ''; color = label.color || ''; }
+      let style = '';
+      if (color) {
+        if (/^#?[0-9a-fA-F]{6}$/.test(color)) {
+          const hex = color.replace('#','');
+          style = `background-color:#${hex}20;border-color:#${hex};color:#${hex}`;
+        } else {
+          style = `border-color:${color};color:${color}`;
+        }
+      }
+      return `<span class="label" style="${style}">${safeText(name)}</span>`;
+    }
+
+    function checklistStats(checklist){
+      const items = Array.isArray(checklist) ? checklist : [];
+      const total = items.length;
+      const done = items.filter(it => it.done || it.completed || it.checked).length;
+      const pct = total ? Math.round((done/total)*100) : 0;
+      return {total, done, pct, items};
+    }
+
+    function renderBoardsTab(){
+      const el = document.getElementById('tableros');
+      el.innerHTML = '';
+      if (!currentData.boards.length){ el.innerHTML = `<p class="empty">No hay tableros para este usuario.</p>`; return; }
+
+      const rows = currentData.boards.slice().sort(byDateStrAsc).map(b => {
+        const cardsCount = Array.isArray((b.data||{}).cards) ? b.data.cards.length : 0;
+        return `<tr>
+          <td><strong>${safeText(b.name)}</strong><div style="color:var(--text-muted); font-size:.8rem;">${b.category || '—'}</div></td>
+          <td>${cardsCount}</td>
+          <td>${formatDate(b.created_date)}</td>
+          <td>${formatDate(b.updated_date)}</td>
+          <td style="color:var(--text-muted); font-size:.8rem;">${b.source_db||''}</td>
+          <td class="table-row-actions">
+            <button class="btn-delete-item" title="Eliminar Tablero" onclick="handleDeleteItem('board', { boardId: ${b.id}, sourceDb: '${b.source_db}' })">&times;</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      el.innerHTML = `<div style="overflow:auto"><table>
+        <thead><tr><th>Tablero</th><th>Tarjetas</th><th>Creado</th><th>Actualizado</th><th>Base</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+
+    function renderCardsTab(){
+      const el = document.getElementById('tarjetas');
+      el.innerHTML = '';
+      const allCards = [];
+      currentData.boards.forEach(b => {
+        ((b.data || {}).cards || []).forEach(c => allCards.push({ board: b, card: c }));
+      });
+
+      if (!allCards.length){ el.innerHTML = `<p class="empty">No hay tarjetas para este usuario.</p>`; return; }
+
+      const grid = document.createElement('div');
+      grid.className = 'cards-grid';
+
+      allCards.forEach(({board, card}) => {
+        const item = document.createElement('div');
+        item.className = 'card-item';
+        item.innerHTML = `
+          <button class="btn-delete-item" title="Eliminar Tarjeta" onclick="handleDeleteItem('card', { cardId: '${card.id}', boardId: ${board.id}, sourceDb: '${board.source_db}' })">&times;</button>
+          <strong class="card-title">${safeText(card.title || 'Sin título')}</strong>
+          <div class="card-board-info">En: ${safeText(board.name)}</div>
+          <div class="description-preview">${safeText(card.description)}</div>
+          `;
+        grid.appendChild(item);
+      });
+      el.appendChild(grid);
+    }
+
+    function renderNotesTab(){
+      const el = document.getElementById('notas');
+      el.innerHTML = '';
+      const notes = [];
+      currentData.boards.forEach(b => {
+        (b.notes || []).forEach(n => notes.push({ board: b, note: n }));
+      });
+
+      if (!notes.length){ el.innerHTML = `<p class="empty">No hay notas para este usuario.</p>`; return; }
+
+      const grid = document.createElement('div');
+      grid.className = 'cards-grid';
+
+      notes.forEach(({board, note}) => {
+        const colorClass = (note.color || 'note-yellow');
+        const cleanHTML = sanitizeHTML(stripImages(withLineBreaks(note.content || '')));
+        const item = document.createElement('div');
+        item.className = `note-item card-item ${colorClass}`;
+        item.innerHTML = `
+          <button class="btn-delete-item" title="Eliminar Nota" onclick="handleDeleteItem('note', { noteId: ${note.id}, sourceDb: '${board.source_db}' })">&times;</button>
+          <div class="note-header">
+            <div class="note-title">En: ${safeText(board.name)}</div>
+            <div class="note-meta">${formatDate(note.updated_date)}</div>
+          </div>
+          <div class="note-content">${cleanHTML}</div>
+        `;
+        grid.appendChild(item);
+      });
+      el.appendChild(grid);
+    }
+
+    // ===================  Load data  =====================
+    async function loadData(){
+      if (!currentSelectedUserEmail) return;
+      document.getElementById('data-display').style.display = 'block';
+      document.getElementById('data-loading').style.display = 'block';
+      document.getElementById('user-data-content').style.display = 'none';
+
+      try {
+        const res = await fetchJSON(`/admin/focux-view-data?email=${encodeURIComponent(currentSelectedUserEmail)}`);
+        if (res.success){
+          currentData.boards = res.boards || [];
+          document.getElementById('data-loading').style.display = 'none';
+          document.getElementById('user-data-content').style.display = 'block';
+          renderBoardsTab();
+          renderCardsTab();
+          renderNotesTab();
+        } else {
+          throw new Error(res.message || 'Error');
+        }
+      } catch(err){
+        console.error(err);
+        document.getElementById('data-loading').textContent = 'Error cargando datos';
+      }
+    }
+
+    // ===================  Tabs  =====================
+    function setupTabs(){
+      const buttons = Array.from(document.querySelectorAll('.tab-button'));
+      buttons.forEach(btn => btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.id === tab));
+      }));
+    }
+
+    // ===================  Debug función mejorada  =====================
+    window.debugImages = function() {
+      console.log('🔍 DEBUGGANDO IMÁGENES DE TARJETAS:');
+      console.log('API_BASE_URL:', API_BASE_URL);
+      console.log('Current data:', currentData);
+      
+      if (currentData.boards) {
+        currentData.boards.forEach(board => {
+          console.log(`\n📋 Tablero: ${board.name}`);
+          if (board.data && board.data.cards) {
+            board.data.cards.forEach(card => {
+              console.log(`\n  🃏 Tarjeta: ${card.title || card.name || 'Sin título'}`);
+              console.log(`     📋 Estructura completa de la tarjeta:`, card);
+              
+              const finalUrl = getCardImageUrl(card, card.description || '');
+              console.log(`     ✅ URL final resuelta:`, finalUrl);
+              
+              // Probar si la imagen se puede cargar
+              if (finalUrl) {
+                testImageUrl(finalUrl, card.title || card.name);
+              }
+            });
+          }
+        });
+      }
+      
+      console.log('\n📝 Verificando también las notas...');
+      currentData.boards.forEach(board => {
+        if (board.notes && board.notes.length) {
+          console.log(`\n📋 Notas del tablero: ${board.name}`);
+          board.notes.forEach(note => {
+            const imgUrl = extractFirstImageFromText(note.content);
+            console.log(`  📝 Nota: imagen encontrada =`, imgUrl);
+            if (imgUrl) {
+              const resolvedUrl = resolveUrl(imgUrl);
+              console.log(`     ✅ URL resuelta =`, resolvedUrl);
+              testImageUrl(resolvedUrl, 'Nota');
+            }
+          });
+        }
+      });
+    };
+
+
+    async function handleDeleteItem(type, data) {
+        const typeMap = {
+            board: { name: 'Tablero', endpoint: '/admin/focux-view/delete-board' },
+            card: { name: 'Tarjeta', endpoint: '/admin/focux-view/delete-card' },
+            note: { name: 'Nota', endpoint: '/admin/focux-view/delete-note' }
+        };
+        const item = typeMap[type];
+        if (!item) return;
+
+        if (!confirm(`¿Estás seguro de que quieres eliminar este/a ${item.name}? Esta acción es irreversible.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetchJSON(item.endpoint, { method: 'DELETE', body: data });
+            toast(`✅ ${res.message}`);
+            // Recargar todos los datos para reflejar el cambio
+            loadData();
+        } catch(err) {
+            console.error(`Error al eliminar ${item.name}:`, err);
+            toast(`❌ Error: ${err.message}`);
+        }
+    }
+
+    // Función para probar si una URL de imagen funciona
+    function testImageUrl(url, cardName) {
+      const img = new Image();
+      img.onload = function() {
+        console.log(`✅ IMAGEN CARGA EXITOSAMENTE para "${cardName}":`, url);
+      };
+      img.onerror = function() {
+        console.error(`❌ ERROR CARGANDO IMAGEN para "${cardName}":`, url);
+        console.error('Posibles causas: CORS, URL incorrecta, archivo no existe');
+      };
+      img.src = url;
+    }
+
+    // ===================  Init  =====================
+    document.getElementById('load-data-btn').addEventListener('click', loadData);
+    setupTabs();
+    loadUsers();
+  </script>
+</body>
+</html>
