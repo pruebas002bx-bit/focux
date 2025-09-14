@@ -57,6 +57,8 @@ CORS(app, origins=[
 
 load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- INICIO DE CORRECCIÓN: Silenciar logs de requests HTTP ---
@@ -661,6 +663,7 @@ def init_db():
         # Asegúrate de cerrar la conexión
         if conn is not None:
             conn.close()
+
 
 
 
