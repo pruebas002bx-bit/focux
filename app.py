@@ -976,21 +976,17 @@ def get_active_focux_messages():
 # INICIO: Bloque MEJORADO para Recordatorios de Telegram
 # ============================================================================
 
+
+
 def schedule_telegram_reminder(user_email, card_data):
     """Guarda un recordatorio detallado en la base de datos para ser enviado 10 minutos antes."""
     try:
-        # --- INICIO DE LA MODIFICACIÓN ---
-        # Se cambia 'due_date' por 'startDate' para calcular la hora del evento.
         start_date = card_data.get('startDate') 
-        # --- FIN DE LA MODIFICACIÓN ---
         start_time = card_data.get('start_time')
         
-        # --- INICIO DE LA MODIFICACIÓN ---
-        # Se añade una validación para no programar recordatorios sin fecha de inicio.
         if not start_date or not start_time:
             print(f"🔔 No se programó recordatorio para '{card_data.get('card_title')}' porque no tiene fecha/hora de inicio.")
             return False, "No se proporcionó fecha/hora de inicio."
-        # --- FIN DE LA MODIFICACIÓN ---
 
         event_time_str = f"{start_date}T{start_time}"
         event_time = datetime.fromisoformat(event_time_str)
@@ -1005,7 +1001,6 @@ def schedule_telegram_reminder(user_email, card_data):
         connection = cursor.fetchone()
         
         if not connection:
-            print(f"🔔 No se programó recordatorio para '{card_data.get('card_title')}' porque {user_email} no tiene Telegram conectado.")
             conn.close()
             return False, "Usuario no conectado a Telegram."
 
@@ -1015,22 +1010,16 @@ def schedule_telegram_reminder(user_email, card_data):
             cursor.execute("""
                 INSERT INTO scheduled_reminders 
                 (user_email, telegram_chat_id, notification_time, card_title, board_name, card_column, card_description, card_tags, sent)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                user_email, 
-                chat_id, 
-                notification_time.isoformat(),
-                card_data.get('card_title'),
-                card_data.get('board_name'),
-                card_data.get('card_column'),
-                card_data.get('card_description'),
-                card_data.get('card_tags'),
-                0
+                user_email, chat_id, notification_time.isoformat(),
+                card_data.get('card_title'), card_data.get('board_name'),
+                card_data.get('card_column'), card_data.get('card_description'),
+                card_data.get('card_tags'), 0
             ))
             conn.commit()
         
         conn.close()
-        print(f"✅ Recordatorio DETALLADO programado para '{card_data.get('card_title')}' a las {notification_time.strftime('%Y-%m-%d %H:%M')}")
         return True, "Recordatorio programado."
         
     except Exception as e:
@@ -3742,7 +3731,7 @@ def create_board():
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_name = data.get('name', 'Nuevo Tablero').strip()
-    template_columns = data.get('columns') # <-- Nueva línea para recibir las columnas
+    template_columns = data.get('columns')
 
     if not email:
         return jsonify(success=False, message="Email es requerido"), 400
@@ -3753,35 +3742,20 @@ def create_board():
             cursor = conn.cursor()
             now = datetime.now(timezone.utc).isoformat()
             
-            # --- INICIO DE LA CORRECCIÓN ---
-            # Si se reciben columnas desde el frontend, se usan. Si no, se usan las de por defecto.
-            if template_columns and isinstance(template_columns, list) and len(template_columns) > 0:
-                board_columns = template_columns
-            else:
-                board_columns = [
-                    {"id": "col-1", "title": "Por hacer (To Do)", "color": "bg-red-200"},
-                    {"id": "col-2", "title": "En proceso (In Progress)", "color": "bg-yellow-200"},
-                    {"id": "col-3", "title": "En revisión (In Review)", "color": "bg-indigo-200"},
-                    {"id": "col-4", "title": "Hecho (Done)", "color": "bg-green-200"}
-                ]
-
-            default_board_data = {
-                "columns": board_columns, 
-                "cards": [], 
-                "boardOptions": {}
-            }
-            # --- FIN DE LA CORRECCIÓN ---
+            board_columns = template_columns if template_columns and isinstance(template_columns, list) else [
+                {"id": "col-1", "title": "Por hacer", "color": "bg-red-200"},
+                {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
+                {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
+            ]
+            default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
 
             cursor.execute(
                 "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 (email, board_name, json.dumps(default_board_data), now, now, "Personal")
             )
-
-
-
-            board_id = cursor.lastrowid
+            board_id = cursor.fetchone()['id']
             
-            cursor.execute("INSERT INTO collaborators (board_id, user_email) VALUES (?, ?)", (board_id, email))
+            cursor.execute("INSERT INTO collaborators (board_id, user_email) VALUES (%s, %s)", (board_id, email))
             
             conn.commit()
             conn.close()
@@ -3791,6 +3765,8 @@ def create_board():
         print(f"🚨 ERROR en POST /boards: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor"), 500
+
+
 
 @app.route('/boards/<int:board_id>', methods=['GET'])
 def get_single_board(board_id):
@@ -3868,6 +3844,9 @@ def update_board(board_id):
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al guardar el tablero."), 500
 
+
+
+
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):
     """Elimina un tablero. Solo el propietario puede hacerlo."""
@@ -3876,36 +3855,32 @@ def delete_board(board_id):
         return jsonify(success=False, message="Email es requerido"), 400
 
     try:
-        # --- INICIO DE LA CORRECCIÓN ---
-        # Se utiliza la función find_board_and_owner_db para encontrar el tablero en cualquier base de datos.
-        board_info = find_board_and_owner_db(board_id)
-        if not board_info:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar si el usuario es el propietario
+        cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
+        board_owner = cursor.fetchone()
+
+        if not board_owner:
+            conn.close()
             return jsonify(success=False, message="Tablero no encontrado."), 404
         
-        # Se verifica que el email del solicitante sea el del propietario.
-        if board_info.get('owner_email', '').lower().strip() != email:
+        if board_owner['owner_email'] != email:
+            conn.close()
             return jsonify(success=False, message="Solo el propietario puede eliminar el tablero."), 403
 
-        # Se conecta a la base de datos correcta donde reside el tablero.
-        owner_db = board_info['found_in_db']
-        conn = get_db_connection_for_manager(owner_db)
-        if not conn:
-            return jsonify(success=False, message="No se pudo conectar a la base de datos del tablero."), 500
-        # --- FIN DE LA CORRECCIÓN ---
-
-        with db_lock:
-            cursor = conn.cursor()
-            # Habilitar claves foráneas para eliminación en cascada (notas, colaboradores, etc.)
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("DELETE FROM boards WHERE id = %s", (board_id,))
-            conn.commit()
-            conn.close()
+        # Eliminar el tablero (ON DELETE CASCADE se encargará del resto)
+        cursor.execute("DELETE FROM boards WHERE id = %s", (board_id,))
+        conn.commit()
+        conn.close()
         
         return jsonify(success=True, message="Tablero eliminado")
     except Exception as e:
         print(f"🚨 ERROR en DELETE /boards/{board_id}: {e}")
         traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor"), 500
+
 
 
 @app.route('/dashboard-data', methods=['GET'])
