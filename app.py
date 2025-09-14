@@ -211,7 +211,6 @@ def login():
         if conn: conn.close()
 
 
-
 @app.route('/boards/<int:board_id>/share', methods=['POST'])
 def share_board(board_id):
     """Invita a un nuevo usuario a colaborar en un tablero."""
@@ -220,39 +219,51 @@ def share_board(board_id):
     recipient_email = data.get('recipient_email', '').lower().strip()
     permission_level = data.get('permission_level', 'viewer')
 
+    if not all([sharer_email, recipient_email]):
+        return jsonify(success=False, message="Faltan datos para compartir."), 400
+
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # 1. Verificar que quien comparte es el dueño del tablero
         cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
         board = cursor.fetchone()
         if not board or board['owner_email'] != sharer_email:
-            return jsonify(success=False, message="Solo el propietario puede compartir."), 403
+            return jsonify(success=False, message="Solo el propietario puede compartir el tablero."), 403
 
+        # 2. Verificar que el usuario invitado existe en el sistema
         cursor.execute("SELECT id FROM users WHERE email = %s", (recipient_email,))
         if not cursor.fetchone():
-            return jsonify(success=False, message=f"El usuario '{recipient_email}' no fue encontrado."), 404
+            return jsonify(success=False, message=f"El usuario '{recipient_email}' no fue encontrado en Focux."), 404
 
+        # 3. Añadir o actualizar al colaborador
         cursor.execute("""
             INSERT INTO collaborators (board_id, user_email, permission_level)
             VALUES (%s, %s, %s)
-            ON CONFLICT (board_id, user_email) DO UPDATE SET permission_level = EXCLUDED.permission_level
+            ON CONFLICT (board_id, user_email) DO UPDATE SET
+                permission_level = EXCLUDED.permission_level
         """, (board_id, recipient_email, permission_level))
         
-        conn.commit()
+        # --- INICIO DE LA CORRECCIÓN ---
+        # 4. En lugar de llamar a una función externa, simplemente obtenemos y devolvemos
+        #    la lista actualizada de colaboradores, que es lo único que necesita el frontend.
+        cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
+        updated_collaborators = [dict(row) for row in cursor.fetchall()]
+        # --- FIN DE LA CORRECCIÓN ---
         
-        # --- CORRECCIÓN CLAVE ---
-        # Después de guardar, obtenemos y devolvemos toda la info actualizada del tablero.
-        updated_board_info = find_board_and_owner_db(board_id)
-        return jsonify(success=True, message="Tablero compartido.", board=updated_board_info)
+        conn.commit()
+        return jsonify(success=True, message="Tablero compartido exitosamente.", shared_with=updated_collaborators)
 
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en POST /boards/{board_id}/share: {e}")
-        return jsonify(success=False, message="Error interno del servidor."), 500
+        return jsonify(success=False, message="Error interno del servidor al compartir."), 500
     finally:
         if conn: conn.close()
+
+
 
 @app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
 def update_collaborator_permission(board_id):

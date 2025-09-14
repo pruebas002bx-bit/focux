@@ -6961,51 +6961,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addUserBtn.addEventListener('click', async () => {
         const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
+        const permissionLevel = document.getElementById('invite-permission-level').value;
         if (!recipientEmail) return;
 
         shareModalStatus.textContent = 'Invitando...';
-        shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600';
+        // ... (resto del código para el estado de carga) ...
 
         try {
             const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/share`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                // --- INICIO DE LA CORRECIÓN ---
-                // Se añade el manager_id del usuario actual a la solicitud.
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     sharer_email: currentUser.email, 
                     recipient_email: recipientEmail,
-                    manager_id: currentUser.manager_id 
+                    permission_level: permissionLevel
                 })
-                // --- FIN DE LA CORRECIÓN ---
             });
             const result = await response.json();
 
             if (result.success) {
                 shareModalStatus.textContent = '¡Invitación enviada!';
-                shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
                 document.getElementById('share-new-recipient-email').value = '';
                 
+                // --- CORRECCIÓN CLAVE ---
+                // Actualizamos la lista de colaboradores en nuestro tablero local
+                // con la nueva lista que nos devuelve el servidor.
                 const boardToUpdate = boardsData.find(b => b.id === currentBoardId);
                 if (boardToUpdate) {
-                    // --- INICIO DE LA CORRECCIÓN DE SINCRONIZACIÓN ---
-                    // Actualiza tanto la lista de colaboradores como el dueño real desde la respuesta del servidor.
                     boardToUpdate.shared_with = result.shared_with;
-                    boardToUpdate.owner_email = result.owner_email; // <-- ESTA LÍNEA ES CRUCIAL
-                    // --- FIN DE LA CORRECCIÓN DE SINCRONIZACIÓN ---
                 }
-                populateShareModal();
-                updateBoardSelector(); // Ahora se ejecutará con los datos locales ya corregidos.
+                // --- FIN DE LA CORRECCIÓN ---
+                
+                populateShareModal(); // Refresca la lista de colaboradores en el modal
+                updateBoardSelector(); // Refresca el dropdown principal
             } else {
                 shareModalStatus.textContent = `Error: ${result.message}`;
-                shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
             }
         } catch (error) {
             shareModalStatus.textContent = 'Error de conexión.';
-            shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
         }
     });
-
 
 
     addUserBtn.addEventListener('click', async () => {
