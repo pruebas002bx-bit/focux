@@ -14785,7 +14785,8 @@ function showMoveSuccessModal() {
         }
         
         localStorage.removeItem('user');
-        window.location.href = 'index.html';
+        // --- LÍNEA CORREGIDA ---
+        window.location.href = '/'; 
     });
 
     // Cerrar modal con ESC
