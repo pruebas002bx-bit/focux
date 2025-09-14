@@ -13554,25 +13554,29 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function saveCardDataFromModal() {
         if (!currentCardId) return;
-        
-        const oldTask = JSON.parse(JSON.stringify(cardDataStore.get(currentCardId)));
+
+        // --- INICIO DE LA CORRECCIÓN ---
         const taskData = cardDataStore.get(currentCardId);
-        if (!taskData) return;
+        if (!taskData) {
+            console.error(`Error crítico: No se encontró la tarjeta con ID ${currentCardId} para guardar.`);
+            return;
+        }
+
+        // Se crea una copia segura solo si la tarea ya existía con datos.
+        const oldTask = taskData.title ? JSON.parse(JSON.stringify(taskData)) : {};
+        // --- FIN DE LA CORRECCIÓN ---
 
         const form = document.getElementById('add-card-form');
-        
+
         taskData.title = form.querySelector('[name="title"]').value;
         taskData.description = form.querySelector('[name="description"]').value;
-        
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Leer los nuevos campos de fecha y hora
+
         const newStartDate = form.querySelector('[name="startDate"]').value || null;
         const newEndDate = form.querySelector('[name="endDate"]').value || null;
         const allDay = form.querySelector('[name="allDay"]').checked;
         const startTime = form.querySelector('[name="startTime"]').value || null;
         const endTime = form.querySelector('[name="endTime"]').value || null;
 
-        // Lógica de registro para la fecha de inicio
         if (newStartDate !== oldTask.startDate) {
             if (!oldTask.startDate && newStartDate) {
                 const formattedDate = new Date(newStartDate + 'T00:00:00').toLocaleDateString("es-ES", { year: 'numeric', month: 'long', day: 'numeric' });
@@ -13585,17 +13589,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 logActivity(currentCardId, '🔄', `cambió la fecha de inicio de <strong>${oldFormatted}</strong> a <strong>${newFormatted}</strong>.`);
             }
         }
-        
-        // Asignar los nuevos valores al objeto de la tarea
+
         taskData.startDate = newStartDate;
         taskData.endDate = newEndDate;
         taskData.allDay = allDay;
         taskData.startTime = startTime;
         taskData.endTime = endTime;
-        // --- FIN DE LA CORRECCIÓN ---
-        
+
         taskData.color = form.querySelector('#card-color-swatches-container .ring-2')?.dataset.color || 'bg-white';
-        
+
         const tags = [];
         document.querySelectorAll('#urgency-tags-container .tag-select-btn[aria-checked="true"], #importance-tags-container .tag-select-btn[aria-checked="true"]').forEach(btn => { 
             tags.push({ text: btn.textContent }); 
@@ -13611,7 +13613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         taskData.tags = tags;
-        
+
         scheduleAutoSave();
     }
 
@@ -13623,42 +13625,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    function attachRealtimeSaveListeners() {
-        const form = document.getElementById('add-card-form');
-        if (!form) return;
-
-        const trixEditor = form.querySelector('trix-editor');
-        const titleInput = form.querySelector('[name="title"]');
-        const startDateInput = form.querySelector('[name="startDate"]');
-        const endDateInput = form.querySelector('[name="endDate"]');
-        const customTagsInput = form.querySelector('[name="custom_tags"]');
-        const colorSwatches = form.querySelector('#card-color-swatches-container');
-
-        // Se añaden verificaciones para evitar errores si un elemento no existe
-        if (titleInput) {
-            titleInput.addEventListener('input', debouncedSaveFromModal);
-        }
-        if (startDateInput) {
-            startDateInput.addEventListener('change', debouncedSaveFromModal);
-        }
-        if (endDateInput) {
-            endDateInput.addEventListener('change', debouncedSaveFromModal);
-        }
-        if (customTagsInput) {
-            customTagsInput.addEventListener('input', debouncedSaveFromModal);
-        }
-        if (trixEditor) {
-            trixEditor.addEventListener('trix-change', () => {
-                if (isProgrammaticallyChangingTrix) {
-                    return;
-                }
-                debouncedSaveFromModal();
-            });
-        }
-        if (colorSwatches) {
-            colorSwatches.addEventListener('click', saveCardDataFromModal);
-        }
-    }
 
     
     function moveProgrammedCards() {
