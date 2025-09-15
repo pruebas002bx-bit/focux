@@ -611,20 +611,19 @@ def create_board():
         conn = get_db_connection()
         cursor = conn.cursor()
         now = datetime.now(timezone.utc).isoformat()
-
-        # --- INICIO DE LA CORRECCIÓN ---
-        # Si el frontend envía una plantilla de columnas, la usamos.
-        # Si no, usamos la plantilla por defecto.
+        
+        # Si el frontend envía una plantilla de columnas, la usamos. Si no, la por defecto.
         board_columns = template_columns if template_columns and isinstance(template_columns, list) else [
             {"id": "col-1", "title": "Por hacer", "color": "bg-red-200"},
             {"id": "col-2", "title": "En proceso", "color": "bg-yellow-200"},
             {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
         ]
+        
         # Aseguramos que cada columna tenga un ID único
         for i, col in enumerate(board_columns):
             if 'id' not in col:
-                col['id'] = f'col-{Date.now()}-{i}'
-        # --- FIN DE LA CORRECCIÓN ---
+                # Usamos un método simple para generar un ID si falta
+                col['id'] = f'col-{int(time.time() * 1000)}-{i}'
 
         default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
 
@@ -633,9 +632,9 @@ def create_board():
             (email, board_name, json.dumps(default_board_data), now, now, "Personal")
         )
         board_id = cursor.fetchone()['id']
-
+        
         cursor.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
-
+        
         conn.commit()
         return jsonify(success=True, message="Tablero creado", board_id=board_id), 201
     except Exception as e:
@@ -645,7 +644,6 @@ def create_board():
         return jsonify(success=False, message="Error interno del servidor al crear el tablero."), 500
     finally:
         if conn: conn.close()
-
 
 @app.route('/boards/<int:board_id>/name', methods=['PATCH'])
 def update_board_name(board_id):
