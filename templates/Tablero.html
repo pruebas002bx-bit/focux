@@ -6959,12 +6959,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => shareModal.classList.add('hidden'), 200);
     });
 
+
     // REEMPLAZA ESTE BLOQUE EN Tablero.html
 
     addUserBtn.addEventListener('click', async () => {
         const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
         // --- INICIO DE LA CORRECCIÓN ---
-        // 1. Obtenemos el nivel de permiso ('editor' o 'viewer') del menú desplegable.
+        // 1. Obtenemos el nivel de permiso seleccionado en el menú desplegable.
         const permissionLevel = document.getElementById('invite-permission-level').value;
         // --- FIN DE LA CORRECCIÓN ---
         
@@ -6998,8 +6999,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     boardToUpdate.shared_with = result.shared_with;
                 }
                 
-                populateShareModal(); // Refresca la lista de colaboradores en el modal
-                updateBoardSelector(); // Refresca el dropdown principal
+                populateShareModal(); // Refresca la lista de "Personas con Acceso"
+                updateBoardSelector(); // Refresca el menú principal de tableros
             } else {
                 shareModalStatus.textContent = `Error: ${result.message}`;
                 shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
