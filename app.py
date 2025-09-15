@@ -435,7 +435,7 @@ def remove_collaborator(board_id):
 
 
 
-# AÑADE ESTA FUNCIÓN PARA PERMITIR BUSCAR USUARIOS
+# AÑADE ESTA RUTA EN LA SECCIÓN 3 DE app.py
 @app.route('/users/directory', methods=['GET'])
 def get_user_directory():
     """Devuelve una lista de todos los usuarios para iniciar nuevos chats."""
@@ -451,6 +451,49 @@ def get_user_directory():
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
+# AÑADE ESTOS HANDLERS EN LA SECCIÓN 4 DE SOCKET.IO EN app.py
+@socketio.on('global_chat_send')
+def handle_global_chat_send(data):
+    """Recibe y guarda un mensaje privado, y lo retransmite al destinatario."""
+    sender = data.get('sender_email')
+    receiver = data.get('receiver_email')
+    text = data.get('text')
+    
+    if not all([sender, receiver, text]):
+        return
+
+    now = datetime.now(timezone.utc).isoformat()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO direct_messages (sender_email, receiver_email, text, ts) VALUES (%s, %s, %s, %s)",
+            (sender, receiver, text, now)
+        )
+        conn.commit()
+        
+        # Prepara el paquete de datos para el destinatario
+        data['timestamp'] = now
+        
+        # Envía el mensaje solo al destinatario
+        # Asumimos que cada usuario está en una "sala" con su propio email como nombre
+        emit('direct_message', data, room=receiver)
+        
+    except Exception as e:
+        print(f"🚨 ERROR guardando mensaje directo: {e}")
+    finally:
+        if conn: conn.close()
+
+@socketio.on('subscribe_to_personal_channel')
+def handle_subscribe(data):
+    """Suscribe a un usuario a su propia sala para recibir mensajes privados."""
+    email = data.get('email')
+    if email:
+        join_room(email)
+        print(f"SOCKET: Usuario {email} suscrito a su canal personal.")
+
 
 # AÑADE ESTA FUNCIÓN PARA CARGAR EL HISTORIAL DEL CHAT DE UN TABLERO
 @app.route('/boards/<int:board_id>/chat', methods=['GET'])

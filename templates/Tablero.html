@@ -5370,8 +5370,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('connect', () => {
+        console.log('🔌 ✅ Socket.IO conectado exitosamente.');
+
         if (currentUser && currentUser.email) {
-            loadPersonalChatPartners();
+            // 1. Suscribe al usuario a su canal personal para recibir mensajes privados.
+            //    Esto le dice al servidor a dónde enviar los mensajes directos para este usuario.
+            socket.emit('subscribe_to_personal_channel', { email: currentUser.email });
+
+            // 2. Pide la lista de conversaciones de chat personal existentes.
+            //    El servidor responderá con un evento 'global_chat_conversations' para poblar la lista.
+            socket.emit('global_chat_list_conversations', { email: currentUser.email });
         }
     });
 
@@ -5488,12 +5496,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+     function sendMessage(messageContent) {
+        if (typeof messageContent !== 'string' || !messageContent.trim()) return;
+        const content = messageContent.trim();
+        
+        if (currentChatMode === 'board') {
+            const payload = {
+                board_id: currentBoardId,
+                user_email: currentUser.email,
+                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email,
+                message: content
+            };
+            appendBoardChatMessage(payload);
+            socket.emit('new_chat_message', payload);
+        } else if (currentChatMode === 'general') {
+            const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
+            if (!peerEmail) return;
+            
+            const payload = {
+                sender_email: currentUser.email,
+                receiver_email: peerEmail,
+                text: content,
+                // Datos para la actualización optimista
+                sender_name: `${currentUser.first_name} ${currentUser.last_name}`.trim()
+            };
+            appendGeneralChatMessage(payload, document.getElementById('general-chat-messages'));
+            socket.emit('global_chat_send', payload);
+        }
+    }
+
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
         try {
-            const response = await fetch(`${API_BASE_URL}/users/directory`, {
-                headers: { 'ngrok-skip-browser-warning': 'true' }
-            });
+            const response = await fetch(`${API_BASE_URL}/users/directory`);
             const data = await response.json();
             if (data.success) {
                 const otherUsers = data.users.filter(user => user.email !== currentUser.email);
@@ -12296,45 +12331,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function sendMessage(messageContent) {
-        if (typeof messageContent !== 'string' || !messageContent.trim()) {
-            return;
-        }
-        const content = messageContent.trim();
-        const mode = currentChatMode;
-
-        if (mode === 'board') {
-            if (!currentBoardId) return;
-            const payload = {
-                board_id: currentBoardId,
-                user_email: currentUser.email,
-                // --- INICIO DE LA CORRECCIÓN ---
-                // Añadimos el nombre del usuario al paquete de datos que enviamos
-                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email,
-                // --- FIN DE LA CORRECCIÓN ---
-                message: content
-            };
-            
-            // Muestra el mensaje en tu propia pantalla inmediatamente (Actualización Optimista)
-            appendBoardChatMessage(payload);
-            
-            // Envía el mensaje al servidor para que lo guarde y lo retransmita a otros
-            socket.emit('new_chat_message', payload);
-
-        } else { // 'general'
-            // La lógica para chats personales se mantiene igual
-            if (!currentGeneralConvId) return;
-            const payload = {
-                conv_id: currentGeneralConvId,
-                sender_email: currentUser.email,
-                text: content,
-                sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
-            };
-            const container = document.getElementById('general-chat-messages');
-            if (container) appendGeneralChatMessage(payload, container);
-            socket.emit('global_chat_send', payload);
-        }
-    }
 
     function showStickerModal() {
         const modal = document.getElementById('sticker-modal-container');
