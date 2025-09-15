@@ -12000,22 +12000,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
-    // Se usa delegación de eventos porque el botón de asistencia se crea dinámicamente
     document.body.addEventListener('click', (e) => {
+        // Botón "Ver Participantes" en el chat del tablero
+        if (e.target.id === 'open-active-users' || e.target.closest('#open-active-users')) {
+            e.stopPropagation();
+            openParticipantsModal(); // Ahora la función ya existe
+        }
+        
+        // Botón de asistencia en el pie de página de una columna
         if (e.target.id === 'attendance-btn' || e.target.closest('#attendance-btn')) {
-            openAttendanceModal();
+            openParticipantsModal();
         }
     });
 
+    // Listeners para cerrar el modal
+    attendanceCloseBtn.addEventListener('click', closeParticipantsModal);
+    attendanceOverlay.addEventListener('click', closeParticipantsModal);
+    
+    // Listener para el filtro de búsqueda dentro del modal
+    document.getElementById('attendance-filter-input').addEventListener('input', (e) => {
+        renderAttendanceList(currentCollaborators, e.target.value);
+    });
 
 
     openParticipantsBtn.addEventListener('click', openAttendanceModal);
     attendanceCloseBtn.addEventListener('click', closeAttendanceModal);
     attendanceOverlay.addEventListener('click', closeAttendanceModal);
-    document.getElementById('attendance-filter-input').addEventListener('input', (e) => {
-        renderAttendanceList(currentCollaborators, e.target.value);
-    });
+
+
+
 
 
 
@@ -12873,6 +12886,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Llamada inicial al cargar la app
     loadStickersFromServer();
+
+
+
+    function openParticipantsModal() {
+        const modal = document.getElementById('attendance-modal');
+        const content = modal.querySelector('.transform');
+        
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+        }, 10);
+
+        const filterInput = document.getElementById('attendance-filter-input');
+        filterInput.value = '';
+        
+        // Pide al servidor la lista actualizada de colaboradores y su estado
+        socket.emit('get_collaborator_status', { board_id: currentBoardId });
+
+        // Muestra un estado de "Cargando..." mientras se reciben los datos
+        document.getElementById('attendance-list-online').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Cargando...</p>';
+        document.getElementById('attendance-list-offline').innerHTML = '';
+    }
+
+    function closeParticipantsModal() {
+        const modal = document.getElementById('attendance-modal');
+        const content = modal.querySelector('.transform');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 200);
+    }
+
+
 
 
     function appendBoardChatMessage(msg, isGrouped = false) {
