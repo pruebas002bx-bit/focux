@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, leave_room, emit
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
@@ -317,24 +317,6 @@ def login():
 # ============================================================================
 # # SECCIÓN DE SOCKET.IO PARA TIEMPO REAL
 # ============================================================================
-@socketio.on('join_board')
-def handle_join_board(data):
-    """Un usuario se une a la 'sala' de un tablero para recibir actualizaciones."""
-    board_id = data.get('board_id')
-    if board_id:
-        join_room(str(board_id))
-        print(f"SOCKET: Usuario se unió a la sala del tablero {board_id}")
-
-@socketio.on('leave_board')
-def handle_leave_board(data):
-    """Un usuario deja la 'sala' de un tablero."""
-    board_id = data.get('board_id')
-    if board_id:
-        leave_room(str(board_id))
-        print(f"SOCKET: Usuario dejó la sala del tablero {board_id}")
-
-
-
 
 @app.route('/boards/<int:board_id>/share', methods=['POST'])
 def share_board(board_id):
@@ -497,7 +479,26 @@ def get_board_chat_history(board_id):
     finally:
         if conn: conn.close()
 
-# AÑADE ESTE HANDLER DE SOCKET.IO PARA EL CHAT EN TIEMPO REAL
+# ============================================================================
+# # SECCIÓN 4: SOCKET.IO PARA COMUNICACIÓN EN TIEMPO REAL
+# ============================================================================
+
+@socketio.on('join_board')
+def handle_join_board(data):
+    """Un usuario se une a la 'sala' de un tablero para recibir actualizaciones."""
+    board_id = data.get('board_id')
+    if board_id:
+        join_room(str(board_id))
+        print(f"SOCKET: Usuario {request.sid} se unió a la sala del tablero {board_id}")
+
+@socketio.on('leave_board')
+def handle_leave_board(data):
+    """Un usuario deja la 'sala' de un tablero."""
+    board_id = data.get('board_id')
+    if board_id:
+        leave_room(str(board_id))
+        print(f"SOCKET: Usuario {request.sid} dejó la sala del tablero {board_id}")
+
 @socketio.on('new_chat_message')
 def handle_new_chat_message(data):
     """Recibe, guarda y retransmite un mensaje de chat de un tablero."""
@@ -523,13 +524,13 @@ def handle_new_chat_message(data):
 
         # Añadir la hora del servidor al mensaje antes de retransmitirlo
         data['timestamp'] = now
+        # Emitir el mensaje a todos en la sala del tablero
         emit('chat_message_received', data, room=str(board_id))
         print(f"SOCKET: Mensaje de {email} guardado y retransmitido al tablero {board_id}")
     except Exception as e:
         print(f"🚨 ERROR guardando mensaje de chat: {e}")
     finally:
         if conn: conn.close()
-
 
 @app.route('/boards', methods=['GET'])
 def get_boards():
