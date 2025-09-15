@@ -366,15 +366,18 @@ def get_boards():
             cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board['id'],))
             board['shared_with'] = [dict(r) for r in cursor.fetchall()]
             
-            # Procesamos el JSON de las columnas y tarjetas
-            board['data'] = json.loads(board.get('board_data')) if board.get('board_data') else {}
+            # PostgreSQL ya devuelve un diccionario, no necesitamos json.loads(). Este era el error.
+            board['data'] = board.get('board_data') or {}
             if 'board_data' in board:
                 del board['board_data']
         # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        # 3. Obtener stickers (esto ya funcionaba bien)
-        cursor.execute("SELECT id, name, category, url FROM stickers")
-        stickers = [dict(row) for row in cursor.fetchall()]
+        # 3. Obtener stickers (si tienes esa tabla)
+        try:
+            cursor.execute("SELECT id, name, category, url FROM stickers")
+            stickers = [dict(row) for row in cursor.fetchall()]
+        except psycopg2.errors.UndefinedTable:
+            stickers = [] # Si la tabla de stickers no existe, simplemente devuelve una lista vacía
         
         return jsonify(success=True, boards=user_boards, stickers=stickers)
         
@@ -384,7 +387,6 @@ def get_boards():
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
-
 
 @app.route('/boards', methods=['POST'])
 def create_board():
