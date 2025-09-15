@@ -5351,7 +5351,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Update user display
-    document.getElementById('user-name').textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+    const userNameEl = document.getElementById('user-name');
+    if (userNameEl && currentUser && currentUser.firstName && currentUser.lastName) {
+        userNameEl.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
+    } else if (userNameEl) {
+        userNameEl.textContent = currentUser.email; // Fallback al email si no hay nombre
+    }
     
     console.log('🔗 Intentando conectar Socket.IO a:', API_BASE_URL);
 
@@ -5378,6 +5383,40 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('disconnect', (reason) => {
         console.log('🔌 ❌ Socket.IO desconectado:', reason);
     });
+
+
+    // ========================================================================
+    // == LISTENERS PARA LA SINCRONIZACIÓN EN TIEMPO REAL
+    // ========================================================================
+    socket.on('board_was_updated', (data) => {
+        // Solo recargar si la actualización NO la hice yo y es para el tablero que estoy viendo
+        if (data.email !== currentUser.email && data.board_id == currentBoardId) {
+            console.log('🔄 Sincronizando tablero por actualización externa...');
+            
+            const boardToUpdate = boardsData.find(b => b.id == data.board_id);
+            if (!boardToUpdate) return;
+            
+            boardToUpdate.data = data.boardData;
+
+            // Limpiar y recargar tarjetas y columnas
+            cardDataStore.clear();
+            const cards = (boardToUpdate.data && boardToUpdate.data.cards) || [];
+            cards.forEach(card => cardDataStore.set(card.id, card));
+            columnsConfig = (boardToUpdate.data && boardToUpdate.data.columns) || [];
+
+            // Renderizar de nuevo las vistas principales
+            initializeBoard();
+            console.log('✅ Sincronización del tablero completada.');
+        }
+    });
+
+    socket.on('chat_message_received', (data) => {
+        if (data.board_id == currentBoardId) {
+            appendBoardChatMessage(data);
+        }
+    });
+
+
 
     socket.on('reconnect', (attemptNumber) => {
         console.log('🔌 🔄 Socket.IO reconectado después de', attemptNumber, 'intentos');
@@ -6964,15 +7003,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addUserBtn.addEventListener('click', async () => {
         const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
-        // --- INICIO DE LA CORRECCIÓN ---
-        // 1. Obtenemos el nivel de permiso seleccionado en el menú desplegable.
         const permissionLevel = document.getElementById('invite-permission-level').value;
-        // --- FIN DE LA CORRECCIÓN ---
-        
         if (!recipientEmail) return;
 
         shareModalStatus.textContent = 'Invitando...';
-        shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600';
 
         try {
             const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/share`, {
@@ -6981,33 +7015,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ 
                     sharer_email: currentUser.email, 
                     recipient_email: recipientEmail,
-                    permission_level: permissionLevel // 2. Enviamos el permiso correcto al backend.
+                    permission_level: permissionLevel
                 })
             });
-
             const result = await response.json();
 
             if (result.success) {
                 shareModalStatus.textContent = '¡Invitación enviada!';
-                shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
                 document.getElementById('share-new-recipient-email').value = '';
                 
-                // 3. Actualizamos la lista de colaboradores en nuestro tablero local
-                //    con la nueva lista que nos devuelve directamente el servidor.
+                // --- INICIO DE LA CORRECCIÓN CLAVE ---
+                // Actualizamos la lista de colaboradores en nuestro tablero local
                 const boardToUpdate = boardsData.find(b => b.id === currentBoardId);
                 if (boardToUpdate) {
                     boardToUpdate.shared_with = result.shared_with;
                 }
+                // --- FIN DE LA CORRECCIÓN CLAVE ---
                 
-                populateShareModal(); // Refresca la lista de "Personas con Acceso"
-                updateBoardSelector(); // Refresca el menú principal de tableros
+                populateShareModal();
+                updateBoardSelector();
             } else {
                 shareModalStatus.textContent = `Error: ${result.message}`;
-                shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
             }
         } catch (error) {
-            shareModalStatus.textContent = 'Error de conexión. Revisa los logs del servidor.';
-            console.error("Error al procesar la respuesta de compartir:", error);
+            shareModalStatus.textContent = 'Error de conexión.';
         }
     });
 

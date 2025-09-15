@@ -222,19 +222,44 @@ def login():
 
 
 
-# REEMPLAZA ESTA FUNCIÓN EN app.py
+# ============================================================================
+# # SECCIÓN DE SOCKET.IO PARA TIEMPO REAL
+# ============================================================================
+@socketio.on('join_board')
+def handle_join_board(data):
+    """Un usuario se une a la 'sala' de un tablero para recibir actualizaciones."""
+    board_id = data.get('board_id')
+    if board_id:
+        join_room(str(board_id))
+        print(f"SOCKET: Usuario se unió a la sala del tablero {board_id}")
+
+@socketio.on('leave_board')
+def handle_leave_board(data):
+    """Un usuario deja la 'sala' de un tablero."""
+    board_id = data.get('board_id')
+    if board_id:
+        leave_room(str(board_id))
+        print(f"SOCKET: Usuario dejó la sala del tablero {board_id}")
+
+@socketio.on('new_chat_message')
+def handle_new_chat_message(data):
+    """Recibe un mensaje de chat de un tablero y lo retransmite a todos en la sala."""
+    board_id = data.get('board_id')
+    if board_id:
+        # Añade la hora del servidor para consistencia
+        data['timestamp'] = datetime.now(timezone.utc).isoformat()
+        # Emite el mensaje a todos en la sala del tablero, incluyéndome a mí.
+        emit('chat_message_received', data, room=str(board_id))
+        print(f"SOCKET: Mensaje retransmitido al tablero {board_id}")
+
 
 @app.route('/boards/<int:board_id>/share', methods=['POST'])
 def share_board(board_id):
-    """
-    Invita a un usuario a un tablero. Esta función ahora es autocontenida
-    para ser más robusta y devuelve la lista actualizada de colaboradores.
-    """
+    """Invita a un nuevo usuario a colaborar, aplicando el permiso correcto."""
     data = request.get_json()
     sharer_email = data.get('sharer_email')
     recipient_email = data.get('recipient_email', '').lower().strip()
-    # 1. Leemos el 'permission_level' que envía el frontend.
-    permission_level = data.get('permission_level', 'viewer') 
+    permission_level = data.get('permission_level', 'viewer')
 
     if not all([sharer_email, recipient_email]):
         return jsonify(success=False, message="Faltan datos para compartir."), 400
@@ -244,18 +269,15 @@ def share_board(board_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Paso 1: Verificar que quien comparte es el dueño
         cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
         board = cursor.fetchone()
         if not board or board['owner_email'] != sharer_email:
-            return jsonify(success=False, message="Solo el propietario puede compartir el tablero."), 403
+            return jsonify(success=False, message="Solo el propietario puede compartir."), 403
 
-        # Paso 2: Verificar que el usuario invitado existe
         cursor.execute("SELECT id FROM users WHERE email = %s", (recipient_email,))
         if not cursor.fetchone():
-            return jsonify(success=False, message=f"El usuario '{recipient_email}' no fue encontrado en Focux."), 404
+            return jsonify(success=False, message=f"El usuario '{recipient_email}' no existe."), 404
 
-        # Paso 3: Añadir o actualizar al colaborador con el permiso correcto
         cursor.execute("""
             INSERT INTO collaborators (board_id, user_email, permission_level)
             VALUES (%s, %s, %s)
@@ -263,24 +285,18 @@ def share_board(board_id):
                 permission_level = EXCLUDED.permission_level
         """, (board_id, recipient_email, permission_level))
         
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Paso 4: Obtener la lista FRESCA y actualizada de todos los colaboradores
         cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board_id,))
         updated_collaborators = [dict(row) for row in cursor.fetchall()]
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
         
         conn.commit()
-        
-        # Paso 5: Devolver la lista actualizada para que el frontend pueda refrescar la UI
-        return jsonify(success=True, message="Tablero compartido exitosamente.", shared_with=updated_collaborators)
-
+        return jsonify(success=True, message="Tablero compartido.", shared_with=updated_collaborators)
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en POST /boards/{board_id}/share: {e}")
-        traceback.print_exc()
-        return jsonify(success=False, message="Error interno del servidor al compartir."), 500
+        return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
 
 
 @app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
