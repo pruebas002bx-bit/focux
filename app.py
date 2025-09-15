@@ -434,8 +434,14 @@ def remove_collaborator(board_id):
         if conn: conn.close()
 
 
+# ############################################################################
+# # SECCIÓN 3.5: NUEVAS RUTAS Y FUNCIONES AUXILIARES PARA CHATS PERSONALES   #
+# ############################################################################
 
-# AÑADE ESTA RUTA EN LA SECCIÓN 3 DE app.py
+def get_conversation_id(email1, email2):
+    """Crea un ID de conversación consistente y ordenado para dos emails."""
+    return "__".join(sorted([email1.lower().strip(), email2.lower().strip()]))
+
 @app.route('/users/directory', methods=['GET'])
 def get_user_directory():
     """Devuelve una lista de todos los usuarios para iniciar nuevos chats."""
@@ -452,80 +458,9 @@ def get_user_directory():
     finally:
         if conn: conn.close()
 
-# AÑADE ESTOS HANDLERS EN LA SECCIÓN 4 DE SOCKET.IO EN app.py
-@socketio.on('global_chat_send')
-def handle_global_chat_send(data):
-    """Recibe y guarda un mensaje privado, y lo retransmite al destinatario."""
-    sender = data.get('sender_email')
-    receiver = data.get('receiver_email')
-    text = data.get('text')
-    
-    if not all([sender, receiver, text]):
-        return
-
-    now = datetime.now(timezone.utc).isoformat()
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO direct_messages (sender_email, receiver_email, text, ts) VALUES (%s, %s, %s, %s)",
-            (sender, receiver, text, now)
-        )
-        conn.commit()
-        
-        # Prepara el paquete de datos para el destinatario
-        data['timestamp'] = now
-        
-        # Envía el mensaje solo al destinatario
-        # Asumimos que cada usuario está en una "sala" con su propio email como nombre
-        emit('direct_message', data, room=receiver)
-        
-    except Exception as e:
-        print(f"🚨 ERROR guardando mensaje directo: {e}")
-    finally:
-        if conn: conn.close()
-
-@socketio.on('subscribe_to_personal_channel')
-def handle_subscribe(data):
-    """Suscribe a un usuario a su propia sala para recibir mensajes privados."""
-    email = data.get('email')
-    if email:
-        join_room(email)
-        print(f"SOCKET: Usuario {email} suscrito a su canal personal.")
-
-
-# AÑADE ESTA FUNCIÓN PARA CARGAR EL HISTORIAL DEL CHAT DE UN TABLERO
-@app.route('/boards/<int:board_id>/chat', methods=['GET'])
-def get_board_chat_history(board_id):
-    """Obtiene el historial de chat para un tablero específico."""
-    email = request.args.get('email', '').lower().strip()
-    if not email:
-        return jsonify(success=False, message="Email es requerido"), 400
-
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
-        if not cursor.fetchone():
-            return jsonify(success=False, message="Acceso denegado a este chat."), 403
-
-        cursor.execute("SELECT * FROM board_chats WHERE board_id = %s ORDER BY timestamp ASC", (board_id,))
-        messages = [dict(row) for row in cursor.fetchall()]
-        return jsonify(success=True, messages=messages)
-    except psycopg2.errors.UndefinedTable:
-        return jsonify(success=True, messages=[]) # Devuelve vacío si la tabla aún no existe
-    except Exception as e:
-        print(f"🚨 ERROR en GET /boards/{board_id}/chat: {e}")
-        return jsonify(success=False, message="Error interno del servidor."), 500
-    finally:
-        if conn: conn.close()
-
-# ============================================================================
+# ############################################################################
 # # SECCIÓN 4: SOCKET.IO PARA COMUNICACIÓN EN TIEMPO REAL
-# ============================================================================
-
+# ############################################################################
 
 @socketio.on('join_board')
 def handle_join_board(data):
@@ -571,6 +506,196 @@ def handle_new_chat_message(data):
         print(f"SOCKET: Mensaje retransmitido al tablero {board_id}")
 
 
+# ############################################################################
+# # SECCIÓN 4.5: NUEVOS HANDLERS DE SOCKET.IO PARA CHATS PERSONALES          #
+# ############################################################################
+
+@socketio.on('subscribe_to_personal_channel')
+def handle_subscribe(data):
+    """Suscribe a un usuario a su propia sala para recibir mensajes privados."""
+    email = data.get('email')
+    if email:
+        join_room(email)
+        print(f"SOCKET: Usuario {email} suscrito a su canal personal.")
+
+@socketio.on('global_chat_list_conversations')
+def handle_list_conversations(data):
+    """Obtiene y envía la lista de conversaciones personales para un usuario."""
+    user_email = data.get('email', '').lower().strip()
+    if not user_email:
+        return
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Esta consulta es más compleja para ser eficiente:
+        # 1. Encuentra todas las conversaciones del usuario.
+        # 2. Para cada una, obtiene el último mensaje.
+        # 3. Cuenta los mensajes no leídos.
+        # 4. Obtiene el nombre del otro participante.
+        query = """
+            WITH UserConversations AS (
+                SELECT DISTINCT conv_id,
+                       CASE WHEN sender_email = %s THEN receiver_email ELSE sender_email END AS peer_email
+                FROM direct_messages
+                WHERE sender_email = %s OR receiver_email = %s
+            ),
+            LastMessage AS (
+                SELECT conv_id, text, ts,
+                       ROW_NUMBER() OVER(PARTITION BY conv_id ORDER BY ts DESC) as rn
+                FROM direct_messages
+            ),
+            UnreadCounts AS (
+                SELECT conv_id, COUNT(*) as unread_count
+                FROM direct_messages
+                WHERE receiver_email = %s AND is_read = 0
+                GROUP BY conv_id
+            )
+            SELECT
+                uc.conv_id,
+                uc.peer_email,
+                u.first_name || ' ' || u.last_name AS peer_name,
+                lm.text AS last_message,
+                lm.ts AS last_ts,
+                COALESCE(ucnt.unread_count, 0) AS unread_count
+            FROM UserConversations uc
+            LEFT JOIN LastMessage lm ON uc.conv_id = lm.conv_id AND lm.rn = 1
+            LEFT JOIN UnreadCounts ucnt ON uc.conv_id = ucnt.conv_id
+            LEFT JOIN users u ON uc.peer_email = u.email
+            ORDER BY lm.ts DESC;
+        """
+        cursor.execute(query, (user_email, user_email, user_email, user_email))
+        conversations = [dict(row) for row in cursor.fetchall()]
+        
+        emit('global_chat_conversations', {'conversations': conversations})
+    except Exception as e:
+        print(f"🚨 ERROR en 'global_chat_list_conversations': {e}")
+        traceback.print_exc()
+    finally:
+        if conn: conn.close()
+
+@socketio.on('global_chat_start')
+def handle_start_conversation(data):
+    """Carga el historial de una conversación específica."""
+    user_email = data.get('email')
+    partner_email = data.get('partner_email')
+    if not user_email or not partner_email:
+        return
+
+    conv_id = get_conversation_id(user_email, partner_email)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT dm.*, u.first_name || ' ' || u.last_name as sender_name FROM direct_messages dm "
+            "JOIN users u ON dm.sender_email = u.email WHERE conv_id = %s ORDER BY ts ASC", (conv_id,)
+        )
+        messages = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute("SELECT first_name, last_name, email FROM users WHERE email = %s", (partner_email,))
+        partner_info = dict(cursor.fetchone())
+
+        emit('global_chat_history', {
+            'conv_id': conv_id,
+            'peer_name': f"{partner_info['first_name']} {partner_info['last_name']}",
+            'peer_email': partner_info['email'],
+            'messages': messages
+        })
+        
+        # Marcar mensajes como leídos
+        cursor.execute(
+            "UPDATE direct_messages SET is_read = 1 WHERE conv_id = %s AND receiver_email = %s",
+            (conv_id, user_email)
+        )
+        conn.commit()
+
+    except Exception as e:
+        print(f"🚨 ERROR en 'global_chat_start': {e}")
+    finally:
+        if conn: conn.close()
+        
+@socketio.on('global_chat_send')
+def handle_global_chat_send(data):
+    """Guarda un nuevo mensaje y lo retransmite a ambos participantes."""
+    sender_email = data.get('sender_email')
+    receiver_email = data.get('receiver_email')
+    text = data.get('text')
+    if not all([sender_email, receiver_email, text]): return
+    
+    conv_id = get_conversation_id(sender_email, receiver_email)
+    now = datetime.now(timezone.utc).isoformat()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO direct_messages (conv_id, sender_email, receiver_email, text, ts, is_read) VALUES (%s, %s, %s, %s, %s, 0) RETURNING *",
+            (conv_id, sender_email, receiver_email, text, now)
+        )
+        new_message = dict(cursor.fetchone())
+        conn.commit()
+        
+        message_payload = {**new_message, 'sender_name': data.get('sender_name', sender_email)}
+        
+        # Emitir el mensaje a ambos usuarios
+        emit('global_chat_new_message', message_payload, room=sender_email)
+        emit('global_chat_new_message', message_payload, room=receiver_email)
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en 'global_chat_send': {e}")
+    finally:
+        if conn: conn.close()
+
+@socketio.on('mark_general_chat_read')
+def handle_mark_as_read(data):
+    """Marca mensajes de una conversación como leídos para un usuario."""
+    conv_id = data.get('conv_id')
+    user_email = data.get('user_email')
+    if not conv_id or not user_email: return
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE direct_messages SET is_read = 1 WHERE conv_id = %s AND receiver_email = %s AND is_read = 0",
+            (conv_id, user_email)
+        )
+        conn.commit()
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en 'mark_general_chat_read': {e}")
+    finally:
+        if conn: conn.close()
+
+@app.route('/boards/<int:board_id>/chat', methods=['GET'])
+def get_board_chat_history(board_id):
+    """Obtiene el historial de chat para un tablero específico."""
+    email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
+        if not cursor.fetchone():
+            return jsonify(success=False, message="Acceso denegado a este chat."), 403
+
+        cursor.execute("SELECT * FROM board_chats WHERE board_id = %s ORDER BY timestamp ASC", (board_id,))
+        messages = [dict(row) for row in cursor.fetchall()]
+        return jsonify(success=True, messages=messages)
+    except psycopg2.errors.UndefinedTable:
+        return jsonify(success=True, messages=[]) # Devuelve vacío si la tabla aún no existe
+    except Exception as e:
+        print(f"🚨 ERROR en GET /boards/{board_id}/chat: {e}")
+        return jsonify(success=False, message="Error interno del servidor."), 500
+    finally:
+        if conn: conn.close()
 
 @app.route('/boards', methods=['GET'])
 def get_boards():
