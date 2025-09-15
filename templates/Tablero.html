@@ -5502,18 +5502,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-     function sendMessage(messageContent) {
-        if (typeof messageContent !== 'string' || !messageContent.trim()) return;
-        const content = messageContent.trim();
+    function sendMessage(messageContent) {
+        const content = (messageContent || '').trim();
+        if (!content) return;
         
         if (currentChatMode === 'board') {
             const payload = {
                 board_id: currentBoardId,
                 user_email: currentUser.email,
-                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email,
+                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
                 message: content
             };
-            appendBoardChatMessage(payload);
             socket.emit('new_chat_message', payload);
         } else if (currentChatMode === 'general') {
             const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
@@ -5523,13 +5522,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 sender_email: currentUser.email,
                 receiver_email: peerEmail,
                 text: content,
-                // Datos para la actualización optimista
-                sender_name: `${currentUser.first_name} ${currentUser.last_name}`.trim()
+                sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
             };
-            appendGeneralChatMessage(payload, document.getElementById('general-chat-messages'));
+            
+            // Se ELIMINA la línea "appendGeneralChatMessage" de aquí.
+            // Ahora solo enviamos el mensaje al servidor.
             socket.emit('global_chat_send', payload);
         }
     }
+
 
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
@@ -5592,7 +5593,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
+
 
     // --- PLANTILLA CORREGIDA PARA LA LISTA DE CONVERSACIONES ---
     function conversationListItemTemplate(conv) {
