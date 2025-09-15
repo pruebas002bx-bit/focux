@@ -5385,23 +5385,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     socket.on('board_was_updated', (data) => {
-        // Solo recargar si la actualización NO la hice yo y es para el tablero que estoy viendo
-        if (data.email !== currentUser.email && data.board_id == currentBoardId) {
+        // Solo actualizamos si el cambio lo hizo OTRO usuario en el tablero ACTUAL
+        if (data.board_id == currentBoardId && data.email !== currentUser.email) {
             console.log('🔄 Sincronizando tablero por actualización externa...');
             
             const boardToUpdate = boardsData.find(b => b.id == data.board_id);
-            if (!boardToUpdate) return;
-            
-            boardToUpdate.data = data.boardData;
-
-            // Actualizar estado local y re-renderizar
-            const boardConfig = boardToUpdate.data || {};
-            columnsConfig = boardConfig.columns || [];
-            cardDataStore.clear();
-            (boardConfig.cards || []).forEach(card => cardDataStore.set(card.id, card));
-            
-            initializeBoard(); // Re-dibuja el tablero
-            console.log('✅ Sincronización del tablero completada.');
+            if (boardToUpdate) {
+                // Actualizamos los datos en nuestra memoria local
+                boardToUpdate.data = data.boardData;
+                
+                // Actualizamos las variables principales que controlan la vista
+                const boardConfig = boardToUpdate.data || {};
+                columnsConfig = boardConfig.columns || [];
+                cardDataStore.clear();
+                (boardConfig.cards || []).forEach(card => cardDataStore.set(card.id, card));
+                
+                // Re-dibujamos el tablero con los nuevos datos
+                initializeBoard();
+                console.log('✅ Sincronización del tablero completada.');
+            }
         }
     });
 
@@ -12293,7 +12295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Reemplaza tu función sendMessage existente con esta nueva versión
+
     function sendMessage(messageContent) {
         if (typeof messageContent !== 'string' || !messageContent.trim()) {
             return;
@@ -12306,41 +12308,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 board_id: currentBoardId,
                 user_email: currentUser.email,
-                user_name: `${currentUser.firstName} ${currentUser.lastName}`,
+                // --- INICIO DE LA CORRECCIÓN ---
+                // Añadimos el nombre del usuario al paquete de datos que enviamos
+                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email,
+                // --- FIN DE LA CORRECCIÓN ---
                 message: content
             };
             
-            // --- NUEVO MÉTODO ---
-            // 1. Dibuja el mensaje en la UI instantáneamente (Actualización Optimista).
+            // Muestra el mensaje en tu propia pantalla inmediatamente (Actualización Optimista)
             appendBoardChatMessage(payload);
             
-            // 2. Envía el mensaje al servidor sin esperar confirmación.
-            console.log(`Enviando a tablero (Optimista)...`, payload);
+            // Envía el mensaje al servidor para que lo guarde y lo retransmita a otros
             socket.emit('new_chat_message', payload);
 
         } else { // 'general'
+            // La lógica para chats personales se mantiene igual
             if (!currentGeneralConvId) return;
             const payload = {
                 conv_id: currentGeneralConvId,
                 sender_email: currentUser.email,
                 text: content,
-                // Añadimos el nombre para poder dibujarlo instantáneamente
-                sender_name: `${currentUser.firstName} ${currentUser.lastName}`.trim()
+                sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
             };
-
-            // --- NUEVO MÉTODO ---
-            // 1. Dibuja el mensaje en la UI instantáneamente.
             const container = document.getElementById('general-chat-messages');
-            if (container) {
-                appendGeneralChatMessage(payload, container);
-            }
-
-            // 2. Envía el mensaje al servidor sin esperar confirmación.
-            console.log(`Enviando a general (Optimista)...`, payload);
+            if (container) appendGeneralChatMessage(payload, container);
             socket.emit('global_chat_send', payload);
         }
     }
-
 
     function showStickerModal() {
         const modal = document.getElementById('sticker-modal-container');

@@ -934,9 +934,10 @@ def get_single_board(board_id):
         return jsonify(success=False, message="Error interno del servidor al obtener el tablero."), 500
 
 
+
 @app.route('/boards/<int:board_id>', methods=['PUT'])
 def update_board(board_id):
-    """Actualiza los datos de un tablero (columnas y tarjetas) y notifica en tiempo real."""
+    """Actualiza los datos de un tablero y notifica en tiempo real a los colaboradores."""
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_data = data.get('boardData')
@@ -964,11 +965,11 @@ def update_board(board_id):
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
         # Después de guardar, enviamos una notificación a todos en la "sala" del tablero.
         # Incluimos el email de quien hizo el cambio para que el frontend pueda
-        # decidir si necesita actualizarse (si el cambio lo hizo otra persona).
+        # ignorar la actualización si la hizo el mismo usuario, evitando parpadeos.
         socketio.emit('board_was_updated', {
             'board_id': board_id, 
             'boardData': board_data,
-            'email': email  # <-- Esta línea es nueva y crucial
+            'email': email
         }, room=str(board_id))
         # --- FIN DE LA CORRECCIÓN CLAVE ---
         
@@ -981,6 +982,7 @@ def update_board(board_id):
         return jsonify(success=False, message="Error al guardar el tablero."), 500
     finally:
         if conn: conn.close()
+
 
 # Rutas para stickers, chat, etc.
 @app.route('/stickers', methods=['GET'])
