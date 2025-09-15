@@ -339,37 +339,45 @@ def remove_collaborator(board_id):
         if conn: conn.close()
 
 
-
 @app.route('/boards', methods=['GET'])
 def get_boards():
+    """
+    Obtiene todos los tableros a los que un usuario tiene acceso,
+    incluyendo la lista completa de colaboradores para cada uno.
+    """
     email = request.args.get('email', '').lower().strip()
     if not email:
         return jsonify(success=False, message="Email es requerido"), 400
-
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # 1. Obtiene los tableros base a los que el usuario tiene acceso
         cursor.execute("""
             SELECT b.* FROM boards b JOIN collaborators c ON b.id = c.board_id WHERE c.user_email = %s
         """, (email,))
         user_boards = [dict(row) for row in cursor.fetchall()]
 
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # PostgreSQL con psycopg2 ya devuelve el JSONB como un diccionario de Python.
-        # No es necesario usar json.loads(). Este era el error.
+        # 2. Para cada tablero, ahora también pedimos su lista de colaboradores
         for board in user_boards:
-            board['data'] = board.get('board_data') or {}
+            cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board['id'],))
+            board['shared_with'] = [dict(r) for r in cursor.fetchall()]
+            
+            # Procesamos el JSON de las columnas y tarjetas
+            board['data'] = json.loads(board.get('board_data')) if board.get('board_data') else {}
             if 'board_data' in board:
                 del board['board_data']
         # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        # Obtener stickers y otras cosas que tu app necesita al cargar
+        # 3. Obtener stickers (esto ya funcionaba bien)
         cursor.execute("SELECT id, name, category, url FROM stickers")
         stickers = [dict(row) for row in cursor.fetchall()]
-
+        
         return jsonify(success=True, boards=user_boards, stickers=stickers)
-
+        
     except Exception as e:
         print(f"🚨 ERROR en GET /boards: {e}")
         traceback.print_exc()
