@@ -5385,6 +5385,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
+    socket.on('chat_message_received', (data) => {
+        // Solo añadir el mensaje si estamos en el tablero correcto
+        if (data.board_id == currentBoardId) {
+            // No añadir mi propio mensaje de nuevo si ya lo mostré (actualización optimista)
+            if (data.user_email !== currentUser.email) {
+                appendBoardChatMessage(data);
+            }
+        }
+    });
+
     // ========================================================================
     // == LISTENERS PARA LA SINCRONIZACIÓN EN TIEMPO REAL
     // ========================================================================
@@ -5481,18 +5491,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => userSelectorModal.classList.add('hidden'), 200);
     }
 
-    // Obtiene todos los usuarios para el selector de chat
+
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
         try {
-            // --- CORRECCIÓN ---
-            // Se cambió la URL a la ruta correcta '/users/directory' que no requiere parámetros.
             const response = await fetch(`${API_BASE_URL}/users/directory`, {
                 headers: { 'ngrok-skip-browser-warning': 'true' }
             });
             const data = await response.json();
             if (data.success) {
-                // Filtramos al usuario actual para que no aparezca en la lista para chatear consigo mismo
                 const otherUsers = data.users.filter(user => user.email !== currentUser.email);
                 renderUserSelectorList(otherUsers);
             } else {

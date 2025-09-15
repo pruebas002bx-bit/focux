@@ -87,6 +87,24 @@ def init_db():
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS assistants (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            avatar_url TEXT,
+            description TEXT,
+            prompt TEXT,
+            knowledge_base TEXT,
+            is_public INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS assistant_sharing (
+            assistant_id TEXT NOT NULL REFERENCES assistants(id) ON DELETE CASCADE,
+            user_email TEXT NOT NULL,
+            PRIMARY KEY (assistant_id, user_email)
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS direct_messages (
             id SERIAL PRIMARY KEY, conv_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
             ts TEXT, sender_email TEXT, receiver_email TEXT, text TEXT, is_read INTEGER DEFAULT 0
@@ -195,6 +213,80 @@ def register():
     finally:
         if conn: conn.close()
 
+
+@app.route('/assistants', methods=['GET'])
+def get_assistants():
+    """Obtiene la lista de asistentes disponibles para un usuario."""
+    email = request.args.get('email', '').lower().strip()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtiene todos los asistentes públicos MÁS los privados compartidos con el usuario
+        cursor.execute("""
+            SELECT * FROM assistants a
+            WHERE a.is_public = 1 OR EXISTS (
+                SELECT 1 FROM assistant_sharing s
+                WHERE s.assistant_id = a.id AND s.user_email = %s
+            )
+        """, (email,))
+        
+        assistants = [dict(row) for row in cursor.fetchall()]
+        return jsonify(success=True, assistants=assistants)
+        
+    except Exception as e:
+        print(f"🚨 ERROR en GET /assistants: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor al cargar asistentes."), 500
+    finally:
+        if conn: conn.close()
+
+@app.route('/chat/ask', methods=['POST'])
+def ask_chat():
+    """Procesa un mensaje de un usuario para un asistente de IA específico."""
+    if not genai:
+        return jsonify(success=False, message="El servicio de IA no está configurado."), 500
+
+    data = request.get_json()
+    assistant_id = data.get('assistant_id')
+    message = data.get('message')
+    history = data.get('history', [])
+
+    if not all([assistant_id, message]):
+        return jsonify(success=False, message="Faltan datos para la consulta."), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM assistants WHERE id = %s", (assistant_id,))
+        assistant = cursor.fetchone()
+        if not assistant:
+            return jsonify(success=False, message="Asistente no encontrado."), 404
+
+        # Construir el prompt para la IA
+        system_prompt = assistant['prompt'] or "Eres un asistente servicial."
+        
+        # Formatear el historial para la IA
+        formatted_history = []
+        for msg in history:
+            role = 'user' if msg.get('sender') == 'user' else 'model'
+            formatted_history.append({'role': role, 'parts': [msg.get('content', '')]})
+
+        model = genai.GenerativeModel('gemini-pro', system_instruction=system_prompt)
+        chat = model.start_chat(history=formatted_history)
+        response = chat.send_message(message)
+
+        return jsonify(success=True, reply=response.text.strip())
+
+    except Exception as e:
+        print(f"🚨 ERROR en POST /chat/ask: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+    finally:
+        if conn: conn.close()
+
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -241,16 +333,7 @@ def handle_leave_board(data):
         leave_room(str(board_id))
         print(f"SOCKET: Usuario dejó la sala del tablero {board_id}")
 
-@socketio.on('new_chat_message')
-def handle_new_chat_message(data):
-    """Recibe un mensaje de chat de un tablero y lo retransmite a todos en la sala."""
-    board_id = data.get('board_id')
-    if board_id:
-        # Añade la hora del servidor para consistencia
-        data['timestamp'] = datetime.now(timezone.utc).isoformat()
-        # Emite el mensaje a todos en la sala del tablero, incluyéndome a mí.
-        emit('chat_message_received', data, room=str(board_id))
-        print(f"SOCKET: Mensaje retransmitido al tablero {board_id}")
+
 
 
 @app.route('/boards/<int:board_id>/share', methods=['POST'])
@@ -369,6 +452,25 @@ def remove_collaborator(board_id):
         if conn: conn.close()
 
 
+
+# AÑADE ESTA FUNCIÓN PARA PERMITIR BUSCAR USUARIOS
+@app.route('/users/directory', methods=['GET'])
+def get_user_directory():
+    """Devuelve una lista de todos los usuarios para iniciar nuevos chats."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, first_name, last_name, email FROM users")
+        users = [dict(row) for row in cursor.fetchall()]
+        return jsonify(success=True, users=users)
+    except Exception as e:
+        print(f"🚨 ERROR en /users/directory: {e}")
+        return jsonify(success=False, message="Error interno del servidor."), 500
+    finally:
+        if conn: conn.close()
+
+# AÑADE ESTA FUNCIÓN PARA CARGAR EL HISTORIAL DEL CHAT DE UN TABLERO
 @app.route('/boards/<int:board_id>/chat', methods=['GET'])
 def get_board_chat_history(board_id):
     """Obtiene el historial de chat para un tablero específico."""
@@ -380,27 +482,54 @@ def get_board_chat_history(board_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-
-        # Verificar si el usuario es colaborador del tablero
         cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
         if not cursor.fetchone():
             return jsonify(success=False, message="Acceso denegado a este chat."), 403
 
-        # Si tiene permiso, obtener los mensajes del chat
         cursor.execute("SELECT * FROM board_chats WHERE board_id = %s ORDER BY timestamp ASC", (board_id,))
         messages = [dict(row) for row in cursor.fetchall()]
-        
         return jsonify(success=True, messages=messages)
-
     except psycopg2.errors.UndefinedTable:
-        # Si la tabla 'board_chats' no existe, devolver una lista vacía
-        return jsonify(success=True, messages=[])
+        return jsonify(success=True, messages=[]) # Devuelve vacío si la tabla aún no existe
     except Exception as e:
         print(f"🚨 ERROR en GET /boards/{board_id}/chat: {e}")
-        traceback.print_exc()
-        return jsonify(success=False, message="Error interno del servidor al cargar el chat."), 500
+        return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
+# AÑADE ESTE HANDLER DE SOCKET.IO PARA EL CHAT EN TIEMPO REAL
+@socketio.on('new_chat_message')
+def handle_new_chat_message(data):
+    """Recibe, guarda y retransmite un mensaje de chat de un tablero."""
+    board_id = data.get('board_id')
+    email = data.get('user_email')
+    message = data.get('message')
+
+    if not all([board_id, email, message]):
+        return # Ignorar mensajes incompletos
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # Guardar el mensaje en la base de datos para persistencia
+        cursor.execute(
+            "INSERT INTO board_chats (board_id, user_email, user_name, message, timestamp) VALUES (%s, %s, %s, %s, %s)",
+            (board_id, email, data.get('user_name'), message, now)
+        )
+        conn.commit()
+
+        # Añadir la hora del servidor al mensaje antes de retransmitirlo
+        data['timestamp'] = now
+        emit('chat_message_received', data, room=str(board_id))
+        print(f"SOCKET: Mensaje de {email} guardado y retransmitido al tablero {board_id}")
+    except Exception as e:
+        print(f"🚨 ERROR guardando mensaje de chat: {e}")
+    finally:
+        if conn: conn.close()
+
 
 @app.route('/boards', methods=['GET'])
 def get_boards():
