@@ -346,8 +346,8 @@ def remove_collaborator(board_id):
 @app.route('/boards', methods=['GET'])
 def get_boards():
     """
-    Obtiene todos los tableros a los que un usuario tiene acceso,
-    incluyendo la lista completa de colaboradores para cada uno.
+    [NUEVO MÉTODO ROBUSTO] Obtiene todos los tableros y sus colaboradores
+    en una sola consulta a la base de datos para máxima eficiencia y fiabilidad.
     """
     email = request.args.get('email', '').lower().strip()
     if not email:
@@ -358,30 +358,44 @@ def get_boards():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Obtiene los tableros base a los que el usuario tiene acceso
+        # --- INICIO DE LA CORRECCIÓN CLAVE ---
+        # Esta es la nueva consulta única y potente.
+        # Usa funciones de PostgreSQL (JSON_AGG) para construir la lista de colaboradores
+        # directamente en la base de datos, lo cual es extremadamente eficiente.
         cursor.execute("""
-            SELECT b.* FROM boards b JOIN collaborators c ON b.id = c.board_id WHERE c.user_email = %s
+            SELECT
+                b.*,
+                (
+                    SELECT JSON_AGG(json_build_object('user_email', c.user_email, 'permission_level', c.permission_level))
+                    FROM collaborators c
+                    WHERE c.board_id = b.id
+                ) as shared_with
+            FROM
+                boards b
+            WHERE
+                b.id IN (SELECT board_id FROM collaborators WHERE user_email = %s)
         """, (email,))
+        
         user_boards = [dict(row) for row in cursor.fetchall()]
 
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # 2. Para cada tablero, ahora también pedimos su lista de colaboradores
+        # Ahora procesamos los datos que ya vienen completos desde la base de datos.
         for board in user_boards:
-            cursor.execute("SELECT user_email, permission_level FROM collaborators WHERE board_id = %s", (board['id'],))
-            board['shared_with'] = [dict(r) for r in cursor.fetchall()]
+            # Si un tablero no tiene colaboradores, 'shared_with' será NULL, lo convertimos a una lista vacía.
+            if board['shared_with'] is None:
+                board['shared_with'] = []
             
-            # PostgreSQL ya devuelve un diccionario, no necesitamos json.loads(). Este era el error.
+            # El campo 'board_data' ya viene como un diccionario, no se necesita json.loads()
             board['data'] = board.get('board_data') or {}
             if 'board_data' in board:
                 del board['board_data']
         # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        # 3. Obtener stickers (si tienes esa tabla)
+        # Obtener stickers (esto se mantiene igual)
         try:
             cursor.execute("SELECT id, name, category, url FROM stickers")
             stickers = [dict(row) for row in cursor.fetchall()]
         except psycopg2.errors.UndefinedTable:
-            stickers = [] # Si la tabla de stickers no existe, simplemente devuelve una lista vacía
+            stickers = []
         
         return jsonify(success=True, boards=user_boards, stickers=stickers)
         
