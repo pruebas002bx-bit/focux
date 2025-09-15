@@ -93,6 +93,16 @@ def init_db():
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS board_chats (
+            id SERIAL PRIMARY KEY,
+            board_id INTEGER REFERENCES boards(id) ON DELETE CASCADE,
+            user_email TEXT,
+            user_name TEXT,
+            message TEXT,
+            timestamp TEXT
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS focux_messages (
             id TEXT PRIMARY KEY, title TEXT, content TEXT, color TEXT, image_url TEXT,
             button_text TEXT, button_url TEXT, is_active INTEGER DEFAULT 0,
@@ -342,6 +352,39 @@ def remove_collaborator(board_id):
     finally:
         if conn: conn.close()
 
+
+@app.route('/boards/<int:board_id>/chat', methods=['GET'])
+def get_board_chat_history(board_id):
+    """Obtiene el historial de chat para un tablero específico."""
+    email = request.args.get('email', '').lower().strip()
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificar si el usuario es colaborador del tablero
+        cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
+        if not cursor.fetchone():
+            return jsonify(success=False, message="Acceso denegado a este chat."), 403
+
+        # Si tiene permiso, obtener los mensajes del chat
+        cursor.execute("SELECT * FROM board_chats WHERE board_id = %s ORDER BY timestamp ASC", (board_id,))
+        messages = [dict(row) for row in cursor.fetchall()]
+        
+        return jsonify(success=True, messages=messages)
+
+    except psycopg2.errors.UndefinedTable:
+        # Si la tabla 'board_chats' no existe, devolver una lista vacía
+        return jsonify(success=True, messages=[])
+    except Exception as e:
+        print(f"🚨 ERROR en GET /boards/{board_id}/chat: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message="Error interno del servidor al cargar el chat."), 500
+    finally:
+        if conn: conn.close()
 
 @app.route('/boards', methods=['GET'])
 def get_boards():
