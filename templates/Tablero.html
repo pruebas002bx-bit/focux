@@ -5548,22 +5548,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // ---- Lógica específica para Chats Personales ----
-    
     socket.on('global_chat_conversations', (data) => renderConversationList(data.conversations || []));
     socket.on('global_chat_history', (data) => renderGeneralChatConversation(data));
+
     socket.on('global_chat_new_message', (data) => {
-        // Actualizar la conversación si está abierta
+        // 1. Si la conversación del mensaje está abierta, lo mostramos.
+        //    Ahora esta es la única fuente de verdad, ya no hay actualización optimista.
         if (currentGeneralConvId === data.conv_id) {
             const container = document.getElementById('general-chat-messages');
             if (container) {
-                 // No volvemos a pintar nuestro propio mensaje, ya lo hicimos de forma optimista
-                if (data.sender_email !== currentUser.email) {
-                    appendGeneralChatMessage(data, container);
+                appendGeneralChatMessage(data, container);
+                // 2. Si el mensaje no es mío y la ventana está visible, lo marcamos como leído.
+                if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
+                    socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
                 }
             }
         }
-        // Siempre refrescar la lista para actualizar contadores y último mensaje
+        
+        // 3. Siempre pedimos una actualización de la lista de conversaciones.
+        //    Esto refresca el último mensaje, el orden y el contador de no leídos.
         socket.emit('global_chat_list_conversations', { email: currentUser.email });
     });
 
