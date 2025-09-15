@@ -5502,12 +5502,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // --- INICIO DE LA CORRECCIÓN CLAVE ---
-    // Esta es una de las funciones modificadas.
+    // CORRECCIÓN EN: Tablero.html
+
     function sendMessage(messageContent) {
         const content = (messageContent || '').trim();
         if (!content) return;
-        
+
         if (currentChatMode === 'board') {
             const payload = {
                 board_id: currentBoardId,
@@ -5519,20 +5519,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentChatMode === 'general') {
             const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
             if (!peerEmail) return;
-            
+
             const payload = {
                 sender_email: currentUser.email,
                 receiver_email: peerEmail,
                 text: content,
                 sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
             };
-            
-            // Se ELIMINA la línea "appendGeneralChatMessage" de aquí.
-            // Ahora solo enviamos el mensaje al servidor.
+
+            // CORRECCIÓN APLICADA:
+            // No hay ninguna llamada a `appendGeneralChatMessage` aquí.
+            // La función ahora solo se encarga de enviar el mensaje al servidor.
             socket.emit('global_chat_send', payload);
         }
     }
-
 
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
@@ -5554,24 +5554,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('global_chat_conversations', (data) => renderConversationList(data.conversations || []));
     socket.on('global_chat_history', (data) => renderGeneralChatConversation(data));
 
-    socket.on('global_chat_new_message', (data) => {
-        // 1. Si la conversación del mensaje está abierta, lo mostramos.
-        //    Ahora esta es la única fuente de verdad, ya no hay actualización optimista.
-        if (currentGeneralConvId === data.conv_id) {
-            const container = document.getElementById('general-chat-messages');
-            if (container) {
-                appendGeneralChatMessage(data, container);
-                // 2. Si el mensaje no es mío y la ventana está visible, lo marcamos como leído.
-                if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
-                    socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
-                }
-            }
-        }
-        
-        // 3. Siempre pedimos una actualización de la lista de conversaciones.
-        //    Esto refresca el último mensaje, el orden y el contador de no leídos.
-        socket.emit('global_chat_list_conversations', { email: currentUser.email });
-    });
+
 
     function renderConversationList(conversations) {
         const container = document.getElementById('user-directory-container');
@@ -11494,6 +11477,30 @@ document.addEventListener('DOMContentLoaded', () => {
         container.scrollTop = container.scrollHeight;
     }
 
+    
+    // CORRECCIÓN EN: Tablero.html
+
+    socket.on('global_chat_new_message', (data) => {
+        // Si la conversación del mensaje está abierta, lo mostramos.
+        if (currentGeneralConvId === data.conv_id) {
+            const container = document.getElementById('general-chat-messages');
+            if (container) {
+                // CORRECCIÓN APLICADA:
+                // Se ha eliminado la condición `if (data.sender_email !== currentUser.email)`.
+                // Ahora esta función renderizará TODOS los mensajes que lleguen del servidor,
+                // incluyendo los propios, convirtiéndose en la única fuente de verdad.
+                appendGeneralChatMessage(data, container);
+
+                // Si el mensaje no es mío y la ventana está visible, lo marcamos como leído.
+                if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
+                    socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
+                }
+            }
+        }
+
+        // Siempre pedimos una actualización de la lista de conversaciones.
+        socket.emit('global_chat_list_conversations', { email: currentUser.email });
+    });
     
     socket.on('global_chat_new_message', (data) => {
         // --- CORRECCIÓN ---

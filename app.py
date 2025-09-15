@@ -633,17 +633,13 @@ def handle_global_chat_send(data):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # 1. Asegura que la conversación exista en la tabla 'conversations'.
-        #    Si ya existe, no hace nada. Si no, la crea.
-        #    Esto evita errores de "foreign key violation".
+        # Asegura que la conversación exista en la tabla 'conversations'.
         cursor.execute(
             "INSERT INTO conversations (id, participants_json, last_ts) VALUES (%s, %s, %s) ON CONFLICT (id) DO UPDATE SET last_ts = EXCLUDED.last_ts",
             (conv_id, json.dumps(sorted([sender_email, receiver_email])), now)
         )
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        # 2. Inserta el mensaje en la tabla 'direct_messages'
+        # Inserta el mensaje en la tabla 'direct_messages'
         cursor.execute(
             "INSERT INTO direct_messages (conv_id, sender_email, receiver_email, text, ts, is_read) VALUES (%s, %s, %s, %s, %s, 0) RETURNING *",
             (conv_id, sender_email, receiver_email, text, now)
@@ -651,7 +647,7 @@ def handle_global_chat_send(data):
         new_message = dict(cursor.fetchone())
         conn.commit()
         
-        # 3. Prepara y envía el mensaje a ambos usuarios a través de sus canales personales
+        # Prepara y envía el mensaje a ambos usuarios a través de sus canales personales
         message_payload = {**new_message, 'sender_name': data.get('sender_name', sender_email)}
         
         emit('global_chat_new_message', message_payload, room=sender_email)
@@ -659,9 +655,11 @@ def handle_global_chat_send(data):
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en 'global_chat_send': {e}")
-        traceback.print_exc() # Imprime el error detallado en la consola del servidor
+        traceback.print_exc()
     finally:
         if conn: conn.close()
+
+
 
 
 @socketio.on('mark_general_chat_read')
