@@ -4485,40 +4485,41 @@
 
 
     <div id="attendance-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
-            <div id="attendance-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
+        <div id="attendance-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
+        
+        <div class="bg-white rounded-lg p-6 z-10 w-full max-w-lg transform transition-all scale-95 opacity-0">
             
-            <div class="bg-white rounded-lg p-6 z-10 w-full max-w-lg transform transition-all scale-95 opacity-0">
-                
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Asistencia del Tablero</h3>
-                    <button type="button" id="attendance-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Asistencia del Tablero</h3>
+                <button type="button" id="attendance-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
 
-                <div class="mb-4">
-                    <input type="text" id="attendance-filter-input" placeholder="Filtrar por nombre o email..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
-                </div>
+            <div class="mb-4">
+                <input type="text" id="attendance-filter-input" placeholder="Filtrar por nombre o email..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
+            </div>
 
-                <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
-                            <span>Conectados</span>
-                            <span id="attendance-online-count" class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-semibold">0</span>
-                        </h4>
-                        <div id="attendance-list-online" class="space-y-1"></div>
-                    </div>
-                    <div>
-                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
-                            <span>Desconectados</span>
-                            <span id="attendance-offline-count" class="px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">0</span>
-                        </h4>
-                        <div id="attendance-list-offline" class="space-y-1"></div>
-                    </div>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
+                        <span>Conectados</span>
+                        <span id="attendance-online-count" class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-semibold">0</span>
+                    </h4>
+                    <div id="attendance-list-online" class="space-y-1">
+                        </div>
                 </div>
-
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
+                        <span>Desconectados</span>
+                        <span id="attendance-offline-count" class="px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">0</span>
+                    </h4>
+                    <div id="attendance-list-offline" class="space-y-1">
+                        </div>
+                </div>
             </div>
         </div>
+    </div>
 
 
 
@@ -12114,7 +12115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceContent = attendanceModal.querySelector('.transform');
     const attendanceCloseBtn = document.getElementById('attendance-close-btn');
     const attendanceList = document.getElementById('attendance-list');
-
+    const openParticipantsBtn = document.getElementById('open-active-users');
 
 
     function closeAttendanceModal() {
@@ -12130,15 +12131,23 @@ document.addEventListener('DOMContentLoaded', () => {
             openAttendanceModal();
         }
     });
+
+
+
+    openParticipantsBtn.addEventListener('click', openAttendanceModal);
     attendanceCloseBtn.addEventListener('click', closeAttendanceModal);
     attendanceOverlay.addEventListener('click', closeAttendanceModal);
+    document.getElementById('attendance-filter-input').addEventListener('input', (e) => {
+        renderAttendanceList(currentCollaborators, e.target.value);
+    });
 
 
     // Variable global para almacenar la lista de colaboradores actual
     let currentCollaborators = [];
 
-    // --- NUEVA FUNCIÓN AUXILIAR ---
-    // Crea el HTML para un solo usuario en la lista de asistencia.
+
+
+    // Función para crear el HTML de un usuario en la lista
     function createUserAttendanceItem(user) {
         const color = getUserColor(user.email);
         const initials = (user.name || 'NN').split(' ').map(n => n[0]).join('').substring(0, 2);
@@ -12160,8 +12169,8 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    // --- FUNCIÓN MODIFICADA ---
-    // Ahora renderiza dos listas separadas y actualiza los contadores.
+
+    // Renderiza las dos listas (online/offline) y actualiza contadores
     function renderAttendanceList(collaborators, filter = '') {
         const onlineList = document.getElementById('attendance-list-online');
         const offlineList = document.getElementById('attendance-list-offline');
@@ -12171,7 +12180,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!onlineList || !offlineList || !onlineCount || !offlineCount) return;
 
         const lowerCaseFilter = filter.toLowerCase();
-
         const filteredCollaborators = collaborators.filter(user =>
             user.name.toLowerCase().includes(lowerCaseFilter) ||
             user.email.toLowerCase().includes(lowerCaseFilter)
@@ -12192,8 +12200,11 @@ document.addEventListener('DOMContentLoaded', () => {
             : '<p class="text-xs text-gray-500 px-2 py-4 text-center">Todos están conectados.</p>';
     }
 
-    // --- FUNCIÓN MODIFICADA ---
-    // Añade el event listener para el nuevo campo de filtro.
+
+
+
+
+    // Abre el modal y pide al servidor la lista actualizada de estados
     function openAttendanceModal() {
         attendanceModal.classList.remove('hidden');
         setTimeout(() => {
@@ -12201,23 +12212,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 10);
 
         const filterInput = document.getElementById('attendance-filter-input');
-        filterInput.value = ''; // Limpiar filtro anterior
-
-        // Re-adjuntar el listener para evitar duplicados
-        const newFilterInput = filterInput.cloneNode(true);
-        filterInput.parentNode.replaceChild(newFilterInput, filterInput);
+        filterInput.value = '';
         
-        newFilterInput.addEventListener('input', () => {
-            renderAttendanceList(currentCollaborators, newFilterInput.value);
-        });
-
+        // Pide al servidor la lista actualizada
         socket.emit('get_collaborator_status', { board_id: currentBoardId });
 
+        // Muestra un estado de "Cargando..." mientras llega la respuesta
         document.getElementById('attendance-list-online').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Cargando...</p>';
         document.getElementById('attendance-list-offline').innerHTML = '';
-        document.getElementById('attendance-online-count').textContent = '0';
-        document.getElementById('attendance-offline-count').textContent = '0';
     }
+
+
+
 
     // --- FUNCIÓN MODIFICADA ---
     // Actualiza el listener del socket para usar la nueva variable global.
@@ -12225,6 +12231,14 @@ document.addEventListener('DOMContentLoaded', () => {
         currentCollaborators = data.collaborators || [];
         const filterInput = document.getElementById('attendance-filter-input');
         renderAttendanceList(currentCollaborators, filterInput.value);
+    });
+
+
+    socket.on('collaborator_status_change', () => {
+        // Si el modal está abierto, pide una actualización
+        if (!attendanceModal.classList.contains('hidden')) {
+            socket.emit('get_collaborator_status', { board_id: currentBoardId });
+        }
     });
 
 
