@@ -10983,23 +10983,6 @@ document.addEventListener('DOMContentLoaded', () => {
         list.scrollTop = list.scrollHeight;
     });
 
-    socket.on('chat_message_received', (data) => {
-        // --- CORRECCIÓN ---
-        // Si el mensaje es mío, lo ignoro porque ya lo mostré con la actualización optimista.
-        if (data.user_email === currentUser.email) {
-            return;
-        }
-        // --- FIN CORRECIÓN ---
-
-        if (data.board_id === currentBoardId && currentChatMode === 'board') {
-            const lastMessageEl = chatMessages.querySelector('.chat-message-wrapper:last-child');
-            const lastSenderEmail = lastMessageEl ? lastMessageEl.dataset.email : null;
-            const isGrouped = data.user_email === lastSenderEmail;
-            appendBoardChatMessage(data, isGrouped);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    });
-
     function updateAssistantDisplay() {
         if (availableAssistants.length === 0) return;
         
