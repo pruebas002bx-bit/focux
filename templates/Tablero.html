@@ -4190,6 +4190,10 @@
                         <div class="flex-shrink-0 p-3 border-t">
                             <form id="board-chat-form" class="flex items-center gap-2">
                                 <input type="text" id="board-chat-input" placeholder="Escribe en el chat del tablero..." class="chat-input-field" autocomplete="off">
+                                
+                                <button type="button" id="board-sticker-btn" class="p-2 text-gray-500 hover:text-orange-600 transition-colors flex-shrink-0" title="Enviar sticker">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </button>
                                 <button type="submit" class="chat-send-btn">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                                 </button>
@@ -8823,55 +8827,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let __allUsersSnapshot = [];
 
-    // Normaliza usuarios a un formato consistente
-    function normalizeUsers(list) {
-      if (!Array.isArray(list)) return [];
-      return list.map(u => {
-        const name = (u.name || u.username || u.displayName || u.email || 'Usuario').toString().trim();
-        const role = (u.role || u.title || '').toString().trim();
-        // Determina estado: acepta múltiples formas desde el backend
-        const rawStatus = (u.status || '').toString().toLowerCase();
-        const isActive = (
-          u.active === true ||
-          u.isActive === true ||
-          u.online === true ||
-          rawStatus === 'active' ||
-          rawStatus === 'online' ||
-          rawStatus === 'activo'
-        );
-        return {
-          id: u.id || u._id || u.userId || name,
-          name,
-          role,
-          email: (u.email || '').toString(),
-          status: isActive ? 'activo' : 'inactivo'
-        };
-      });
-    }
-
-    function userItemTemplate(user) {
-      const initials = user.name ? user.name.charAt(0).toUpperCase() : 'U';
-      const badge =
-        user.status === 'activo'
-          ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Activo</span>`
-          : `<span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">Inactivo</span>`;
-      return `
-        <li class="flex items-center gap-3 p-2 rounded-lg border border-gray-100">
-          <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-semibold">
-            ${initials}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-gray-800 truncate">${user.name}</div>
-            <div class="text-xs text-gray-500 truncate">${user.role || user.email || ''}</div>
-          </div>
-          ${badge}
-        </li>
-      `;
-    }
-
-
-
-
 
     const dashboardBtn = document.getElementById('dashboard-btn');
     const dashboardModal = document.getElementById('dashboard-modal');
@@ -9238,39 +9193,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
-    function renderActiveUsersList(sourceUsers, query = '') {
-      const activeList = document.getElementById('active-users-list');
-      const inactiveList = document.getElementById('inactive-users-list');
-      const activeCountEl = document.getElementById('active-count');
-      const inactiveCountEl = document.getElementById('inactive-count');
-
-      if (!activeList || !inactiveList) return;
-
-      const q = query.trim().toLowerCase();
-      const filtered = q
-        ? sourceUsers.filter(u =>
-            (u.name || '').toLowerCase().includes(q) ||
-            (u.email || '').toLowerCase().includes(q) ||
-            (u.role || '').toLowerCase().includes(q)
-          )
-        : sourceUsers;
-
-      const actives = filtered.filter(u => u.status === 'activo');
-      const inactives = filtered.filter(u => u.status !== 'activo');
-
-      activeList.innerHTML = actives.length
-        ? actives.map(userItemTemplate).join('')
-        : `<li class="text-gray-500">No hay usuarios activos.</li>`;
-
-      inactiveList.innerHTML = inactives.length
-        ? inactives.map(userItemTemplate).join('')
-        : `<li class="text-gray-400">Sin usuarios inactivos.</li>`;
-
-      if (activeCountEl) activeCountEl.textContent = `${actives.length}`;
-      if (inactiveCountEl) inactiveCountEl.textContent = `${inactives.length}`;
-    }
-
     // Busca en tiempo real
     const __searchInput = document.getElementById('active-users-search');
     __searchInput?.addEventListener('input', (e) => {
@@ -9298,33 +9220,85 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('active-users-modal')?.classList.add('hidden');
     });
 
-    // === ACTUALIZA el handler existente para incluir la lista y seguir mostrando el conteo en el encabezado ===
-    socket.on('collaborator_count_updated', (data) => {
-      const chatHeaderTitle = document.querySelector('#chat-header h3');
-      if (chatHeaderTitle) {
-        const pill = document.getElementById('chat-participants-pill');
-        const label = `(${data.count} participante${data.count === 1 ? '' : 's'})`;
-        if (pill) pill.textContent = ` ${label}`;
-        else chatHeaderTitle.innerHTML = `Chat del Tablero <span id="chat-participants-pill" style="color:#f97316; font-weight:600;"> ${label}</span>`;
-      }
-
-      // Si viene un arreglo de usuarios en este evento, úsalo para refrescar el modal
-      if (Array.isArray(data.users)) {
-        __allUsersSnapshot = normalizeUsers(data.users);
-        const q = document.getElementById('active-users-search')?.value || '';
-        renderActiveUsersList(__allUsersSnapshot, q);
-      }
-    });
-
-    // === NUEVO: recibe snapshot explícito del backend ===
-    socket.on('active_users_snapshot', (payload) => {
-      const users = Array.isArray(payload?.users) ? payload.users : [];
-      __allUsersSnapshot = normalizeUsers(users);
-      const q = document.getElementById('active-users-search')?.value || '';
-      renderActiveUsersList(__allUsersSnapshot, q);
-    });
 
 
+    const participantsModal = document.getElementById('active-users-modal');
+    const participantsList = document.getElementById('participants-list');
+    const openParticipantsBtn = document.getElementById('open-active-users');
+    const closeParticipantsBtn = document.getElementById('close-active-users');
+    const participantsOverlay = document.getElementById('active-users-backdrop');
+    const participantsFilterInput = document.getElementById('participants-filter-input');
+
+
+
+    function openParticipantsModal() {
+        const currentBoard = boardsData.find(b => b.id === currentBoardId);
+        if (!currentBoard) return;
+
+        // Renderiza la lista con los colaboradores del tablero actual
+        renderParticipantsList(currentBoard.shared_with || []);
+        
+        // Limpia el filtro y añade el listener de búsqueda
+        participantsFilterInput.value = '';
+        participantsFilterInput.oninput = () => {
+            renderParticipantsList(currentBoard.shared_with || [], participantsFilterInput.value);
+        };
+
+        participantsModal.classList.remove('hidden');
+        setTimeout(() => participantsModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0'), 10);
+    }
+
+
+    /**
+     * Dibuja la lista de colaboradores en el modal.
+     * @param {Array} collaborators - El array de colaboradores del tablero.
+     * @param {string} filter - El texto para filtrar la lista.
+     */
+    function renderParticipantsList(collaborators, filter = '') {
+        const lowerCaseFilter = filter.toLowerCase();
+
+        const filteredCollaborators = collaborators.filter(user => {
+            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+            const email = (user.user_email || '').toLowerCase();
+            return fullName.includes(lowerCaseFilter) || email.includes(lowerCaseFilter);
+        });
+
+        if (filteredCollaborators.length === 0) {
+            participantsList.innerHTML = '<li class="text-sm text-gray-500 text-center py-4">No se encontraron participantes.</li>';
+            return;
+        }
+
+        participantsList.innerHTML = filteredCollaborators.map(user => {
+            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.user_email;
+            const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const role = user.permission_level === 'editor' ? 'Editor' : 'Lector';
+
+            return `
+                <li class="flex items-center p-2 rounded-lg">
+                    <div class="chat-avatar ${getUserColor(user.user_email).bg} mr-3">${initials}</div>
+                    <div class="flex-grow min-w-0">
+                        <div class="font-semibold text-gray-800 text-sm truncate">${fullName}</div>
+                        <div class="text-xs text-gray-500 truncate">${user.user_email}</div>
+                    </div>
+                    <span class="text-xs font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">${role}</span>
+                </li>
+            `;
+        }).join('');
+    }
+
+
+
+    openParticipantsBtn.addEventListener('click', openParticipantsModal);
+    closeParticipantsBtn.addEventListener('click', closeParticipantsModal);
+    participantsOverlay.addEventListener('click', closeParticipantsModal);
+
+
+
+
+    function closeParticipantsModal() {
+        participantsModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+        setTimeout(() => participantsModal.classList.add('hidden'), 200);
+    }
 
 
     const changePasswordModal = document.getElementById('change-password-modal');

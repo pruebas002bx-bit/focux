@@ -709,8 +709,8 @@ def get_board_chat_history(board_id):
 @app.route('/boards', methods=['GET'])
 def get_boards():
     """
-    [NUEVO MÉTODO ROBUSTO] Obtiene todos los tableros y sus colaboradores
-    en una sola consulta a la base de datos para máxima eficiencia y fiabilidad.
+    [MÉTODO CORREGIDO] Obtiene todos los tableros y sus colaboradores 
+    (incluyendo nombres) en una sola consulta para máxima eficiencia.
     """
     email = request.args.get('email', '').lower().strip()
     if not email:
@@ -722,15 +722,20 @@ def get_boards():
         cursor = conn.cursor()
         
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Esta es la nueva consulta única y potente.
-        # Usa funciones de PostgreSQL (JSON_AGG) para construir la lista de colaboradores
-        # directamente en la base de datos, lo cual es extremadamente eficiente.
+        # Se modifica la subconsulta para que haga un JOIN con la tabla 'users'
+        # y obtenga el nombre (first_name) y apellido (last_name) de cada colaborador.
         cursor.execute("""
             SELECT
                 b.*,
                 (
-                    SELECT JSON_AGG(json_build_object('user_email', c.user_email, 'permission_level', c.permission_level))
+                    SELECT JSON_AGG(json_build_object(
+                        'user_email', c.user_email, 
+                        'permission_level', c.permission_level,
+                        'first_name', u.first_name,
+                        'last_name', u.last_name
+                    ))
                     FROM collaborators c
+                    JOIN users u ON c.user_email = u.email
                     WHERE c.board_id = b.id
                 ) as shared_with
             FROM
@@ -738,22 +743,18 @@ def get_boards():
             WHERE
                 b.id IN (SELECT board_id FROM collaborators WHERE user_email = %s)
         """, (email,))
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
         
         user_boards = [dict(row) for row in cursor.fetchall()]
 
-        # Ahora procesamos los datos que ya vienen completos desde la base de datos.
         for board in user_boards:
-            # Si un tablero no tiene colaboradores, 'shared_with' será NULL, lo convertimos a una lista vacía.
             if board['shared_with'] is None:
                 board['shared_with'] = []
             
-            # El campo 'board_data' ya viene como un diccionario, no se necesita json.loads()
             board['data'] = board.get('board_data') or {}
             if 'board_data' in board:
                 del board['board_data']
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        # Obtener stickers (esto se mantiene igual)
         try:
             cursor.execute("SELECT id, name, category, url FROM stickers")
             stickers = [dict(row) for row in cursor.fetchall()]
