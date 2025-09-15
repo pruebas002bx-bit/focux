@@ -483,13 +483,14 @@ def get_board_chat_history(board_id):
 # # SECCIÓN 4: SOCKET.IO PARA COMUNICACIÓN EN TIEMPO REAL
 # ============================================================================
 
+
 @socketio.on('join_board')
 def handle_join_board(data):
     """Un usuario se une a la 'sala' de un tablero para recibir actualizaciones."""
     board_id = data.get('board_id')
     if board_id:
         join_room(str(board_id))
-        print(f"SOCKET: Usuario {request.sid} se unió a la sala del tablero {board_id}")
+        print(f"SOCKET: Usuario se unió a la sala del tablero {board_id}")
 
 @socketio.on('leave_board')
 def handle_leave_board(data):
@@ -497,40 +498,36 @@ def handle_leave_board(data):
     board_id = data.get('board_id')
     if board_id:
         leave_room(str(board_id))
-        print(f"SOCKET: Usuario {request.sid} dejó la sala del tablero {board_id}")
+        print(f"SOCKET: Usuario dejó la sala del tablero {board_id}")
 
 @socketio.on('new_chat_message')
 def handle_new_chat_message(data):
     """Recibe, guarda y retransmite un mensaje de chat de un tablero."""
     board_id = data.get('board_id')
-    email = data.get('user_email')
-    message = data.get('message')
-
-    if not all([board_id, email, message]):
-        return # Ignorar mensajes incompletos
-
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        now = datetime.now(timezone.utc).isoformat()
+    if board_id:
+        # Añade la hora del servidor para consistencia
+        data['timestamp'] = datetime.now(timezone.utc).isoformat()
         
-        # Guardar el mensaje en la base de datos para persistencia
-        cursor.execute(
-            "INSERT INTO board_chats (board_id, user_email, user_name, message, timestamp) VALUES (%s, %s, %s, %s, %s)",
-            (board_id, email, data.get('user_name'), message, now)
-        )
-        conn.commit()
-
-        # Añadir la hora del servidor al mensaje antes de retransmitirlo
-        data['timestamp'] = now
-        # Emitir el mensaje a todos en la sala del tablero
+        # Guardar el mensaje en la base de datos (¡muy importante!)
+        conn = None
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO board_chats (board_id, user_email, user_name, message, timestamp) VALUES (%s, %s, %s, %s, %s)",
+                (board_id, data.get('user_email'), data.get('user_name'), data.get('message'), data['timestamp'])
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"🚨 ERROR guardando mensaje de chat: {e}")
+        finally:
+            if conn: conn.close()
+            
+        # Emite el mensaje a todos en la sala del tablero
         emit('chat_message_received', data, room=str(board_id))
-        print(f"SOCKET: Mensaje de {email} guardado y retransmitido al tablero {board_id}")
-    except Exception as e:
-        print(f"🚨 ERROR guardando mensaje de chat: {e}")
-    finally:
-        if conn: conn.close()
+        print(f"SOCKET: Mensaje retransmitido al tablero {board_id}")
+
+
 
 @app.route('/boards', methods=['GET'])
 def get_boards():

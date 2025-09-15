@@ -5350,11 +5350,10 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('user', JSON.stringify(currentUser));
     }
 
-    // Update user display
     const userNameEl = document.getElementById('user-name');
-    if (userNameEl && currentUser && currentUser.firstName && currentUser.lastName) {
-        userNameEl.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
-    } else if (userNameEl) {
+    if (userNameEl && currentUser && currentUser.first_name && currentUser.last_name) {
+        userNameEl.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+    } else if (userNameEl && currentUser) {
         userNameEl.textContent = currentUser.email; // Fallback al email si no hay nombre
     }
     
@@ -5385,19 +5384,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    socket.on('chat_message_received', (data) => {
-        // Solo añadir el mensaje si estamos en el tablero correcto
-        if (data.board_id == currentBoardId) {
-            // No añadir mi propio mensaje de nuevo si ya lo mostré (actualización optimista)
-            if (data.user_email !== currentUser.email) {
-                appendBoardChatMessage(data);
-            }
-        }
-    });
-
-    // ========================================================================
-    // == LISTENERS PARA LA SINCRONIZACIÓN EN TIEMPO REAL
-    // ========================================================================
     socket.on('board_was_updated', (data) => {
         // Solo recargar si la actualización NO la hice yo y es para el tablero que estoy viendo
         if (data.email !== currentUser.email && data.board_id == currentBoardId) {
@@ -5408,23 +5394,31 @@ document.addEventListener('DOMContentLoaded', () => {
             
             boardToUpdate.data = data.boardData;
 
-            // Limpiar y recargar tarjetas y columnas
+            // Actualizar estado local y re-renderizar
+            const boardConfig = boardToUpdate.data || {};
+            columnsConfig = boardConfig.columns || [];
             cardDataStore.clear();
-            const cards = (boardToUpdate.data && boardToUpdate.data.cards) || [];
-            cards.forEach(card => cardDataStore.set(card.id, card));
-            columnsConfig = (boardToUpdate.data && boardToUpdate.data.columns) || [];
-
-            // Renderizar de nuevo las vistas principales
-            initializeBoard();
+            (boardConfig.cards || []).forEach(card => cardDataStore.set(card.id, card));
+            
+            initializeBoard(); // Re-dibuja el tablero
             console.log('✅ Sincronización del tablero completada.');
         }
     });
 
     socket.on('chat_message_received', (data) => {
         if (data.board_id == currentBoardId) {
-            appendBoardChatMessage(data);
+            // Evita volver a pintar tu propio mensaje que ya se mostró
+            if (data.user_email !== currentUser.email) {
+                appendBoardChatMessage(data);
+            }
         }
     });
+
+    // ========================================================================
+    // == LISTENERS PARA LA SINCRONIZACIÓN EN TIEMPO REAL
+    // ========================================================================
+
+
 
 
 
@@ -5790,39 +5784,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    socket.on('board_was_updated', (data) => {
-        // Solo recargar si la actualización es para el tablero que estoy viendo
-        if (data.board_id == currentBoardId) {
-            console.log('🔄 Sincronizando tablero por actualización externa...');
-            
-            // 1. Encontrar y actualizar los datos del tablero en la memoria local
-            const boardToUpdate = boardsData.find(b => b.id == data.board_id);
-            if (!boardToUpdate) return;
-            boardToUpdate.data = data.boardData;
 
-            // 2. Actualizar solo los componentes visuales del KANBAN, NO el chat.
-            const boardConfig = boardToUpdate.data || {};
-            columnsConfig = boardConfig.columns || [];
-            boardOptions = { ...DEFAULT_BOARD_OPTIONS, ...(boardConfig.boardOptions || {}) };
-            
-            // Limpiar y recargar SOLO las tarjetas en el store.
-            cardDataStore.clear();
-            const cards = boardConfig.cards || [];
-            cards.forEach(card => cardDataStore.set(card.id, card));
-
-            // 3. Renderizar de nuevo las vistas principales (tablero, calendario, etc.)
-            //    Esta lógica evita recargar el historial del chat innecesariamente.
-            initializeBoard();
-            if (calendarContainer.classList.contains('active')) {
-                renderCalendar();
-            }
-            if (eisenhowerContainer.classList.contains('active')) {
-                renderEisenhowerMatrix();
-            }
-            
-            console.log('✅ Sincronización del tablero completada sin afectar el chat.');
-        }
-    });
 
     socket.on('card_was_moved', (data) => {
         console.log('↓ [EVENTO] Otro usuario movió una tarjeta:', data);
