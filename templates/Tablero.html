@@ -10953,18 +10953,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function sendBoardChatMessage() {
-        const input = document.getElementById('board-chat-input'); // <-- ajusta a tu ID real
+        const input = document.getElementById('board-chat-input');
         if (!input || !input.value.trim() || !currentBoardId) return;
 
         const payload = {
             board_id: currentBoardId,
             user_email: currentUser.email,
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Añadimos el nombre del usuario al paquete de datos que enviamos
             user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email,
+            // --- FIN DE LA CORRECCIÓN ---
             message: input.value.trim()
         };
 
+        // Muestra el mensaje en tu propia pantalla inmediatamente
+        appendBoardChatMessage(payload); 
+        
+        // Envía el mensaje al servidor para que lo guarde y lo retransmita a otros
         socket.emit('new_chat_message', payload);
+        
         input.value = '';
+        input.focus();
     }
 
     socket.on('chat_message', (msg) => {
