@@ -774,8 +774,6 @@ def get_board_chat_history(board_id):
 
 
 
-# EN: app.py
-
 @app.route('/boards', methods=['GET'])
 def get_boards():
     """
@@ -841,6 +839,7 @@ def get_boards():
         if conn: conn.close()
 
 
+        
 @app.route('/boards', methods=['POST'])
 def create_board():
     """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas opcional."""

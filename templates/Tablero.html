@@ -6069,6 +6069,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const pexelsOverlay = document.getElementById('pexels-overlay');
     const pexelsContent = document.getElementById('pexels-content');
     const pexelsCloseBtn = document.getElementById('pexels-close-btn');
+    const attendanceModal = document.getElementById('attendance-modal');
+    const attendanceOverlay = document.getElementById('attendance-overlay');
+    const attendanceContent = attendanceModal.querySelector('.transform');
+    const attendanceCloseBtn = document.getElementById('attendance-close-btn');
+    const openParticipantsBtn = document.getElementById('open-active-users');
+
+
+
+
+
     const pexelsSearchForm = document.getElementById('pexels-search-form');
     const pexelsSearchInput = document.getElementById('pexels-search-input');
     const pexelsGrid = document.getElementById('pexels-grid');
@@ -6091,7 +6101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // APP STATE (keeping all existing from original)
     let cardDataStore = new Map();
-    let isProgrammaticallyChangingTrix = false; // <-- AÑADE ESTA LÍNEA
+    let conversationsCache = []; 
+    let isProgrammaticallyChangingTrix = false; 
     let draggedCard = null;
     let draggedColumn = null;
     let currentColumnId = null;
@@ -10762,7 +10773,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentChatMode = 'board';
     let currentGeneralConvId = null;
-    let conversationsCache = [];
 
     // DOM Elements
     const chatBox = document.getElementById('chat-box');
@@ -11989,13 +11999,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    const attendanceModal = document.getElementById('attendance-modal');
-    const attendanceOverlay = document.getElementById('attendance-overlay');
-    const attendanceContent = attendanceModal.querySelector('.transform');
-    const attendanceCloseBtn = document.getElementById('attendance-close-btn');
-    const openParticipantsBtn = document.getElementById('open-active-users');
 
-    const attendanceList = document.getElementById('attendance-list');
 
     // Se usa delegación de eventos porque el botón de asistencia se crea dinámicamente
     document.body.addEventListener('click', (e) => {
@@ -12914,7 +12918,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
         // --- FIN DE LA CORRECCIÓN ---
     }
-
 
 
     function renderStickerPanel() {
