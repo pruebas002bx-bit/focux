@@ -706,6 +706,10 @@ def get_board_chat_history(board_id):
     finally:
         if conn: conn.close()
 
+
+
+# EN: app.py
+
 @app.route('/boards', methods=['GET'])
 def get_boards():
     """
@@ -722,8 +726,8 @@ def get_boards():
         cursor = conn.cursor()
         
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Se modifica la subconsulta para que haga un JOIN con la tabla 'users'
-        # y obtenga el nombre (first_name) y apellido (last_name) de cada colaborador.
+        # Esta consulta ahora une la tabla 'collaborators' con 'users' para
+        # obtener el nombre y apellido de cada participante, no solo el email.
         cursor.execute("""
             SELECT
                 b.*,
@@ -769,6 +773,7 @@ def get_boards():
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
 
 @app.route('/boards', methods=['POST'])
 def create_board():
