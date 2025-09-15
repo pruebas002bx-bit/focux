@@ -6963,7 +6963,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addUserBtn.addEventListener('click', async () => {
         const recipientEmail = document.getElementById('share-new-recipient-email').value.trim();
+        // --- INICIO DE LA CORRECCIÓN ---
+        // 1. Obtenemos el nivel de permiso ('editor' o 'viewer') del menú desplegable.
         const permissionLevel = document.getElementById('invite-permission-level').value;
+        // --- FIN DE LA CORRECCIÓN ---
+        
         if (!recipientEmail) return;
 
         shareModalStatus.textContent = 'Invitando...';
@@ -6976,11 +6980,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ 
                     sharer_email: currentUser.email, 
                     recipient_email: recipientEmail,
-                    permission_level: permissionLevel
+                    permission_level: permissionLevel // 2. Enviamos el permiso correcto al backend.
                 })
             });
 
-            // Este await es importante, espera a que el cuerpo de la respuesta se lea como JSON
             const result = await response.json();
 
             if (result.success) {
@@ -6988,29 +6991,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
                 document.getElementById('share-new-recipient-email').value = '';
                 
-                // --- INICIO DE LA CORRECCIÓN CLAVE ---
-                // Actualizamos la lista de colaboradores en nuestro tablero local
-                // con la nueva lista que nos devuelve directamente el servidor.
+                // 3. Actualizamos la lista de colaboradores en nuestro tablero local
+                //    con la nueva lista que nos devuelve directamente el servidor.
                 const boardToUpdate = boardsData.find(b => b.id === currentBoardId);
                 if (boardToUpdate) {
                     boardToUpdate.shared_with = result.shared_with;
                 }
-                // --- FIN DE LA CORRECCIÓN CLAVE ---
                 
                 populateShareModal(); // Refresca la lista de colaboradores en el modal
                 updateBoardSelector(); // Refresca el dropdown principal
             } else {
-                // Si el servidor devuelve un error controlado (ej. usuario no encontrado), lo mostramos.
                 shareModalStatus.textContent = `Error: ${result.message}`;
                 shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
             }
         } catch (error) {
-            // Este error salta si la respuesta no es un JSON válido (como un error 500)
             shareModalStatus.textContent = 'Error de conexión. Revisa los logs del servidor.';
             console.error("Error al procesar la respuesta de compartir:", error);
         }
     });
-
 
     // REEMPLAZA el listener de 'change' en collaboratorsList
     collaboratorsList.addEventListener('change', async (e) => {
