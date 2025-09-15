@@ -5548,48 +5548,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function renderConversationList(conversations) {
-        const userDirContainer = document.getElementById('user-directory-container');
-        conversationsCache = conversations;
+    // ---- Lógica específica para Chats Personales ----
+    
+    socket.on('global_chat_conversations', (data) => renderConversationList(data.conversations || []));
+    socket.on('global_chat_history', (data) => renderGeneralChatConversation(data));
+    socket.on('global_chat_new_message', (data) => {
+        // Actualizar la conversación si está abierta
+        if (currentGeneralConvId === data.conv_id) {
+            const container = document.getElementById('general-chat-messages');
+            if (container) {
+                 // No volvemos a pintar nuestro propio mensaje, ya lo hicimos de forma optimista
+                if (data.sender_email !== currentUser.email) {
+                    appendGeneralChatMessage(data, container);
+                }
+            }
+        }
+        // Siempre refrescar la lista para actualizar contadores y último mensaje
+        socket.emit('global_chat_list_conversations', { email: currentUser.email });
+    });
 
-        userDirContainer.innerHTML = `
-            <div class="flex-shrink-0 p-3 border-b border-gray-200">
+    function renderConversationList(conversations) {
+        const container = document.getElementById('user-directory-container');
+        conversationsCache = conversations;
+        container.innerHTML = `
+            <div class="flex-shrink-0 p-3 border-b">
                 <div class="flex justify-between items-center mb-2">
-                    <h4 class="font-bold text-gray-800 text-lg">Chats Personales</h4>
+                    <h4 class="font-bold text-gray-800">Chats</h4>
                     <button id="add-new-conversation-btn" class="px-3 py-1 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700">+ Nuevo</button>
                 </div>
-                <input type="text" id="conversation-search" class="chat-input-field" placeholder="Buscar en tus chats...">
             </div>
-            <div id="conversation-list" class="flex-grow overflow-y-auto">
-                ${conversations.length > 0 ? conversations.map(conversationListItemTemplate).join('') : '<div class="p-4 text-center text-sm text-gray-500">Aún no tienes chats.</div>'}
+            <div class="flex-grow overflow-y-auto">
+                ${conversations.length > 0 ? conversations.map(c => conversationListItemTemplate(c)).join('') : '<div class="p-4 text-center text-sm text-gray-500">No tienes chats.</div>'}
             </div>
         `;
-        
-        document.getElementById('add-new-conversation-btn').addEventListener('click', showUserSelectorModal);
-        
-        document.getElementById('conversation-search').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            document.querySelectorAll('.conversation-list-item').forEach(item => {
-                const name = item.dataset.name.toLowerCase();
-                const email = item.dataset.email.toLowerCase();
-                item.style.display = (name.includes(query) || email.includes(query)) ? 'flex' : 'none';
-            });
-        });
-
-        userDirContainer.querySelectorAll('.conversation-list-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const convId = item.dataset.convId;
-                const peerEmail = item.dataset.email;
-                
-                socket.emit('mark_general_chat_read', { conv_id: convId, user_email: currentUser.email });
-                
-                const badge = item.querySelector('.bg-red-600');
-                if (badge) badge.style.display = 'none';
-                
-                socket.emit('global_chat_start', { email: currentUser.email, partner_email: peerEmail });
-            });
+        container.querySelector('#add-new-conversation-btn').onclick = showUserSelectorModal;
+        container.querySelectorAll('.conversation-list-item').forEach(item => {
+            item.onclick = () => {
+                socket.emit('global_chat_start', { email: currentUser.email, partner_email: item.dataset.email });
+            };
         });
     }
+
+    
 
     // --- PLANTILLA CORREGIDA PARA LA LISTA DE CONVERSACIONES ---
     function conversationListItemTemplate(conv) {
@@ -11511,69 +11511,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function renderGeneralChatConversation(data) {
-      currentGeneralConvId = data.conv_id;
+        currentGeneralConvId = data.conv_id;
+        const userDir = document.getElementById('user-directory-container');
+        const convView = document.getElementById('conversation-view-container');
+        userDir.classList.add('hidden');
+        convView.classList.remove('hidden');
+        convView.classList.add('flex');
+        convView.dataset.peerEmail = data.peer_email;
 
-      const userDirContainer = document.getElementById('user-directory-container');
-      const convContainer = document.getElementById('conversation-view-container');
-      
-      // Oculta la lista de conversaciones y muestra la vista de chat
-      userDirContainer.classList.add('hidden');
-      convContainer.classList.remove('hidden');
-      convContainer.classList.add('flex');
+        convView.innerHTML = `
+            <div id="conversation-header" class="flex items-center gap-3 p-3 bg-gray-50 border-b">
+                <button id="back-to-directory-btn" class="p-1 rounded-full hover:bg-gray-200">&larr;</button>
+                <div class="font-semibold text-sm">${data.peer_name}</div>
+            </div>
+            <div id="general-chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2"></div>
+            <div class="flex-shrink-0 p-3 border-t">
+                <form id="general-chat-form" class="flex items-center gap-2">
+                    <input type="text" id="general-chat-input" placeholder="Escribe un mensaje..." class="chat-input-field" autocomplete="off">
+                    <button type="submit" class="chat-send-btn">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    </button>
+                </form>
+            </div>
+        `;
 
-      const peerInitials = (data.peer_name || 'NN').split(' ').map(n=>n[0]).join('').substring(0,2);
-      const color = getUserColor(data.peer_email).bg;
+        const messagesContainer = document.getElementById('general-chat-messages');
+        (data.messages || []).forEach(msg => appendGeneralChatMessage(msg, messagesContainer));
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-      // Renderiza la cabecera, el contenedor de mensajes y el formulario
-      convContainer.innerHTML = `
-        <div id="conversation-header">
-          <button id="back-to-directory-btn" title="Volver a la lista de chats">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-          </button>
-          <div class="chat-avatar ${color}">${peerInitials}</div>
-          <div>
-            <div class="font-semibold text-sm">${data.peer_name}</div>
-            <div class="text-xs text-gray-500">${data.peer_email}</div>
-          </div>
-        </div>
-        <div id="general-chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2"></div>
-        <div class="flex-shrink-0 p-3 border-t">
-            <form id="general-chat-form" class="flex items-center gap-2">
-                <input type="text" id="general-chat-input" placeholder="Escribe un mensaje..." class="chat-input-field" autocomplete="off">
-                <button type="submit" class="chat-send-btn">
-                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                </button>
-            </form>
-        </div>
-      `;
+        document.getElementById('back-to-directory-btn').onclick = () => {
+            convView.classList.add('hidden');
+            userDir.classList.remove('hidden');
+            currentGeneralConvId = null;
+            socket.emit('global_chat_list_conversations', { email: currentUser.email });
+        };
 
-      // Renderiza los mensajes del historial
-      const messagesContainer = document.getElementById('general-chat-messages');
-      if (data.messages && data.messages.length > 0) {
-          data.messages.forEach(msg => appendGeneralChatMessage(msg, messagesContainer));
-      } else {
-          messagesContainer.innerHTML = `<div class="text-center text-xs text-gray-400 p-4">Inicia la conversación.</div>`;
-      }
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-      // Agrega listeners a los nuevos elementos
-      document.getElementById('back-to-directory-btn').onclick = () => {
-          convContainer.classList.add('hidden');
-          userDirContainer.classList.remove('hidden');
-          currentGeneralConvId = null;
-          // Pide una actualización de la lista de chats por si hay nuevos mensajes
-          socket.emit('global_chat_list_conversations', { email: currentUser.email });
-      };
-
-      document.getElementById('general-chat-form').onsubmit = (e) => {
-          e.preventDefault();
-          const input = document.getElementById('general-chat-input');
-          const text = input.value.trim();
-          if (text) {
-              sendMessage(text); // Usa la función unificada para enviar
-              input.value = '';
-          }
-      };
+        document.getElementById('general-chat-form').onsubmit = (e) => {
+            e.preventDefault();
+            const input = document.getElementById('general-chat-input');
+            if (input.value.trim()) {
+                sendMessage(input.value);
+                input.value = '';
+            }
+        };
+        
+        socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
     }
 
 
