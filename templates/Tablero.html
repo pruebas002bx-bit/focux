@@ -9195,10 +9195,28 @@ document.addEventListener('DOMContentLoaded', () => {
      */
 
 
-    openParticipantsBtn.addEventListener('click', openParticipantsModal);
-    closeParticipantsBtn.addEventListener('click', closeParticipantsModal);
-    participantsOverlay.addEventListener('click', closeParticipantsModal);
+    // Se usa delegación de eventos en 'document.body' porque algunos botones se crean dinámicamente
+    document.body.addEventListener('click', (e) => {
+        // Botón "Ver Participantes" en el chat del tablero
+        if (e.target.id === 'open-active-users' || e.target.closest('#open-active-users')) {
+            e.stopPropagation();
+            openParticipantsModal(); // Ahora la función ya existe
+        }
+        
+        // Botón de asistencia en el pie de página de una columna
+        if (e.target.id === 'attendance-btn' || e.target.closest('#attendance-btn')) {
+            openParticipantsModal();
+        }
+    });
 
+    // Listeners para cerrar el modal
+    attendanceCloseBtn.addEventListener('click', closeParticipantsModal);
+    attendanceOverlay.addEventListener('click', closeParticipantsModal);
+    
+    // Listener para el filtro de búsqueda dentro del modal
+    document.getElementById('attendance-filter-input').addEventListener('input', (e) => {
+        renderAttendanceList(currentCollaborators, e.target.value);
+    });
 
 
 
@@ -11996,31 +12014,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-
-
-
-    document.body.addEventListener('click', (e) => {
-        // Botón "Ver Participantes" en el chat del tablero
-        if (e.target.id === 'open-active-users' || e.target.closest('#open-active-users')) {
-            e.stopPropagation();
-            openParticipantsModal(); // Ahora la función ya existe
-        }
-        
-        // Botón de asistencia en el pie de página de una columna
-        if (e.target.id === 'attendance-btn' || e.target.closest('#attendance-btn')) {
-            openParticipantsModal();
-        }
-    });
-
-    // Listeners para cerrar el modal
-    attendanceCloseBtn.addEventListener('click', closeParticipantsModal);
-    attendanceOverlay.addEventListener('click', closeParticipantsModal);
-    
-    // Listener para el filtro de búsqueda dentro del modal
-    document.getElementById('attendance-filter-input').addEventListener('input', (e) => {
-        renderAttendanceList(currentCollaborators, e.target.value);
-    });
 
 
     openParticipantsBtn.addEventListener('click', openAttendanceModal);
