@@ -5502,7 +5502,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // CORRECCIÓN EN: Tablero.html
+
+    // EN: Tablero.html
 
     function sendMessage(messageContent) {
         const content = (messageContent || '').trim();
@@ -5515,7 +5516,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
                 message: content
             };
+            // Esta parte del chat de tablero está bien
             socket.emit('new_chat_message', payload);
+
         } else if (currentChatMode === 'general') {
             const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
             if (!peerEmail) return;
@@ -5526,13 +5529,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 text: content,
                 sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
             };
+            
+            // CORRECCIÓN CLAVE:
+            // Asegúrate de que NO haya una llamada a `appendGeneralChatMessage` aquí.
+            // La línea que causa el problema original (y que debe eliminarse) es:
+            // appendGeneralChatMessage(payload, document.getElementById('general-chat-messages'));
 
-            // CORRECCIÓN APLICADA:
-            // No hay ninguna llamada a `appendGeneralChatMessage` aquí.
-            // La función ahora solo se encarga de enviar el mensaje al servidor.
+            // La función solo debe hacer esto:
             socket.emit('global_chat_send', payload);
         }
     }
+
 
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
@@ -11477,50 +11484,27 @@ document.addEventListener('DOMContentLoaded', () => {
         container.scrollTop = container.scrollHeight;
     }
 
-    
-    // CORRECCIÓN EN: Tablero.html
 
     socket.on('global_chat_new_message', (data) => {
-        // Si la conversación del mensaje está abierta, lo mostramos.
+        // 1. Si la conversación del mensaje está abierta, lo mostramos.
+        //    Esta es la única fuente de verdad para dibujar mensajes.
         if (currentGeneralConvId === data.conv_id) {
             const container = document.getElementById('general-chat-messages');
             if (container) {
-                // CORRECCIÓN APLICADA:
-                // Se ha eliminado la condición `if (data.sender_email !== currentUser.email)`.
-                // Ahora esta función renderizará TODOS los mensajes que lleguen del servidor,
-                // incluyendo los propios, convirtiéndose en la única fuente de verdad.
+                // Dibuja el mensaje sin importar si es tuyo o no.
                 appendGeneralChatMessage(data, container);
-
-                // Si el mensaje no es mío y la ventana está visible, lo marcamos como leído.
+                
+                // 2. Si el mensaje no es mío y la ventana está visible, lo marca como leído.
                 if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
                     socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
                 }
             }
         }
-
-        // Siempre pedimos una actualización de la lista de conversaciones.
+        
+        // 3. Siempre pide una actualización de la lista de conversaciones para refrescar
+        //    el último mensaje y el contador de no leídos.
         socket.emit('global_chat_list_conversations', { email: currentUser.email });
     });
-    
-    socket.on('global_chat_new_message', (data) => {
-        // --- CORRECCIÓN ---
-        // Si el mensaje es mío, lo ignoro porque ya lo mostré con la actualización optimista.
-        if (data.sender_email === currentUser.email) {
-            return;
-        }
-        // --- FIN CORRECIÓN ---
-        
-        if (currentGeneralConvId === data.conv_id) {
-            const container = document.getElementById('general-chat-messages');
-            if (container) {
-                appendGeneralChatMessage(data, container);
-                container.scrollTop = container.scrollHeight;
-            }
-        }
-        
-        socket.emit('global_chat_list_conversations', { email: currentUser.email });
-    });
-
 
 
     function renderGeneralChatConversation(data) {

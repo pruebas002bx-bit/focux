@@ -633,13 +633,11 @@ def handle_global_chat_send(data):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Asegura que la conversación exista en la tabla 'conversations'.
         cursor.execute(
             "INSERT INTO conversations (id, participants_json, last_ts) VALUES (%s, %s, %s) ON CONFLICT (id) DO UPDATE SET last_ts = EXCLUDED.last_ts",
             (conv_id, json.dumps(sorted([sender_email, receiver_email])), now)
         )
 
-        # Inserta el mensaje en la tabla 'direct_messages'
         cursor.execute(
             "INSERT INTO direct_messages (conv_id, sender_email, receiver_email, text, ts, is_read) VALUES (%s, %s, %s, %s, %s, 0) RETURNING *",
             (conv_id, sender_email, receiver_email, text, now)
@@ -647,9 +645,9 @@ def handle_global_chat_send(data):
         new_message = dict(cursor.fetchone())
         conn.commit()
         
-        # Prepara y envía el mensaje a ambos usuarios a través de sus canales personales
         message_payload = {**new_message, 'sender_name': data.get('sender_name', sender_email)}
         
+        # Emite a ambos participantes, lo cual es correcto.
         emit('global_chat_new_message', message_payload, room=sender_email)
         emit('global_chat_new_message', message_payload, room=receiver_email)
     except Exception as e:
@@ -658,8 +656,6 @@ def handle_global_chat_send(data):
         traceback.print_exc()
     finally:
         if conn: conn.close()
-
-
 
 
 @socketio.on('mark_general_chat_read')
