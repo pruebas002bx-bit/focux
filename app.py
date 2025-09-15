@@ -465,6 +465,10 @@ def get_user_directory():
 
 
 
+
+# EN: app.py (Reemplazar/Añadir este bloque completo de funciones de socket)
+
+# --- INICIO DEL BLOQUE CORREGIDO ---
 @socketio.on('join_board')
 def handle_join_board(data):
     """Un usuario se une a la 'sala' de un tablero y se registra como activo."""
@@ -473,19 +477,19 @@ def handle_join_board(data):
     if board_id and email:
         join_room(str(board_id))
         active_users[request.sid] = {'email': email, 'board_id': board_id}
-        print(f"SOCKET: Usuario {email} se unió al tablero {board_id}. Usuarios activos: {len(active_users)}")
+        print(f"SOCKET: Usuario {email} se unió al tablero {board_id}. Activos: {len(active_users)}")
         # Notifica a la sala que el estado de los colaboradores ha cambiado
         socketio.emit('collaborator_status_change', room=str(board_id))
 
 @socketio.on('leave_board')
 def handle_leave_board(data):
-    """Un usuario deja la 'sala' de un tablero, pero sigue conectado a la app."""
+    """Un usuario deja la 'sala' de un tablero."""
     board_id = data.get('board_id')
     if board_id:
         leave_room(str(board_id))
         if request.sid in active_users:
-            del active_users[request.sid]
-        print(f"SOCKET: Usuario dejó la sala del tablero {board_id}. Usuarios activos: {len(active_users)}")
+            active_users[request.sid]['board_id'] = None
+        print(f"SOCKET: Usuario dejó la sala del tablero {board_id}.")
         socketio.emit('collaborator_status_change', room=str(board_id))
 
 @socketio.on('disconnect')
@@ -494,17 +498,13 @@ def handle_disconnect():
     if request.sid in active_users:
         user_info = active_users.pop(request.sid)
         board_id = user_info.get('board_id')
-        print(f"SOCKET: Usuario {user_info.get('email')} desconectado. Usuarios activos: {len(active_users)}")
+        print(f"SOCKET: Usuario {user_info.get('email')} desconectado. Activos: {len(active_users)}")
         if board_id:
-            # Notifica a la sala que el estado de los colaboradores ha cambiado
             socketio.emit('collaborator_status_change', room=str(board_id))
 
 @socketio.on('get_collaborator_status')
 def get_collaborator_status(data):
-    """
-    Obtiene la lista de colaboradores de un tablero y su estado de conexión (online/offline).
-    Esta es la función clave que el frontend llamará.
-    """
+    """Obtiene la lista de colaboradores de un tablero y su estado de conexión."""
     board_id = data.get('board_id')
     if not board_id: return
 
@@ -513,7 +513,7 @@ def get_collaborator_status(data):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Obtener todos los colaboradores del tablero desde la DB
+        # Obtiene todos los colaboradores del tablero desde la DB (incluyendo nombres)
         cursor.execute("""
             SELECT u.first_name, u.last_name, u.email
             FROM collaborators c
@@ -522,15 +522,15 @@ def get_collaborator_status(data):
         """, (board_id,))
         collaborators = [dict(row) for row in cursor.fetchall()]
 
-        # 2. Obtener los emails de los usuarios actualmente activos en CUALQUIER tablero
+        # Obtiene los emails de los usuarios actualmente activos
         active_emails = {user['email'] for user in active_users.values()}
 
-        # 3. Combinar la información: añadir el estado 'online' u 'offline'
+        # Combina la información: añade el estado 'online' u 'offline'
         for collab in collaborators:
             collab['status'] = 'online' if collab['email'] in active_emails else 'offline'
             collab['name'] = f"{collab.get('first_name', '')} {collab.get('last_name', '')}".strip()
 
-        # 4. Enviar la lista completa de vuelta al usuario que la solicitó
+        # Enviar la lista de vuelta al usuario que la solicitó
         emit('collaborator_status_updated', {'collaborators': collaborators})
         
     except Exception as e:
@@ -538,6 +538,10 @@ def get_collaborator_status(data):
         traceback.print_exc()
     finally:
         if conn: conn.close()
+# --- FIN DEL BLOQUE CORREGIDO ---
+
+
+
 
 
 @socketio.on('new_chat_message')

@@ -3979,51 +3979,7 @@
         </div>
     </div>
 
-    <div id="active-users-modal" class="fixed inset-0 z-[9999] hidden">
-      <div id="active-users-backdrop" class="absolute inset-0 bg-black/40"></div>
-      <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="w-full max-w-xl rounded-2xl bg-white shadow-xl">
-          <div class="flex items-center justify-between px-4 py-3 border-b">
-            <h4 class="text-sm font-semibold text-gray-800">Usuarios en el tablero</h4>
-            <button id="close-active-users" class="text-gray-500 hover:text-gray-700 text-xl leading-none">&times;</button>
-          </div>
 
-          <!-- Buscador -->
-          <div class="px-4 pt-3">
-            <input id="active-users-search" type="text" placeholder="Buscar participante por nombre, email o rol..."
-                   class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400">
-          </div>
-
-          <div class="p-4 max-h-[60vh] overflow-y-auto space-y-6">
-            <!-- Activos -->
-            <section>
-              <div class="flex items-center justify-between mb-2">
-                <h5 class="text-xs font-semibold uppercase tracking-wide text-gray-600">Activos</h5>
-                <span id="active-count" class="text-xs text-gray-500"></span>
-              </div>
-              <ul id="active-users-list" class="space-y-2 text-sm text-gray-700">
-                <!-- Se llena vía JS -->
-              </ul>
-            </section>
-
-            <!-- Inactivos -->
-            <section>
-              <div class="flex items-center justify-between mb-2">
-                <h5 class="text-xs font-semibold uppercase tracking-wide text-gray-600">Inactivos</h5>
-                <span id="inactive-count" class="text-xs text-gray-500"></span>
-              </div>
-              <ul id="inactive-users-list" class="space-y-2 text-sm text-gray-700">
-                <!-- Se llena vía JS -->
-              </ul>
-            </section>
-          </div>
-
-          <div class="px-4 py-3 border-t text-right">
-            <button id="close-active-users-2" class="px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-sm">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
 
 
@@ -4482,48 +4438,6 @@
         </div>
     </div>
 
-
-
-    <div id="attendance-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
-        <div id="attendance-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
-        
-        <div class="bg-white rounded-lg p-6 z-10 w-full max-w-lg transform transition-all scale-95 opacity-0">
-            
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Asistencia del Tablero</h3>
-                <button type="button" id="attendance-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-
-            <div class="mb-4">
-                <input type="text" id="attendance-filter-input" placeholder="Filtrar por nombre o email..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
-            </div>
-
-            <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div>
-                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
-                        <span>Conectados</span>
-                        <span id="attendance-online-count" class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-semibold">0</span>
-                    </h4>
-                    <div id="attendance-list-online" class="space-y-1">
-                        </div>
-                </div>
-                <div>
-                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
-                        <span>Desconectados</span>
-                        <span id="attendance-offline-count" class="px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">0</span>
-                    </h4>
-                    <div id="attendance-list-offline" class="space-y-1">
-                        </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-
-
     <div id="collaborator-indicator" class="hidden fixed bottom-4 left-4 z-50">
         <div class="flex items-center gap-2 bg-white/90 backdrop-blur-md text-slate-700 font-semibold text-sm px-4 py-2 rounded-full shadow-lg border border-slate-200">
             <div class="relative flex h-3 w-3">
@@ -4902,6 +4816,38 @@
     </div>
 
 
+    <div id="attendance-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
+        <div id="attendance-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-lg p-6 z-10 w-full max-w-lg transform transition-all scale-95 opacity-0">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Asistencia del Tablero</h3>
+                <button type="button" id="attendance-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="attendance-filter-input" placeholder="Filtrar por nombre o email..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
+            </div>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
+                        <span>Conectados</span>
+                        <span id="attendance-online-count" class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-semibold">0</span>
+                    </h4>
+                    <div id="attendance-list-online" class="space-y-1"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase mb-2 flex justify-between items-center">
+                        <span>Desconectados</span>
+                        <span id="attendance-offline-count" class="px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">0</span>
+                    </h4>
+                    <div id="attendance-list-offline" class="space-y-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 
     <div id="loader-view" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; justify-content: center; align-items: center; flex-direction: column; background-color: #FFFFFF; z-index: 9999;">
             <div class="focux-loader">
@@ -5087,22 +5033,6 @@
 
 
 
-    <div id="active-users-modal" class="hidden fixed inset-0 z-[51] flex items-center justify-center p-4">
-        <div id="active-users-backdrop" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-60"></div>
-        <div class="bg-white rounded-lg p-6 z-10 w-full max-w-md transform transition-all scale-95 opacity-0">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Participantes del Tablero</h3>
-                <button type="button" id="close-active-users" class="p-1 rounded-full text-gray-400 hover:bg-gray-200">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <div class="mb-4">
-                <input type="text" id="participants-filter-input" placeholder="Buscar por nombre o email..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
-            </div>
-            <ul id="participants-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-                </ul>
-        </div>
-    </div>
 
 
     <div id="change-cover-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
@@ -9218,13 +9148,10 @@ document.addEventListener('DOMContentLoaded', () => {
       renderActiveUsersList(__allUsersSnapshot, e.target.value || '');
     });
 
-    // Abre/cierra modal (mantén tus listeners existentes; solo asegúrate de pedir snapshot)
-    function openActiveUsersModal() {
-      const modal = document.getElementById('active-users-modal');
-      modal?.classList.remove('hidden');
-      // Pide snapshot actualizado al servidor
-      if (typeof socket?.emit === 'function') socket.emit('get_active_users');
-    }
+
+
+
+
     document.getElementById('open-active-users')?.addEventListener('click', (e) => {
       e.stopPropagation();
       openActiveUsersModal();
@@ -9249,61 +9176,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    function openParticipantsModal() {
-        const currentBoard = boardsData.find(b => b.id === currentBoardId);
-        if (!currentBoard) return;
-
-        // Renderiza la lista con los colaboradores del tablero actual
-        renderParticipantsList(currentBoard.shared_with || []);
-        
-        // Limpia el filtro y añade el listener de búsqueda
-        participantsFilterInput.value = '';
-        participantsFilterInput.oninput = () => {
-            renderParticipantsList(currentBoard.shared_with || [], participantsFilterInput.value);
-        };
-
-        participantsModal.classList.remove('hidden');
-        setTimeout(() => participantsModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0'), 10);
-    }
-
 
     /**
      * Dibuja la lista de colaboradores en el modal.
      * @param {Array} collaborators - El array de colaboradores del tablero.
      * @param {string} filter - El texto para filtrar la lista.
      */
-    function renderParticipantsList(collaborators, filter = '') {
-        const lowerCaseFilter = filter.toLowerCase();
-
-        const filteredCollaborators = collaborators.filter(user => {
-            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-            const email = (user.user_email || '').toLowerCase();
-            return fullName.includes(lowerCaseFilter) || email.includes(lowerCaseFilter);
-        });
-
-        if (filteredCollaborators.length === 0) {
-            participantsList.innerHTML = '<li class="text-sm text-gray-500 text-center py-4">No se encontraron participantes.</li>';
-            return;
-        }
-
-        participantsList.innerHTML = filteredCollaborators.map(user => {
-            const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.user_email;
-            const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-            const role = user.permission_level === 'editor' ? 'Editor' : 'Lector';
-
-            return `
-                <li class="flex items-center p-2 rounded-lg">
-                    <div class="chat-avatar ${getUserColor(user.user_email).bg} mr-3">${initials}</div>
-                    <div class="flex-grow min-w-0">
-                        <div class="font-semibold text-gray-800 text-sm truncate">${fullName}</div>
-                        <div class="text-xs text-gray-500 truncate">${user.user_email}</div>
-                    </div>
-                    <span class="text-xs font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">${role}</span>
-                </li>
-            `;
-        }).join('');
-    }
-
 
 
     openParticipantsBtn.addEventListener('click', openParticipantsModal);
@@ -9311,12 +9189,6 @@ document.addEventListener('DOMContentLoaded', () => {
     participantsOverlay.addEventListener('click', closeParticipantsModal);
 
 
-
-
-    function closeParticipantsModal() {
-        participantsModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
-        setTimeout(() => participantsModal.classList.add('hidden'), 200);
-    }
 
 
     const changePasswordModal = document.getElementById('change-password-modal');
@@ -9526,17 +9398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeActiveUsersBtn2 = document.getElementById('close-active-users-2');
     const backdrop = document.getElementById('active-users-backdrop');
 
-    function openActiveUsersModal() {
-      if (modal) modal.classList.remove('hidden');
-      // Intenta solicitar snapshot al servidor si existe ese evento
-      if (typeof socket?.emit === 'function') {
-        socket.emit('get_active_users');
-      }
-    }
 
-    function closeActiveUsersModal() {
-      if (modal) modal.classList.add('hidden');
-    }
 
     openActiveUsersBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -9545,15 +9407,6 @@ document.addEventListener('DOMContentLoaded', () => {
     closeActiveUsersBtn?.addEventListener('click', closeActiveUsersModal);
     closeActiveUsersBtn2?.addEventListener('click', closeActiveUsersModal);
     backdrop?.addEventListener('click', closeActiveUsersModal);
-
-    // === NUEVO: recibe snapshot explícito si tu backend lo emite ===
-    socket.on('active_users_snapshot', (payload) => {
-      renderActiveUsersList(Array.isArray(payload?.users) ? payload.users : []);
-    });
-
-
-
-
 
     socket.on('user_is_typing', (data) => {
         chatTypingIndicator.innerHTML = `
@@ -11989,6 +11842,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+
+    function openAttendanceModal() {
+        attendanceModal.classList.remove('hidden');
+        setTimeout(() => {
+            attendanceContent.classList.remove('scale-95', 'opacity-0');
+        }, 10);
+
+        const filterInput = document.getElementById('attendance-filter-input');
+        filterInput.value = '';
+        
+        socket.emit('get_collaborator_status', { board_id: currentBoardId });
+
+        document.getElementById('attendance-list-online').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Cargando...</p>';
+        document.getElementById('attendance-list-offline').innerHTML = '';
+    }
+
+    function closeAttendanceModal() {
+        attendanceContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            attendanceModal.classList.add('hidden');
+        }, 200);
+    }
+
+
+
+
     function openCardDrawer(cardId, colIdForNewCard = null) {
         const isCreating = !cardId;
         const completeTaskBtn = document.getElementById('complete-task-btn');
@@ -12113,15 +11993,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceOverlay = document.getElementById('attendance-overlay');
     const attendanceContent = attendanceModal.querySelector('.transform');
     const attendanceCloseBtn = document.getElementById('attendance-close-btn');
+    const openParticipantsBtn = document.getElementById('open-active-users');
+
     const attendanceList = document.getElementById('attendance-list');
-
-
-    function closeAttendanceModal() {
-        attendanceContent.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-            attendanceModal.classList.add('hidden');
-        }, 200);
-    }
 
     // Se usa delegación de eventos porque el botón de asistencia se crea dinámicamente
     document.body.addEventListener('click', (e) => {
@@ -12140,12 +12014,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
+
+    // Socket Listeners
+    socket.on('collaborator_status_updated', (data) => {
+        currentCollaborators = data.collaborators || [];
+        const filterInput = document.getElementById('attendance-filter-input');
+        renderAttendanceList(currentCollaborators, filterInput.value);
+    });
+
+    socket.on('collaborator_status_change', () => {
+        if (!attendanceModal.classList.contains('hidden')) {
+            socket.emit('get_collaborator_status', { board_id: currentBoardId });
+        }
+    });
+
+
+
     // Variable global para almacenar la lista de colaboradores actual
     let currentCollaborators = [];
 
+    function closeNoteModal() {
+        const overlay = document.getElementById('note-editor-overlay');
+        const content = document.getElementById('note-editor-content');
+        closeDrawer(overlay, content);
+        currentNoteId = null;
+    }
 
 
-    // Función para crear el HTML de un usuario en la lista
+
     function createUserAttendanceItem(user) {
         const color = getUserColor(user.email);
         const initials = (user.name || 'NN').split(' ').map(n => n[0]).join('').substring(0, 2);
@@ -12168,7 +12064,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Renderiza las dos listas (online/offline) y actualiza contadores
     function renderAttendanceList(collaborators, filter = '') {
         const onlineList = document.getElementById('attendance-list-online');
         const offlineList = document.getElementById('attendance-list-offline');
@@ -12179,8 +12074,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const lowerCaseFilter = filter.toLowerCase();
         const filteredCollaborators = collaborators.filter(user =>
-            user.name.toLowerCase().includes(lowerCaseFilter) ||
-            user.email.toLowerCase().includes(lowerCaseFilter)
+            (user.name || '').toLowerCase().includes(lowerCaseFilter) ||
+            (user.email || '').toLowerCase().includes(lowerCaseFilter)
         );
 
         const onlineUsers = filteredCollaborators.filter(user => user.status === 'online');
@@ -12197,60 +12092,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ? offlineUsers.map(createUserAttendanceItem).join('')
             : '<p class="text-xs text-gray-500 px-2 py-4 text-center">Todos están conectados.</p>';
     }
-
-
-
-
-
-    // Abre el modal y pide al servidor la lista actualizada de estados
-    function openAttendanceModal() {
-        attendanceModal.classList.remove('hidden');
-        setTimeout(() => {
-            attendanceContent.classList.remove('scale-95', 'opacity-0');
-        }, 10);
-
-        const filterInput = document.getElementById('attendance-filter-input');
-        filterInput.value = '';
-        
-        // Pide al servidor la lista actualizada
-        socket.emit('get_collaborator_status', { board_id: currentBoardId });
-
-        // Muestra un estado de "Cargando..." mientras llega la respuesta
-        document.getElementById('attendance-list-online').innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Cargando...</p>';
-        document.getElementById('attendance-list-offline').innerHTML = '';
-    }
-
-
-
-
-    // --- FUNCIÓN MODIFICADA ---
-    // Actualiza el listener del socket para usar la nueva variable global.
-    socket.on('collaborator_status_updated', (data) => {
-        currentCollaborators = data.collaborators || [];
-        const filterInput = document.getElementById('attendance-filter-input');
-        renderAttendanceList(currentCollaborators, filterInput.value);
-    });
-
-
-    socket.on('collaborator_status_change', () => {
-        // Si el modal está abierto, pide una actualización
-        if (!attendanceModal.classList.contains('hidden')) {
-            socket.emit('get_collaborator_status', { board_id: currentBoardId });
-        }
-    });
-
-
-    function closeNoteModal() {
-        const overlay = document.getElementById('note-editor-overlay');
-        const content = document.getElementById('note-editor-content');
-        closeDrawer(overlay, content);
-        currentNoteId = null;
-    }
-
-
-
-
-
 
     async function saveNoteFromModal() {
         if (!currentNoteId) return;
