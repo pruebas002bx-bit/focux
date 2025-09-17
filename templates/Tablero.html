@@ -5469,7 +5469,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
                 message: content
             };
-            // Esta parte del chat de tablero está bien
+
+            // --- INICIO DE LA CORRECCIÓN CLAVE ---
+            // Añade tu propio mensaje a la interfaz INMEDIATAMENTE.
+            // Esto soluciona el problema de no ver tus propios mensajes al enviarlos.
+            appendBoardChatMessage(payload);
+            // --- FIN DE LA CORRECCIÓN CLAVE ---
+
+            // Envía el mensaje al servidor para los demás participantes.
             socket.emit('new_chat_message', payload);
 
         } else if (currentChatMode === 'general') {
@@ -5483,12 +5490,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
             };
             
-            // CORRECCIÓN CLAVE:
-            // Asegúrate de que NO haya una llamada a `appendGeneralChatMessage` aquí.
-            // La línea que causa el problema original (y que debe eliminarse) es:
-            // appendGeneralChatMessage(payload, document.getElementById('general-chat-messages'));
-
-            // La función solo debe hacer esto:
+            // Para el chat general, el servidor re-envía el mensaje a ambos (incluyéndote),
+            // por lo que no es necesario un append local aquí.
             socket.emit('global_chat_send', payload);
         }
     }
