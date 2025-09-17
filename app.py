@@ -1137,6 +1137,7 @@ def delete_board(board_id):
 
 
 
+
 @app.route('/notifications/pending', methods=['GET'])
 def get_pending_notifications():
     """Obtiene notificaciones no leídas para un usuario."""
