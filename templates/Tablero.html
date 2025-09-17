@@ -5352,24 +5352,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     socket.on('board_was_updated', (data) => {
-        // Solo actualizamos si el cambio lo hizo OTRO usuario en el tablero ACTUAL
-        if (data.board_id == currentBoardId && data.email !== currentUser.email) {
-            console.log('🔄 Sincronizando tablero por actualización externa...');
+        // Solo actuar si la actualización corresponde al tablero que estamos viendo
+        if (data.board_id == currentBoardId) {
+            console.log('🔄 Sincronizando tablero por actualización externa (permisos, etc.)...');
             
             const boardToUpdate = boardsData.find(b => b.id == data.board_id);
             if (boardToUpdate) {
-                // Actualizamos los datos en nuestra memoria local
+                // Actualiza los datos en la memoria local
                 boardToUpdate.data = data.boardData;
                 
-                // Actualizamos las variables principales que controlan la vista
-                const boardConfig = boardToUpdate.data || {};
-                columnsConfig = boardConfig.columns || [];
-                cardDataStore.clear();
-                (boardConfig.cards || []).forEach(card => cardDataStore.set(card.id, card));
-                
-                // Re-dibujamos el tablero con los nuevos datos
-                initializeBoard();
-                console.log('✅ Sincronización del tablero completada.');
+                // --- INICIO DE LA CORRECCIÓN CLAVE ---
+                // Se vuelve a procesar el tablero completo. Esto es crucial porque
+                // la función processAndRenderBoard es la que establece el nivel de
+                // permiso (currentUserPermissionLevel) y redibuja la UI en consecuencia.
+                // Al eliminar la condición "data.email !== currentUser.email", nos aseguramos
+                // de que incluso un usuario que acaba de recibir permisos de editor
+                // actualice su UI al instante.
+                processAndRenderBoard(boardToUpdate);
+                console.log('✅ Sincronización de permisos y tablero completada.');
+                // --- FIN DE LA CORRECCIÓN CLAVE ---
             }
         }
     });

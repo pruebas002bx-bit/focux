@@ -364,10 +364,9 @@ def share_board(board_id):
         if conn: conn.close()
 
 
-
 @app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
 def update_collaborator_permission(board_id):
-    """Actualiza el nivel de permiso de un colaborador y devuelve el tablero actualizado."""
+    """Actualiza el nivel de permiso de un colaborador."""
     data = request.get_json()
     owner_email = data.get('owner_email')
     collaborator_email = data.get('collaborator_email')
@@ -390,48 +389,25 @@ def update_collaborator_permission(board_id):
         conn.commit()
         
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Se reemplaza la llamada a la función inexistente con la consulta SQL correcta
-        # para obtener todos los datos actualizados del tablero en una sola petición.
-        query = """
-            SELECT
-                b.*,
-                (
-                    SELECT JSON_AGG(json_build_object(
-                        'user_email', c.user_email, 
-                        'permission_level', c.permission_level,
-                        'first_name', u.first_name,
-                        'last_name', u.last_name
-                    ))
-                    FROM collaborators c
-                    JOIN users u ON c.user_email = u.email
-                    WHERE c.board_id = b.id
-                ) as shared_with
-            FROM boards b WHERE b.id = %s
-        """
-        cursor.execute(query, (board_id,))
-        updated_board_info = dict(cursor.fetchone())
+        # Se obtiene el estado completo y actualizado del tablero
+        updated_board_info = find_board_and_owner_db(board_id)
         
-        # Formatear para que coincida con la estructura esperada por el frontend
-        if updated_board_info:
-            if updated_board_info.get('shared_with') is None:
-                updated_board_info['shared_with'] = []
-            updated_board_info['data'] = updated_board_info.get('board_data') or {}
-            if 'board_data' in updated_board_info:
-                del updated_board_info['board_data']
+        # Se emite un evento para notificar a TODOS los clientes conectados a este tablero
+        socketio.emit('board_was_updated', {
+            'board_id': board_id, 
+            'boardData': updated_board_info.get('data'),
+            'email': owner_email # Email de quien hizo el cambio
+        }, room=str(board_id))
         # --- FIN DE LA CORRECCIÓN CLAVE ---
-
+        
         return jsonify(success=True, message="Permiso actualizado.", board=updated_board_info)
 
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en PUT .../collaborators/update: {e}")
-        # Se añade traceback para un mejor diagnóstico de errores en el log del servidor
-        import traceback
-        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
-
 
 
 @app.route('/boards/<int:board_id>/share', methods=['DELETE'])
@@ -457,8 +433,18 @@ def remove_collaborator(board_id):
         cursor.execute("DELETE FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email_to_remove))
         conn.commit()
 
-        # --- CORRECCIÓN CLAVE ---
+        # --- INICIO DE LA CORRECCIÓN CLAVE ---
+        # Se obtiene el estado completo y actualizado del tablero
         updated_board_info = find_board_and_owner_db(board_id)
+        
+        # Se emite un evento para notificar a TODOS los clientes
+        socketio.emit('board_was_updated', {
+            'board_id': board_id, 
+            'boardData': updated_board_info.get('data'),
+            'email': remover_by_email
+        }, room=str(board_id))
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
+
         return jsonify(success=True, message="Colaborador eliminado.", board=updated_board_info)
 
     except Exception as e:
@@ -467,7 +453,6 @@ def remove_collaborator(board_id):
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
-
 
 # ############################################################################
 # # SECCIÓN 3.5: NUEVAS RUTAS Y FUNCIONES AUXILIARES PARA CHATS PERSONALES   #
