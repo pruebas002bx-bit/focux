@@ -378,32 +378,60 @@ def update_collaborator_permission(board_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verifica que quien hace la petición es el propietario
         cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
         board = cursor.fetchone()
         if not board or board['owner_email'] != owner_email:
             return jsonify(success=False, message="Solo el propietario puede cambiar permisos."), 403
 
-        # Actualiza el permiso en la base de datos
         cursor.execute(
             "UPDATE collaborators SET permission_level = %s WHERE board_id = %s AND user_email = %s",
             (permission_level, board_id, collaborator_email)
         )
         conn.commit()
         
-        # --- CORRECCIÓN CLAVE ---
-        # Después de guardar, busca y devuelve el estado completo del tablero.
-        # Esto es crucial para que el frontend actualice su información.
-        # (Asegúrate de que esta función auxiliar exista o adapta la lógica de get_boards)
-        updated_board_info = find_board_and_owner_db(board_id)
+        # --- INICIO DE LA CORRECCIÓN CLAVE ---
+        # Se reemplaza la llamada a la función inexistente con la consulta SQL correcta
+        # para obtener todos los datos actualizados del tablero en una sola petición.
+        query = """
+            SELECT
+                b.*,
+                (
+                    SELECT JSON_AGG(json_build_object(
+                        'user_email', c.user_email, 
+                        'permission_level', c.permission_level,
+                        'first_name', u.first_name,
+                        'last_name', u.last_name
+                    ))
+                    FROM collaborators c
+                    JOIN users u ON c.user_email = u.email
+                    WHERE c.board_id = b.id
+                ) as shared_with
+            FROM boards b WHERE b.id = %s
+        """
+        cursor.execute(query, (board_id,))
+        updated_board_info = dict(cursor.fetchone())
+        
+        # Formatear para que coincida con la estructura esperada por el frontend
+        if updated_board_info:
+            if updated_board_info.get('shared_with') is None:
+                updated_board_info['shared_with'] = []
+            updated_board_info['data'] = updated_board_info.get('board_data') or {}
+            if 'board_data' in updated_board_info:
+                del updated_board_info['board_data']
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
+
         return jsonify(success=True, message="Permiso actualizado.", board=updated_board_info)
 
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en PUT .../collaborators/update: {e}")
+        # Se añade traceback para un mejor diagnóstico de errores en el log del servidor
+        import traceback
+        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
 
 
 @app.route('/boards/<int:board_id>/share', methods=['DELETE'])
