@@ -5343,41 +5343,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    socket.on('permissions_updated', (data) => {
-        // Si la actualización de permisos es para el tablero que estoy viendo...
-        if (data.board_id == currentBoardId) {
-            console.log('📢 Permisos cambiados en el servidor. Recargando datos completos del tablero...');
-            
-            // Forzar una recarga completa de los datos del tablero desde el servidor.
-            // Esta función ya se encarga de obtener los datos más recientes y
-            // re-calcular el nivel de permisos del usuario actual.
+    // Listener para cuando TÚ cambias algo (mover una tarjeta, cambiar nombre, etc.)
+    socket.on('board_was_updated', (data) => {
+        // Solo actualiza si el cambio lo hizo OTRO usuario para evitar parpadeos
+        if (data.board_id == currentBoardId && data.email !== currentUser.email) {
+            console.log('🔄 Sincronizando cambios de contenido (tarjetas/columnas)...');
             loadBoardData(currentBoardId);
-            
-            // Opcional: Si el modal de compartir está abierto, lo actualizamos también.
-            const shareModal = document.getElementById('share-board-modal');
-            if (!shareModal.classList.contains('hidden')) {
-                // Se necesita recargar los datos de los tableros primero para que el modal tenga la info correcta.
-                loadUserBoards().then(() => {
-                    populateShareModal();
-                });
-            }
         }
     });
 
-
-    socket.on('my_permission_updated', (data) => {
-        // Si la actualización de mi permiso es para el tablero que estoy viendo...
+    // Listener para cuando el DUEÑO cambia los permisos o miembros del tablero
+    socket.on('permissions_updated', (data) => {
+        // Solo recarga si la actualización es para el tablero actual
         if (data.board_id == currentBoardId) {
-            console.log(`✅ ¡Mis permisos han cambiado! Nuevo nivel: ${data.new_permission_level}`);
+            console.log('📢 Permisos o miembros cambiados. Recargando datos del tablero...');
+            loadBoardData(currentBoardId);
+        }
+    });
+
+    // Listener para la notificación DIRECTA que recibe un usuario cuando su propio permiso cambia
+    socket.on('my_permission_updated', (data) => {
+        if (data.board_id == currentBoardId) {
+            console.log(`✅ ¡MIS PERMISOS HAN CAMBIADO! Nuevo nivel: ${data.new_permission_level}`);
             
-            // 1. Actualiza la variable de estado DE INMEDIATO.
+            // Actualiza la variable de estado DE INMEDIATO
             currentUserPermissionLevel = data.new_permission_level;
             
-            // 2. Aplica los cambios a la interfaz DE INMEDIATO.
-            //    Esta función desbloqueará los botones de crear, mover, etc.
+            // Aplica los cambios a la interfaz DE INMEDIATO para desbloquear/bloquear funciones
             updateUIForPermissions(currentUserPermissionLevel);
         }
     });
+
+
 
     socket.on('connect_error', (error) => {
         console.error('❌ Error de conexión Socket.IO:', error);
@@ -5385,31 +5382,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('disconnect', (reason) => {
         console.log('🔌 ❌ Socket.IO desconectado:', reason);
-    });
-
-
-    socket.on('board_was_updated', (data) => {
-        // Solo actuar si la actualización corresponde al tablero que estamos viendo
-        if (data.board_id == currentBoardId) {
-            console.log('🔄 Sincronizando tablero por actualización externa (permisos, etc.)...');
-            
-            const boardToUpdate = boardsData.find(b => b.id == data.board_id);
-            if (boardToUpdate) {
-                // Actualiza los datos en la memoria local
-                boardToUpdate.data = data.boardData;
-                
-                // --- INICIO DE LA CORRECCIÓN CLAVE ---
-                // Se vuelve a procesar el tablero completo. Esto es crucial porque
-                // la función processAndRenderBoard es la que establece el nivel de
-                // permiso (currentUserPermissionLevel) y redibuja la UI en consecuencia.
-                // Al eliminar la condición "data.email !== currentUser.email", nos aseguramos
-                // de que incluso un usuario que acaba de recibir permisos de editor
-                // actualice su UI al instante.
-                processAndRenderBoard(boardToUpdate);
-                console.log('✅ Sincronización de permisos y tablero completada.');
-                // --- FIN DE LA CORRECCIÓN CLAVE ---
-            }
-        }
     });
 
     socket.on('chat_message_received', (data) => {
@@ -11899,26 +11871,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+
     function checkEditPermissionsAndNotify() {
+        // Si el usuario es editor, la función devuelve 'true' y la acción continúa.
         if (currentUserPermissionLevel === 'editor') {
             return true;
         }
         
-        // Usa el nuevo modal de información.
+        // --- INICIO DE LA CORRECCIÓN CLAVE ---
+        // Si no es editor, simplemente muestra el modal de error y devuelve 'false'.
+        // Se elimina la llamada a `loadBoardData(currentBoardId)` que causaba problemas.
         showInfoModal(
             'Acción no permitida', 
             'No tienes permiso para realizar esta acción. Estás con privilegios de solo vista.'
         );
-        
-        // Recarga el tablero para revertir cualquier cambio visual no guardado.
-        if (currentBoardId) {
-            loadBoardData(currentBoardId);
-        }
+        // --- FIN DE LA CORRECCIÓN CLAVE ---
         
         return false;
     }
-
-
 
 
 
