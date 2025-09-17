@@ -367,7 +367,7 @@ def share_board(board_id):
 
 @app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
 def update_collaborator_permission(board_id):
-    """Actualiza el nivel de permiso de un colaborador."""
+    """Actualiza el nivel de permiso de un colaborador y devuelve el tablero actualizado."""
     data = request.get_json()
     owner_email = data.get('owner_email')
     collaborator_email = data.get('collaborator_email')
@@ -378,11 +378,13 @@ def update_collaborator_permission(board_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Verifica que quien hace la petición es el propietario
         cursor.execute("SELECT owner_email FROM boards WHERE id = %s", (board_id,))
         board = cursor.fetchone()
         if not board or board['owner_email'] != owner_email:
             return jsonify(success=False, message="Solo el propietario puede cambiar permisos."), 403
 
+        # Actualiza el permiso en la base de datos
         cursor.execute(
             "UPDATE collaborators SET permission_level = %s WHERE board_id = %s AND user_email = %s",
             (permission_level, board_id, collaborator_email)
@@ -390,6 +392,9 @@ def update_collaborator_permission(board_id):
         conn.commit()
         
         # --- CORRECCIÓN CLAVE ---
+        # Después de guardar, busca y devuelve el estado completo del tablero.
+        # Esto es crucial para que el frontend actualice su información.
+        # (Asegúrate de que esta función auxiliar exista o adapta la lógica de get_boards)
         updated_board_info = find_board_and_owner_db(board_id)
         return jsonify(success=True, message="Permiso actualizado.", board=updated_board_info)
 
@@ -399,6 +404,7 @@ def update_collaborator_permission(board_id):
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
 
 @app.route('/boards/<int:board_id>/share', methods=['DELETE'])
 def remove_collaborator(board_id):

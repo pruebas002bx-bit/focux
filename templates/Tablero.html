@@ -6425,46 +6425,52 @@ document.addEventListener('DOMContentLoaded', () => {
         populateShareModal();
     }
 
+
+
     async function populateShareModal() {
         const boardData = boardsData.find(b => b.id === currentBoardId);
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Si no se encuentran los datos del tablero, no hacer nada para evitar el crash.
+        const collaboratorsList = document.getElementById('collaborators-list');
+        
         if (!boardData || !boardData.owner_email) {
             collaboratorsList.innerHTML = '<li>Error al cargar datos de colaboradores.</li>';
             return;
         }
-        // --- FIN DE LA CORRECCIÓN ---
 
         collaboratorsList.innerHTML = '<li>Cargando...</li>';
         
         const ownerEmail = boardData.owner_email.toLowerCase();
         const isCurrentUserOwner = currentUser.email.toLowerCase() === ownerEmail;
 
+        // --- INICIO DE LA CORRECCIÓN CLAVE ---
+        // Se mapean los colaboradores para mostrar su nombre completo y el control de permisos.
         const collaboratorItems = (boardData.shared_with || []).map(collaborator => {
-            // Se añade una verificación para evitar errores si un colaborador no tiene email.
-            if (!collaborator || !collaborator.email) return '';
+            if (!collaborator || !collaborator.user_email) return '';
 
-            const isOwner = collaborator.email.toLowerCase() === ownerEmail;
-            
+            const isOwner = collaborator.user_email.toLowerCase() === ownerEmail;
+            const fullName = `${collaborator.first_name || ''} ${collaborator.last_name || ''}`.trim();
+
             let permissionControl = '';
+            // Solo el propietario puede cambiar permisos, y no puede cambiarse el suyo.
             if (isCurrentUserOwner && !isOwner) {
                 permissionControl = `
-                    <select class="permission-select text-sm rounded border-gray-300" data-email="${collaborator.email}">
+                    <select class="permission-select text-sm rounded border-gray-300 shadow-sm" data-email="${collaborator.user_email}">
                         <option value="editor" ${collaborator.permission_level === 'editor' ? 'selected' : ''}>Editor</option>
                         <option value="viewer" ${collaborator.permission_level === 'viewer' ? 'selected' : ''}>Lector</option>
                     </select>
-                    <button data-email="${collaborator.email}" class="remove-collaborator-btn text-red-500 hover:text-red-700 font-semibold text-sm">Quitar</button>
+                    <button data-email="${collaborator.user_email}" class="remove-collaborator-btn p-1.5 text-red-500 hover:bg-red-100 rounded-full" title="Quitar acceso">
+                        &times;
+                    </button>
                 `;
             } else {
-                const roleText = collaborator.permission_level === 'editor' ? 'Editor' : 'Lector';
-                permissionControl = `<span class="text-sm text-gray-600">${roleText}</span>`;
+                const roleText = isOwner ? 'Dueño' : (collaborator.permission_level === 'editor' ? 'Editor' : 'Lector');
+                permissionControl = `<span class="text-sm text-gray-600 px-2">${roleText}</span>`;
             }
 
             return `
                 <li class="flex items-center justify-between p-2 bg-gray-100 rounded-md">
-                    <div>
-                        <span class="font-medium text-gray-800">${collaborator.email}</span>
-                        ${isOwner ? '<span class="ml-2 text-xs font-bold text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full">Dueño</span>' : ''}
+                    <div class="flex flex-col">
+                        <span class="font-medium text-gray-800">${fullName}</span>
+                        <span class="text-xs text-gray-500">${collaborator.user_email}</span>
                     </div>
                     <div class="flex items-center gap-2">
                         ${permissionControl}
@@ -6472,9 +6478,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </li>
             `;
         }).join('');
+        // --- FIN DE LA CORRECCIÓN CLAVE ---
 
-        collaboratorsList.innerHTML = collaboratorItems;
+        collaboratorsList.innerHTML = collaboratorItems || '<li>No hay colaboradores.</li>';
     }
+
+
+
 
     function openBoardOptionsModal() {
         blurSlider.value = boardOptions.blurLevel;
@@ -7017,14 +7027,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // REEMPLAZA el listener de 'change' en collaboratorsList
     collaboratorsList.addEventListener('change', async (e) => {
         if (e.target.classList.contains('permission-select')) {
             const email = e.target.dataset.email;
             const newPermission = e.target.value;
             
             shareModalStatus.textContent = 'Actualizando permiso...';
-            shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600';
+            shareModalStatus.className = 'text-xs text-center font-medium text-yellow-600 h-4';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/collaborators/update`, {
@@ -7040,9 +7049,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (result.success) {
                     shareModalStatus.textContent = 'Permiso actualizado.';
-                    shareModalStatus.className = 'text-xs text-center font-medium text-green-600';
+                    shareModalStatus.className = 'text-xs text-center font-medium text-green-600 h-4';
                     
-                    // --- CORRECCIÓN CLAVE ---
+                    // Sincroniza el estado local con la respuesta del servidor
                     const boardIndex = boardsData.findIndex(b => b.id === currentBoardId);
                     if (boardIndex !== -1) {
                         boardsData[boardIndex] = result.board;
@@ -7050,11 +7059,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                 } else {
                     shareModalStatus.textContent = `Error: ${result.message}`;
-                    shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+                    shareModalStatus.className = 'text-xs text-center font-medium text-red-600 h-4';
                 }
             } catch (error) {
                 shareModalStatus.textContent = 'Error de conexión.';
-                shareModalStatus.className = 'text-xs text-center font-medium text-red-600';
+                shareModalStatus.className = 'text-xs text-center font-medium text-red-600 h-4';
             }
         }
     });
