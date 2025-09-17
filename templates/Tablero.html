@@ -5342,6 +5342,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    socket.on('permissions_updated', (data) => {
+        // Si la actualización de permisos es para el tablero que estoy viendo...
+        if (data.board_id == currentBoardId) {
+            console.log('📢 Permisos cambiados en el servidor. Recargando datos completos del tablero...');
+            
+            // Forzar una recarga completa de los datos del tablero desde el servidor.
+            // Esta función ya se encarga de obtener los datos más recientes y
+            // re-calcular el nivel de permisos del usuario actual.
+            loadBoardData(currentBoardId);
+            
+            // Opcional: Si el modal de compartir está abierto, lo actualizamos también.
+            const shareModal = document.getElementById('share-board-modal');
+            if (!shareModal.classList.contains('hidden')) {
+                // Se necesita recargar los datos de los tableros primero para que el modal tenga la info correcta.
+                loadUserBoards().then(() => {
+                    populateShareModal();
+                });
+            }
+        }
+    });
+
     socket.on('connect_error', (error) => {
         console.error('❌ Error de conexión Socket.IO:', error);
     });
