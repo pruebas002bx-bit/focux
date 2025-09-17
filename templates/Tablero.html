@@ -5364,6 +5364,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    socket.on('my_permission_updated', (data) => {
+        // Si la actualización de mi permiso es para el tablero que estoy viendo...
+        if (data.board_id == currentBoardId) {
+            console.log(`✅ ¡Mis permisos han cambiado! Nuevo nivel: ${data.new_permission_level}`);
+            
+            // 1. Actualiza la variable de estado DE INMEDIATO.
+            currentUserPermissionLevel = data.new_permission_level;
+            
+            // 2. Aplica los cambios a la interfaz DE INMEDIATO.
+            //    Esta función desbloqueará los botones de crear, mover, etc.
+            updateUIForPermissions(currentUserPermissionLevel);
+        }
+    });
+
     socket.on('connect_error', (error) => {
         console.error('❌ Error de conexión Socket.IO:', error);
     });

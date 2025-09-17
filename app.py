@@ -364,12 +364,13 @@ def share_board(board_id):
         if conn: conn.close()
 
 
+
 @app.route('/boards/<int:board_id>/collaborators/update', methods=['PUT'])
 def update_collaborator_permission(board_id):
-    """Actualiza el nivel de permiso de un colaborador y notifica a los clientes."""
+    """Actualiza el permiso de un colaborador y le notifica directamente su nuevo rol."""
     data = request.get_json()
     owner_email = data.get('owner_email')
-    collaborator_email = data.get('collaborator_email')
+    collaborator_email = data.get('collaborator_email').lower().strip()
     permission_level = data.get('permission_level')
 
     conn = None
@@ -388,9 +389,15 @@ def update_collaborator_permission(board_id):
         )
         conn.commit()
         
-        # --- INICIO DE LA CORRECCIÓN CLAVE (MÉTODO ROBUSTO) ---
-        # Se emite un evento simple para "invalidar" los datos de los clientes.
-        # Esto les ordena que recarguen la información completa del tablero.
+        # --- INICIO DE LA CORRECCIÓN CLAVE (NUEVO MÉTODO) ---
+        # 1. Notifica al usuario afectado su nuevo nivel de permiso de forma DIRECTA.
+        #    Se envía a su "sala" personal, que es su propio email.
+        socketio.emit('my_permission_updated', {
+            'board_id': board_id,
+            'new_permission_level': permission_level
+        }, room=collaborator_email)
+
+        # 2. Notifica a TODOS los demás para que actualicen la lista de colaboradores.
         socketio.emit('permissions_updated', {'board_id': board_id}, room=str(board_id))
         # --- FIN DE LA CORRECCIÓN CLAVE ---
         
@@ -403,6 +410,7 @@ def update_collaborator_permission(board_id):
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
 
 @app.route('/boards/<int:board_id>/share', methods=['DELETE'])
 def remove_collaborator(board_id):
