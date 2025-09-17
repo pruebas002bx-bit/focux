@@ -430,14 +430,40 @@ def remove_collaborator(board_id):
         if board['owner_email'] == email_to_remove:
             return jsonify(success=False, message="No puedes eliminar al propietario."), 400
 
+        # Eliminar el colaborador de la base de datos
         cursor.execute("DELETE FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email_to_remove))
         conn.commit()
 
         # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Se obtiene el estado completo y actualizado del tablero
-        updated_board_info = find_board_and_owner_db(board_id)
+        # Se reemplaza la función inexistente con la consulta SQL completa para
+        # obtener el estado actualizado del tablero y sus colaboradores.
+        query = """
+            SELECT
+                b.*,
+                (
+                    SELECT JSON_AGG(json_build_object(
+                        'user_email', c.user_email, 
+                        'permission_level', c.permission_level,
+                        'first_name', u.first_name,
+                        'last_name', u.last_name
+                    ))
+                    FROM collaborators c
+                    JOIN users u ON c.user_email = u.email
+                    WHERE c.board_id = b.id
+                ) as shared_with
+            FROM boards b WHERE b.id = %s
+        """
+        cursor.execute(query, (board_id,))
+        updated_board_info = dict(cursor.fetchone())
         
-        # Se emite un evento para notificar a TODOS los clientes
+        # Formatear la data para consistencia con el frontend
+        if updated_board_info:
+            updated_board_info['shared_with'] = updated_board_info.get('shared_with') or []
+            updated_board_info['data'] = updated_board_info.get('board_data') or {}
+            if 'board_data' in updated_board_info:
+                del updated_board_info['board_data']
+        
+        # Notificar a todos los usuarios en la sala del tablero sobre el cambio
         socketio.emit('board_was_updated', {
             'board_id': board_id, 
             'boardData': updated_board_info.get('data'),
@@ -450,9 +476,13 @@ def remove_collaborator(board_id):
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en DELETE /boards/{board_id}/share: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
+
+
 
 # ############################################################################
 # # SECCIÓN 3.5: NUEVAS RUTAS Y FUNCIONES AUXILIARES PARA CHATS PERSONALES   #
