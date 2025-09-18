@@ -1259,7 +1259,30 @@ def delete_board(board_id):
 
 
 
+@socketio.on('columns_reordered')
+def handle_columns_reordered(data):
+    """ Retransmite el nuevo orden de las columnas a los demás en el tablero. """
+    board_id = data.get('board_id')
+    if board_id:
+        # Reenvía el evento a todos en la sala, excepto al remitente original.
+        emit('columns_reordered', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'columns_reordered' para el tablero {board_id}")
 
+@socketio.on('column_created')
+def handle_column_created(data):
+    """ Retransmite la información de una nueva columna a los demás. """
+    board_id = data.get('board_id')
+    if board_id:
+        emit('column_created', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'column_created' para el tablero {board_id}")
+
+@socketio.on('column_deleted')
+def handle_column_deleted(data):
+    """ Retransmite el ID de una columna eliminada a los demás. """
+    board_id = data.get('board_id')
+    if board_id:
+        emit('column_deleted', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'column_deleted' para el tablero {board_id}")
 
 
 

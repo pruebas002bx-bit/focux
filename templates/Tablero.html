@@ -13352,13 +13352,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => columnEl.classList.add('dragging-column'), 0); 
             } 
         });
+
+
         columnEl.addEventListener('dragend', () => { 
             if (draggedColumn) { 
                 draggedColumn.classList.remove('dragging-column'); 
                 draggedColumn = null; 
+                
+                // --- INICIO DE LA CORRECCIÓN ---
                 const newColumnOrder = Array.from(board.querySelectorAll('.kanban-column')).map(col => col.id); 
                 columnsConfig.sort((a, b) => newColumnOrder.indexOf(a.id) - newColumnOrder.indexOf(b.id)); 
+                
+                // Notificamos a los demás del nuevo orden
+                socket.emit('columns_reordered', {
+                    board_id: currentBoardId,
+                    new_order: newColumnOrder
+                });
+                
                 scheduleAutoSave();
+                // --- FIN DE LA CORRECCIÓN ---
             } 
         });
         
@@ -13735,6 +13747,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    socket.on('columns_reordered', (data) => {
+        if (data.board_id !== currentBoardId) return;
+
+        console.log('↓ Recibiendo nuevo orden de columnas:', data.new_order);
+        
+        // Reordenar el array de configuración local
+        columnsConfig.sort((a, b) => data.new_order.indexOf(a.id) - data.new_order.indexOf(b.id));
+        
+        // Reordenar los elementos en el DOM
+        data.new_order.forEach(columnId => {
+            const columnElement = document.getElementById(columnId);
+            if (columnElement) {
+                board.appendChild(columnElement);
+            }
+        });
+    });
+
+    socket.on('column_created', (data) => {
+        if (data.board_id !== currentBoardId) return;
+
+        console.log('↓ Recibiendo nueva columna:', data.new_column);
+        
+        // Añadir la nueva columna a la configuración local
+        columnsConfig.push(data.new_column);
+        
+        // Crear y añadir el elemento de la nueva columna al DOM
+        const newColumnElement = createColumnElement(data.new_column);
+        board.appendChild(newColumnElement);
+        applyBoardOptions(); // Aplica estilos a la nueva columna
+    });
+
+    socket.on('column_deleted', (data) => {
+        if (data.board_id !== currentBoardId) return;
+
+        console.log('↓ Recibiendo eliminación de columna:', data.column_id);
+        const columnId = data.column_id;
+
+        // 1. Mueve las tarjetas de la columna eliminada a la primera columna (en el DOM)
+        const firstColumnContent = board.querySelector('.kanban-column .kanban-column-content');
+        const columnToDelete = document.getElementById(columnId);
+        
+        if (columnToDelete && firstColumnContent) {
+            const cardsToMove = columnToDelete.querySelectorAll('.kanban-card');
+            cardsToMove.forEach(card => firstColumnContent.appendChild(card));
+        }
+
+        // 2. Elimina el elemento de la columna del DOM
+        if (columnToDelete) {
+            columnToDelete.remove();
+        }
+
+        // 3. Actualiza la configuración local y los contadores
+        columnsConfig = columnsConfig.filter(c => c.id !== columnId);
+        updateColumnHeaders();
+    });
 
 
     function addNotificationToList(notification) {
@@ -14780,6 +14848,7 @@ function showMoveSuccessModal() {
         if (!newTitle) return;
 
         if (columnId) {
+            // Lógica para EDITAR una columna existente
             const colIndex = columnsConfig.findIndex(c => c.id === columnId);
             if (colIndex > -1) {
                 Object.assign(columnsConfig[colIndex], { 
@@ -14791,15 +14860,26 @@ function showMoveSuccessModal() {
                 });
             }
         } else {
-            columnsConfig.push({ 
+            // Lógica para CREAR una nueva columna
+            const newColumn = { 
                 id: 'column-' + Date.now(), 
                 title: newTitle, 
                 color: selectedColor,
                 attractsToday: attractsToday,
                 attractsOverdue: attractsOverdue,
                 attractsTag: attractsTag || null
+            };
+            columnsConfig.push(newColumn);
+            
+            // --- CORRECCIÓN CLAVE ---
+            // Notificamos a los demás usuarios que se ha creado una nueva columna.
+            socket.emit('column_created', {
+                board_id: currentBoardId,
+                new_column: newColumn
             });
+            // --- FIN DE LA CORRECCIÓN ---
         }
+
         scheduleAutoSave();
         initializeBoard(); 
         closeDrawer(columnEditorOverlay, columnEditorContent);
@@ -14811,9 +14891,13 @@ function showMoveSuccessModal() {
         alert("No puedes eliminar la última columna.");
         return;
       }
+      // Cerramos el cajón ANTES de mostrar la confirmación
+      closeDrawer(columnEditorOverlay, columnEditorContent);
+      // Usamos nuestro modal de confirmación
       showConfirmDelete('column', columnId);
     });
-    
+
+
     [columnEditorCancelBtn, columnEditorCloseBtn].forEach(btn => 
         btn.addEventListener('click', () => closeDrawer(columnEditorOverlay, columnEditorContent))
     );
@@ -14894,12 +14978,11 @@ function showMoveSuccessModal() {
     confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
     confirmDeleteOverlay.addEventListener('click', hideConfirmDelete);
 
+
+
     confirmDeleteOk.addEventListener('click', async () => {
       if (deleteTargetType === 'card') {
-        // --- INICIO DE LA CORRECCIÓN CLAVE ---
-        // Ahora, en lugar de borrarlo localmente, le pedimos al servidor que lo haga.
-        // El servidor se encargará de notificar a todos (incluyéndote a ti) para que
-        // la tarjeta se elimine de la pantalla a través del evento 'card_deleted'.
+        // Lógica corregida para eliminar tarjetas en tiempo real
         try {
             const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
                 method: 'DELETE',
@@ -14909,43 +14992,37 @@ function showMoveSuccessModal() {
             if (!result.success) {
                 alert(`Error al eliminar la tarjeta: ${result.message}`);
             }
-            // No necesitamos hacer nada más aquí. El evento del socket se encargará del resto.
         } catch (error) {
             console.error('Error de conexión al eliminar la tarjeta:', error);
             alert('Error de conexión. No se pudo eliminar la tarjeta.');
         }
-        // --- FIN DE LA CORRECCIÓN CLAVE ---
 
       } else if (deleteTargetType === 'column') {
-        const columnElement = document.getElementById(deleteTargetId);
-        if (columnElement) {
-          // Añadir animación de eliminación a la columna
-          columnElement.classList.add('animate__animated', 'animate__zoomOutDown');
-          
-          // Esperar a que termine la animación antes de eliminar
-          setTimeout(() => {
-            const firstColumnId = columnsConfig[0].id;
-            cardDataStore.forEach(task => {
-              if (task.columnId === deleteTargetId) task.columnId = firstColumnId;
-            });
-            columnsConfig = columnsConfig.filter(c => c.id !== deleteTargetId);
-            scheduleAutoSave();
-            initializeBoard();
-            if (!calendarContainer.classList.contains('hidden')) renderCalendar();
-            closeDrawer(columnEditorOverlay, columnEditorContent);
-          }, 800); // 800ms es la duración típica de la animación
-        } else {
-          // Fallback si no se encuentra el elemento
-          const firstColumnId = columnsConfig[0].id;
-          cardDataStore.forEach(task => {
-            if (task.columnId === deleteTargetId) task.columnId = firstColumnId;
-          });
-          columnsConfig = columnsConfig.filter(c => c.id !== deleteTargetId);
-          scheduleAutoSave();
-          initializeBoard();
-          if (!calendarContainer.classList.contains('hidden')) renderCalendar();
-          closeDrawer(columnEditorOverlay, columnEditorContent);
-        }
+        // --- INICIO DE LA CORRECCIÓN CLAVE ---
+        const columnIdToDelete = deleteTargetId;
+        const firstColumnId = columnsConfig[0].id;
+
+        // 1. Mueve las tarjetas de la columna a eliminar a la primera columna
+        cardDataStore.forEach(task => {
+            if (task.columnId === columnIdToDelete) {
+                task.columnId = firstColumnId;
+            }
+        });
+        
+        // 2. Elimina la columna de la configuración local
+        columnsConfig = columnsConfig.filter(c => c.id !== columnIdToDelete);
+        
+        // 3. Notifica a los demás clientes que deben eliminar la columna
+        socket.emit('column_deleted', {
+            board_id: currentBoardId,
+            column_id: columnIdToDelete
+        });
+        
+        // 4. Actualiza tu propia interfaz y guarda los cambios
+        initializeBoard();
+        scheduleAutoSave();
+        // --- FIN DE LA CORRECCIÓN CLAVE ---
+
       } else if (deleteTargetType === 'board') {
           await deleteBoard(deleteTargetId);
       }
