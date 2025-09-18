@@ -12069,6 +12069,8 @@ document.addEventListener('DOMContentLoaded', () => {
             : '<p class="text-xs text-gray-500 px-2 py-4 text-center">Todos están conectados.</p>';
     }
 
+
+
     async function saveNoteFromModal() {
         const isCreating = String(currentNoteId).startsWith('new-note-');
         
@@ -12078,7 +12080,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const color = selectedColorSwatch ? selectedColorSwatch.dataset.color : 'note-yellow';
 
         if (isCreating) {
-            // CREACIÓN EN UN SOLO PASO: Enviamos la nota completa al servidor.
+            // CREACIÓN: Enviamos la nota completa al servidor.
             try {
                 const response = await fetch(`${API_BASE_URL}/notes`, {
                     method: 'POST',
@@ -12091,13 +12093,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 });
                 const data = await response.json();
-                if (data.success && data.note) {
-                    // El creador añade la nota final a su caché (los demás la reciben por socket)
-                    notesCache.unshift(data.note);
-                    renderNotes();
-                } else {
-                    throw new Error(data.message || 'Error del servidor');
+                
+                // --- INICIO DE LA CORRECCIÓN CLAVE ---
+                // Se eliminó el código que añadía la nota aquí.
+                // Ahora, el cliente que crea la nota simplemente espera a recibir
+                // el evento 'note_created' del servidor, igual que los demás.
+                // Esto elimina la condición de carrera y el duplicado.
+                if (!data.success) {
+                    throw new Error(data.message || 'Error del servidor al crear la nota.');
                 }
+                // --- FIN DE LA CORRECCIÓN CLAVE ---
+
             } catch (error) {
                 console.error('Error al crear la nueva nota:', error);
                 alert('No se pudo guardar la nota.');
@@ -12109,6 +12115,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         closeNoteModal();
     }
+
+
 
     async function insertImageFromFile(file, size = selectedImageSize) {
         const trixEditor = document.querySelector('#note-editor-modal trix-editor');
