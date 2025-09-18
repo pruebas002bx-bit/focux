@@ -1017,6 +1017,8 @@ def handle_card_moved(data):
         print(f"SOCKET: Retransmitiendo 'card_moved' para el tablero {board_id}")
 
 
+
+
 @socketio.on('card_created')
 def handle_card_created(data):
     """
@@ -1167,6 +1169,61 @@ def handle_single_note(note_id):
     finally:
         if conn: conn.close()
 
+
+@app.route('/boards/<int:board_id>/cards/<card_id>', methods=['DELETE'])
+def delete_card(board_id, card_id):
+    """
+    Elimina una tarjeta específica de un tablero y notifica a todos los colaboradores.
+    """
+    email = request.args.get('email')
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 1. Verificar que el usuario tenga permisos para editar
+        if not check_editor_permission(conn, board_id, email):
+            return jsonify(success=False, message="Permiso de editor requerido."), 403
+
+        # 2. Obtener los datos actuales del tablero
+        cursor.execute("SELECT board_data FROM boards WHERE id = %s", (board_id,))
+        board = cursor.fetchone()
+        if not board or not board['board_data']:
+            return jsonify(success=False, message="Tablero no encontrado."), 404
+
+        board_data = board['board_data']
+        
+        # 3. Filtrar la tarjeta para eliminarla de la lista
+        initial_card_count = len(board_data.get('cards', []))
+        board_data['cards'] = [card for card in board_data.get('cards', []) if card.get('id') != card_id]
+        
+        # Si no se encontró la tarjeta, no es un error crítico, pero lo registramos
+        if len(board_data.get('cards', [])) == initial_card_count:
+             print(f"ADVERTENCIA: No se encontró la tarjeta {card_id} para eliminar en el tablero {board_id}.")
+
+        # 4. Actualizar la base de datos con el nuevo estado del tablero
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "UPDATE boards SET board_data = %s, updated_date = %s WHERE id = %s",
+            (json.dumps(board_data), now, board_id)
+        )
+        conn.commit()
+        
+        # 5. [LA CORRECCIÓN CLAVE] Notificar a todos los clientes en la sala del tablero
+        #    que esta tarjeta específica debe ser eliminada.
+        socketio.emit('card_deleted', {'board_id': board_id, 'card_id': card_id}, room=str(board_id))
+        
+        return jsonify(success=True, message="Tarjeta eliminada")
+        
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en DELETE /boards/{board_id}/cards/{card_id}: {e}")
+        return jsonify(success=False, message="Error interno del servidor"), 500
+    finally:
+        if conn: conn.close()
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):

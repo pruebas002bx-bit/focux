@@ -5417,6 +5417,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
+    socket.on('card_deleted', (data) => {
+        // Solo reaccionar si la tarjeta eliminada pertenece al tablero actual
+        if (data.board_id !== currentBoardId) return;
+
+        console.log(`↓ Recibiendo eliminación de tarjeta en tiempo real: ${data.card_id}`);
+        const cardId = data.card_id;
+
+        // 1. Quitar la tarjeta del almacén de datos local
+        cardDataStore.delete(cardId);
+
+        // 2. Buscar el elemento HTML de la tarjeta en la página
+        const cardElement = document.getElementById(cardId);
+        if (cardElement) {
+            // 3. Aplicar una animación de salida y luego eliminarla del DOM
+            cardElement.classList.add('animate__animated', 'animate__zoomOut');
+            setTimeout(() => {
+                cardElement.remove();
+                // 4. Actualizar los contadores de las columnas para que reflejen el cambio
+                updateColumnHeaders();
+            }, 500); // Duración de la animación en milisegundos
+        } else {
+             // Si por alguna razón el elemento no está, al menos actualiza los contadores
+             updateColumnHeaders();
+        }
+    });
+
 
 
     socket.on('connect_error', (error) => {
@@ -14870,35 +14896,46 @@ function showMoveSuccessModal() {
 
     confirmDeleteOk.addEventListener('click', async () => {
       if (deleteTargetType === 'card') {
-        const cardElement = document.getElementById(deleteTargetId);
-        if (cardElement) {
-          // Añadir animación de eliminación
-          cardElement.classList.add('animate__animated', 'animate__zoomOutDown');
+        // --- INICIO DE LA CORRECCIÓN CLAVE ---
+        // Ahora, en lugar de borrarlo localmente, le pedimos al servidor que lo haga.
+        // El servidor se encargará de notificar a todos (incluyéndote a ti) para que
+        // la tarjeta se elimine de la pantalla a través del evento 'card_deleted'.
+        try {
+            const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
+                method: 'DELETE',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            const result = await response.json();
+            if (!result.success) {
+                alert(`Error al eliminar la tarjeta: ${result.message}`);
+            }
+            // No necesitamos hacer nada más aquí. El evento del socket se encargará del resto.
+        } catch (error) {
+            console.error('Error de conexión al eliminar la tarjeta:', error);
+            alert('Error de conexión. No se pudo eliminar la tarjeta.');
+        }
+        // --- FIN DE LA CORRECCIÓN CLAVE ---
+
+      } else if (deleteTargetType === 'column') {
+        const columnElement = document.getElementById(deleteTargetId);
+        if (columnElement) {
+          // Añadir animación de eliminación a la columna
+          columnElement.classList.add('animate__animated', 'animate__zoomOutDown');
           
           // Esperar a que termine la animación antes de eliminar
           setTimeout(() => {
-            cardDataStore.delete(deleteTargetId);
+            const firstColumnId = columnsConfig[0].id;
+            cardDataStore.forEach(task => {
+              if (task.columnId === deleteTargetId) task.columnId = firstColumnId;
+            });
+            columnsConfig = columnsConfig.filter(c => c.id !== deleteTargetId);
             scheduleAutoSave();
-            renderAllCards();
+            initializeBoard();
             if (!calendarContainer.classList.contains('hidden')) renderCalendar();
-            closeDrawer(addCardOverlay, addCardContent);
+            closeDrawer(columnEditorOverlay, columnEditorContent);
           }, 800); // 800ms es la duración típica de la animación
         } else {
           // Fallback si no se encuentra el elemento
-          cardDataStore.delete(deleteTargetId);
-          scheduleAutoSave();
-          renderAllCards();
-          if (!calendarContainer.classList.contains('hidden')) renderCalendar();
-          closeDrawer(addCardOverlay, addCardContent);
-        }
-    } else if (deleteTargetType === 'column') {
-      const columnElement = document.getElementById(deleteTargetId);
-      if (columnElement) {
-        // Añadir animación de eliminación a la columna
-        columnElement.classList.add('animate__animated', 'animate__zoomOutDown');
-        
-        // Esperar a que termine la animación antes de eliminar
-        setTimeout(() => {
           const firstColumnId = columnsConfig[0].id;
           cardDataStore.forEach(task => {
             if (task.columnId === deleteTargetId) task.columnId = firstColumnId;
@@ -14908,21 +14945,9 @@ function showMoveSuccessModal() {
           initializeBoard();
           if (!calendarContainer.classList.contains('hidden')) renderCalendar();
           closeDrawer(columnEditorOverlay, columnEditorContent);
-        }, 800); // 800ms es la duración típica de la animación
-      } else {
-        // Fallback si no se encuentra el elemento
-        const firstColumnId = columnsConfig[0].id;
-        cardDataStore.forEach(task => {
-          if (task.columnId === deleteTargetId) task.columnId = firstColumnId;
-        });
-        columnsConfig = columnsConfig.filter(c => c.id !== deleteTargetId);
-        scheduleAutoSave();
-        initializeBoard();
-        if (!calendarContainer.classList.contains('hidden')) renderCalendar();
-        closeDrawer(columnEditorOverlay, columnEditorContent);
-      }
-    } else if (deleteTargetType === 'board') {
-        await deleteBoard(deleteTargetId);
+        }
+      } else if (deleteTargetType === 'board') {
+          await deleteBoard(deleteTargetId);
       }
       hideConfirmDelete();
     });
