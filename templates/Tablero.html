@@ -1684,11 +1684,13 @@
         }
 
 
+
+
         .assigned-avatar {
             width: 28px;
             height: 28px;
             /* --- CAMBIO PRINCIPAL: De círculo a cuadrado redondeado --- */
-            border-radius: 1px; /* en lugar de 9999px */
+            border-radius: 6px; /* en lugar de 9999px */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1706,23 +1708,6 @@
             box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25);
             z-index: 10;
         }
-
-        .assignee-item {
-            cursor: pointer;
-            transition: all 0.2s ease;
-            padding: 4px;
-            border: 2px solid transparent;
-            /* --- CAMBIO PRINCIPAL: Ajustar el contenedor del selector --- */
-            border-radius: 8px; /* en lugar de 50% */
-        }
-
-        .assignee-item.selected {
-            border-color: #f97316;
-            background-color: #fff7ed;
-        }
-
-
-
 
         .assignee-selector-item {
             display: flex;
@@ -1748,6 +1733,7 @@
             width: 32px;
             height: 32px;
             font-size: 14px;
+            border-radius: 8px;
         }
         .assignee-selector-item .check-icon {
             opacity: 0;
@@ -1758,6 +1744,24 @@
             opacity: 1;
             transform: scale(1);
         }
+
+
+
+
+        .assignee-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 4px;
+            border: 2px solid transparent;
+            /* --- CAMBIO PRINCIPAL: Ajustar el contenedor del selector --- */
+            border-radius: 8px; /* en lugar de 50% */
+        }
+
+        .assignee-item.selected {
+            border-color: #f97316;
+            background-color: #fff7ed;
+        }
+
 
         .calendar-event:hover {
             background-color: rgba(220, 38, 38, 0.1);
@@ -12061,33 +12065,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // =====> INICIO DE LAS NUEVAS FUNCIONES (AÑADIR JUNTO AL BLOQUE ANTERIOR) <=====
+
     function renderAssigneesInDrawer(task) {
         const assignmentSection = document.getElementById('assignment-section');
         const container = document.getElementById('card-assignment-container');
         if (!assignmentSection || !container) return;
 
-        // Mostrar la sección
-        assignmentSection.classList.remove('hidden');
+        const board = boardsData.find(b => b.id === currentBoardId);
+        // Solo mostrar la sección si el tablero es compartido
+        if (board && board.shared_with && board.shared_with.length > 1) {
+            assignmentSection.classList.remove('hidden');
+        } else {
+            assignmentSection.classList.add('hidden');
+            return;
+        }
+        
         container.innerHTML = '';
 
-        // Renderizar avatares de usuarios ya asignados
         const assignedEmails = task.assignedTo || [];
         assignedEmails.forEach(email => {
+            const member = board.shared_with.find(m => m.user_email === email);
+            const name = member ? `${member.first_name || ''} ${member.last_name || ''}`.trim() : email;
+            const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             const color = getUserColor(email);
-            const initials = email.substring(0, 2).toUpperCase();
+            
             const avatar = document.createElement('div');
             avatar.className = `assigned-avatar ${color.bg} ${color.text}`;
-            avatar.title = email;
+            avatar.title = name;
             avatar.textContent = initials;
             container.appendChild(avatar);
         });
 
-        // Añadir botón para abrir el selector
         const addButton = document.createElement('button');
         addButton.type = 'button';
-        addButton.className = 'w-7 h-7 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors';
-        addButton.innerHTML = '&#43;';
+        addButton.className = 'w-7 h-7 bg-gray-200 text-gray-600 rounded-md flex items-center justify-center hover:bg-gray-300 transition-colors';
+        addButton.innerHTML = '<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0V7h2a1 1 0 100-2h-2V3z" /><path d="M6 9a2 2 0 00-2 2v3a2 2 0 002 2h8a2 2 0 002-2v-3a2 2 0 00-2-2H6z" /></svg>';
         addButton.title = 'Asignar o cambiar miembro';
         addButton.addEventListener('click', openAssigneeSelectorModal);
         container.appendChild(addButton);
@@ -12129,6 +12141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         modal.classList.remove('hidden');
     }
+
 
     function closeAssigneeSelectorModal() {
         document.getElementById('assignee-selector-modal').classList.add('hidden');
