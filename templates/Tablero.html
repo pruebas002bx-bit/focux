@@ -5328,6 +5328,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    let cardDataStore = new Map();
+
+    let conversationsCache = []; 
+
+    let isProgrammaticallyChangingTrix = false; 
+
+    let draggedCard = null;
+
+    let draggedColumn = null;
+
+    let currentColumnId = null;
+
+    let currentCardId = null;
+
+    let activeTagFilter = null;
+
+    let currentCalendarDate = new Date();
+
+    let pexelsTarget = 'card';
+
+    let boardOptions = {};
+
+    let deleteTargetType, deleteTargetId;
+
+
+
+    let notifications = JSON.parse(localStorage.getItem('focux_notifications') || '[]');
+
+    let notificationsReadCount = notifications.filter(n => !n.read).length;
+
+
+
+    
+
     socket.on('connect', () => {
         console.log('🔌 ✅ Socket.IO conectado exitosamente.');
 
@@ -6123,24 +6158,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mrFocusAvatar = document.getElementById('mr-focus-avatar');
     const mrFocusTip = document.getElementById('mr-focus-tip');
     
-    // APP STATE (keeping all existing from original)
-    let cardDataStore = new Map();
-    let conversationsCache = []; 
-    let isProgrammaticallyChangingTrix = false; 
-    let draggedCard = null;
-    let draggedColumn = null;
-    let currentColumnId = null;
-    let currentCardId = null;
-    let activeTagFilter = null;
-    let currentCalendarDate = new Date();
-    let pexelsTarget = 'card';
-    let boardOptions = {};
-    let deleteTargetType, deleteTargetId;
-
-    let notifications = JSON.parse(localStorage.getItem('focux_notifications') || '[]');
-    let notificationsReadCount = notifications.filter(n => !n.read).length;
-
-
 
     // CONFIGURATION (mantén sólo las clases completas)
     const COLUMN_COLORS = {
