@@ -4548,7 +4548,6 @@
         </div>
     </div>
 
-    <!-- All existing modals (column editor, card editor, chatbot, pexels) -->
     <div id="column-editor-modal" class="hidden fixed inset-0 z-50">
         <div id="column-editor-overlay" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 opacity-0"></div>
         <div id="column-editor-content" class="bg-white h-full w-96 max-w-full absolute top-0 right-0 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-full">
@@ -4736,11 +4735,12 @@
                         <label class="block text-sm font-medium text-gray-700 mt-4 mb-2">Otras Etiquetas</label>
                         <input type="text" name="custom_tags" placeholder="Etiquetas personalizadas (separadas por coma)" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-600 focus:border-red-500 text-sm">
                     </div>
-                    <div id="assignment-section" class="hidden pt-4 border-t">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Asignar a:</label>
-                        <div id="card-assignment-container" class="flex flex-wrap gap-3"></div>
-                    </div>
 
+                    <div id="assignment-section" class="pt-4 border-t">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Asignar a:</label>
+                        <div id="card-assignment-container" class="flex flex-wrap items-center gap-3">
+                            </div>
+                    </div>
                     <hr>
                     <div class="space-y-3">
                         <h4 class="text-md font-semibold text-gray-800">Checklist</h4>
@@ -4814,6 +4814,21 @@
             </form>
         </div>
     </div>
+    <div id="assignee-selector-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
+        <div id="assignee-selector-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-lg p-6 z-10 w-96 max-w-[90vw]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Asignar Tarea</h3>
+                <button type="button" id="assignee-selector-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200">&times;</button>
+            </div>
+            <div id="assignee-selector-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                </div>
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" id="assignee-selector-cancel-btn" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">Cancelar</button>
+                <button type="button" id="save-assignees-btn" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium">Guardar Asignación</button>
+            </div>
+        </div>
+    </div>
 
 
     <div id="attendance-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center p-4">
@@ -4846,6 +4861,11 @@
             </div>
         </div>
     </div>
+
+
+
+
+
 
 
 
