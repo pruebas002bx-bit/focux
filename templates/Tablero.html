@@ -11944,7 +11944,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
     function openCardDrawer(cardId, colIdForNewCard = null) {
         const isCreating = !cardId;
         const completeTaskBtn = document.getElementById('complete-task-btn');
@@ -11953,7 +11952,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let task;
             if (isCreating) {
                 cardId = 'card-' + Date.now() + Math.random().toString(36).substr(2, 9);
-                // --- INICIO DE MODIFICACIÓN: Objeto de tarea por defecto actualizado ---
                 task = { 
                     id: cardId, title: '', description: '', 
                     startDate: '', endDate: '', attachment: null, 
@@ -11961,7 +11959,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     columnId: colIdForNewCard, order: Date.now(), assignedTo: [], 
                     isCompleted: false, allDay: true, startTime: '', endTime: '' 
                 };
-                // --- FIN DE MODIFICACIÓN ---
                 cardDataStore.set(cardId, task);
                 completeTaskBtn.style.display = 'none';
             } else {
@@ -11979,7 +11976,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderTagSelectors(task.tags || []);
             
-            // --- INICIO DE MODIFICACIÓN: Poblar los campos de fecha/hora ---
             addCardForm.querySelector('[name="startDate"]').value = task.startDate || '';
             addCardForm.querySelector('[name="endDate"]').value = task.endDate || '';
 
@@ -11988,13 +11984,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const startTimeInput = document.getElementById('card-start-time');
             const endTimeInput = document.getElementById('card-end-time');
             
-            allDayCheckbox.checked = task.allDay !== false; // Es todo el día por defecto
+            allDayCheckbox.checked = task.allDay !== false;
             startTimeInput.value = task.startTime || '09:00';
             endTimeInput.value = task.endTime || '10:00';
             timeInputsContainer.classList.toggle('hidden', allDayCheckbox.checked);
             
             allDayCheckbox.onchange = () => timeInputsContainer.classList.toggle('hidden', allDayCheckbox.checked);
-            // --- FIN DE MODIFICACIÓN ---
 
             const trixEditorElement = addCardForm.querySelector('trix-editor');
             const hiddenDescriptionInput = document.getElementById('card-description-input');
@@ -12046,6 +12041,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 cardColorContainer.appendChild(swatch);
             });
             
+            // =====> INICIO DE LA CORRECCIÓN <=====
+            renderAssigneesInDrawer(task); // Llama a la nueva función para mostrar los asignados.
+            // =====> FIN DE LA CORRECCIÓN <=====
+
             renderChecklist(task);
             renderComments(task);
             initializeTimeBoxingInModal(task);
@@ -12062,6 +12061,110 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // =====> INICIO DE LAS NUEVAS FUNCIONES (AÑADIR JUNTO AL BLOQUE ANTERIOR) <=====
+    function renderAssigneesInDrawer(task) {
+        const assignmentSection = document.getElementById('assignment-section');
+        const container = document.getElementById('card-assignment-container');
+        if (!assignmentSection || !container) return;
+
+        // Mostrar la sección
+        assignmentSection.classList.remove('hidden');
+        container.innerHTML = '';
+
+        // Renderizar avatares de usuarios ya asignados
+        const assignedEmails = task.assignedTo || [];
+        assignedEmails.forEach(email => {
+            const color = getUserColor(email);
+            const initials = email.substring(0, 2).toUpperCase();
+            const avatar = document.createElement('div');
+            avatar.className = `assigned-avatar ${color.bg} ${color.text}`;
+            avatar.title = email;
+            avatar.textContent = initials;
+            container.appendChild(avatar);
+        });
+
+        // Añadir botón para abrir el selector
+        const addButton = document.createElement('button');
+        addButton.type = 'button';
+        addButton.className = 'w-7 h-7 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors';
+        addButton.innerHTML = '&#43;';
+        addButton.title = 'Asignar o cambiar miembro';
+        addButton.addEventListener('click', openAssigneeSelectorModal);
+        container.appendChild(addButton);
+    }
+
+    function openAssigneeSelectorModal() {
+        const modal = document.getElementById('assignee-selector-modal');
+        const listContainer = document.getElementById('assignee-selector-list');
+        const task = cardDataStore.get(currentCardId);
+        const board = boardsData.find(b => b.id === currentBoardId);
+
+        if (!task || !board || !board.shared_with) return;
+        
+        listContainer.innerHTML = '';
+        const currentAssignees = new Set(task.assignedTo || []);
+
+        board.shared_with.forEach(member => {
+            const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.user_email;
+            const initials = memberName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const color = getUserColor(member.user_email);
+            const isSelected = currentAssignees.has(member.user_email);
+
+            const item = document.createElement('div');
+            item.className = `assignee-selector-item ${isSelected ? 'selected' : ''}`;
+            item.dataset.email = member.user_email;
+            item.innerHTML = `
+                <div class="assigned-avatar-large ${color.bg} ${color.text} mr-3">${initials}</div>
+                <div class="flex-grow">
+                    <div class="font-semibold text-gray-800">${memberName}</div>
+                    <div class="text-xs text-gray-500">${member.user_email}</div>
+                </div>
+                <div class="check-icon text-orange-600">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                </div>
+            `;
+            item.addEventListener('click', () => item.classList.toggle('selected'));
+            listContainer.appendChild(item);
+        });
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeAssigneeSelectorModal() {
+        document.getElementById('assignee-selector-modal').classList.add('hidden');
+    }
+
+    // Listeners para el modal de asignación
+    document.getElementById('assignee-selector-close-btn').addEventListener('click', closeAssigneeSelectorModal);
+    document.getElementById('assignee-selector-cancel-btn').addEventListener('click', closeAssigneeSelectorModal);
+    document.getElementById('assignee-selector-overlay').addEventListener('click', closeAssigneeSelectorModal);
+
+    document.getElementById('save-assignees-btn').addEventListener('click', () => {
+        const task = cardDataStore.get(currentCardId);
+        if (!task) return;
+
+        const selectedEmails = [];
+        document.querySelectorAll('#assignee-selector-list .assignee-selector-item.selected').forEach(item => {
+            selectedEmails.push(item.dataset.email);
+        });
+
+        task.assignedTo = selectedEmails;
+        
+        // Notificar a usuarios asignados (si la lógica existe en el backend)
+        socket.emit('card_assigned', {
+            board_id: currentBoardId,
+            card_id: task.id,
+            card_title: task.title,
+            assignees: selectedEmails,
+            assigner_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
+        });
+        
+        renderAssigneesInDrawer(task);
+        renderAllCards(); // Para actualizar la vista de la tarjeta en el tablero
+        scheduleAutoSave();
+        closeAssigneeSelectorModal();
+    });
+    // =====> FIN DE LAS NUEVAS FUNCIONES <=====
 
 
     openParticipantsBtn.addEventListener('click', openAttendanceModal);
