@@ -145,6 +145,17 @@ def init_db():
     finally:
         if conn: conn.close()
 
+
+def check_editor_permission(conn, board_id, email):
+    """Función auxiliar para verificar si un usuario es editor de un tablero."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s AND permission_level = 'editor'",
+            (board_id, email)
+        )
+        return cursor.fetchone() is not None
+
+
 # ############################################################################
 # # SECCIÓN 3: ENDPOINTS DE LA APLICACIÓN                                    #
 # ############################################################################
@@ -950,12 +961,26 @@ def handle_notes():
 
         if request.method == 'GET':
             board_id = request.args.get('board_id')
+            email = request.args.get('email')
+            
+            # Verificación de que el usuario tiene acceso (al menos como lector)
+            cursor.execute("SELECT 1 FROM collaborators WHERE board_id = %s AND user_email = %s", (board_id, email))
+            if not cursor.fetchone():
+                return jsonify(success=False, message="Acceso denegado a las notas de este tablero."), 403
+
             cursor.execute("SELECT * FROM notes WHERE board_id = %s ORDER BY updated_date DESC", (board_id,))
             notes = [dict(row) for row in cursor.fetchall()]
             return jsonify(success=True, notes=notes)
 
         if request.method == 'POST':
             data = request.get_json()
+            
+            # ----- INICIO DE LA CORRECCIÓN CLAVE -----
+            # Se verifica que el usuario tenga permiso de 'editor' antes de crear la nota.
+            if not check_editor_permission(conn, data['board_id'], data['email']):
+                return jsonify(success=False, message="Permiso de editor requerido para crear notas."), 403
+            # ----- FIN DE LA CORRECCIÓN CLAVE -----
+            
             now = datetime.now(timezone.utc).isoformat()
             cursor.execute(
                 "INSERT INTO notes (board_id, user_email, content, color, created_date, updated_date) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
@@ -972,7 +997,6 @@ def handle_notes():
         return jsonify(success=False, message="Error interno del servidor"), 500
     finally:
         if conn: conn.close()
-
 
 @app.route('/ai/writing-suggestions', methods=['POST'])
 def get_ai_suggestions():
@@ -1068,8 +1092,19 @@ def handle_single_note(note_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Primero, obtener el board_id de la nota para la validación
+        cursor.execute("SELECT board_id FROM notes WHERE id = %s", (note_id,))
+        note = cursor.fetchone()
+        if not note:
+            return jsonify(success=False, message="Nota no encontrada"), 404
+        board_id = note['board_id']
+
         if request.method == 'PUT':
             data = request.get_json()
+            # AÑADIR ESTA VERIFICACIÓN
+            if not check_editor_permission(conn, board_id, data['email']):
+                return jsonify(success=False, message="Permiso de editor requerido."), 403
+            
             now = datetime.now(timezone.utc).isoformat()
             cursor.execute(
                 "UPDATE notes SET content = %s, color = %s, updated_date = %s WHERE id = %s RETURNING *",
@@ -1082,16 +1117,14 @@ def handle_single_note(note_id):
 
         if request.method == 'DELETE':
             email = request.args.get('email')
-            # Primero obtenemos el board_id para notificar a la sala correcta
-            cursor.execute("SELECT board_id FROM notes WHERE id = %s", (note_id,))
-            note = cursor.fetchone()
-            if note:
-                board_id = note['board_id']
-                cursor.execute("DELETE FROM notes WHERE id = %s", (note_id,))
-                conn.commit()
-                socketio.emit('note_deleted', {'board_id': board_id, 'note_id': note_id}, room=str(board_id))
-                return jsonify(success=True, message="Nota eliminada")
-            return jsonify(success=False, message="Nota no encontrada"), 404
+            # AÑADIR ESTA VERIFICACIÓN
+            if not check_editor_permission(conn, board_id, email):
+                return jsonify(success=False, message="Permiso de editor requerido."), 403
+
+            cursor.execute("DELETE FROM notes WHERE id = %s", (note_id,))
+            conn.commit()
+            socketio.emit('note_deleted', {'board_id': board_id, 'note_id': note_id}, room=str(board_id))
+            return jsonify(success=True, message="Nota eliminada")
             
     except Exception as e:
         if conn: conn.rollback()
@@ -1099,6 +1132,7 @@ def handle_single_note(note_id):
         return jsonify(success=False, message="Error interno del servidor"), 500
     finally:
         if conn: conn.close()
+
 
 @app.route('/boards/<int:board_id>', methods=['DELETE'])
 def delete_board(board_id):

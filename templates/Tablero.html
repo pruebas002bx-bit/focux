@@ -7814,69 +7814,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
-    function processAndRenderBoard(boardData) {
-        if (!boardData || !boardData.id) {
-            console.error("Se intentó procesar un tablero inválido.", boardData);
-            hideMainLoader();
-            return;
-        }
-
-        if (currentBoardId && currentBoardId !== boardData.id) {
-            socket.emit('leave_board', { board_id: currentBoardId });
-        }
-
-        currentBoardId = boardData.id;
-        socket.emit('join_board', { board_id: currentBoardId, email: currentUser.email });
-
-        const ownerEmail = (boardData.owner_email || '').toLowerCase();
-        const currentUserEmail = (currentUser.email || '').toLowerCase();
-
-        if (ownerEmail === currentUserEmail) {
-            currentUserPermissionLevel = 'editor';
-        } else {
-            const self = (boardData.shared_with || []).find(c => c && c.email && c.email.toLowerCase() === currentUserEmail);
-            currentUserPermissionLevel = self ? self.permission_level : 'viewer';
-        }
-        
-        console.log(`🔒 Nivel de permiso para este tablero: ${currentUserPermissionLevel}`);
-
-        const data = boardData.data || {};
-        columnsConfig = data.columns || [];
-        boardOptions = { ...DEFAULT_BOARD_OPTIONS, ...(data.boardOptions || {}) };
-
-        cardDataStore.clear();
-        (data.cards || []).forEach(card => {
-            if (!card.id) card.id = 'card-' + Date.now() + Math.random().toString(36).substr(2, 9);
-            cardDataStore.set(card.id, card);
-        });
-
-        currentBoardName.textContent = boardData.name || 'Tablero';
-
-        const chatContainer = document.getElementById('collaborative-chat-container');
-        const chatBox = document.getElementById('chat-box');
-        const isShared = Array.isArray(boardData.shared_with) && boardData.shared_with.length > 1;
-
-        chatContainer.classList.remove('hidden');
-        if (isShared) {
-            chatBox.classList.add('is-shared-board');
-            chatBox.classList.remove('is-solo-board');
-            switchChatMode('board');
-        } else {
-            chatBox.classList.add('is-solo-board');
-            chatBox.classList.remove('is-shared-board');
-            switchChatMode('general');
-        }
-
-        initializeBoard();
-        
-        isLoading = false;
-        hideMainLoader();
-        updateUIForPermissions(currentUserPermissionLevel);
-    }
-
-
-
     document.getElementById('add-reference-btn').addEventListener('click', () => openAddReferenceModal());
     document.getElementById('add-reference-close-btn').addEventListener('click', closeAddReferenceModal);
     document.getElementById('add-reference-cancel-btn').addEventListener('click', closeAddReferenceModal);
@@ -7952,7 +7889,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ownerEmail === currentUserEmail) {
             currentUserPermissionLevel = 'editor';
         } else {
-            const self = (boardData.shared_with || []).find(c => c && c.email && c.email.toLowerCase() === currentUserEmail);
+            const self = (boardData.shared_with || []).find(c => c && c.user_email && c.user_email.toLowerCase() === currentUserEmail);
             currentUserPermissionLevel = self ? self.permission_level : 'viewer';
         }
         
