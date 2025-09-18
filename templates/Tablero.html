@@ -5392,7 +5392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    
+
 
     // Listener para cuando el DUEÑO cambia los permisos o miembros del tablero
     socket.on('permissions_updated', (data) => {
@@ -14284,7 +14284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
+    // REEMPLAZA la función 'duplicateCard' con esta
     function duplicateCard(cardId) {
         const originalTask = cardDataStore.get(cardId);
         if (!originalTask) return;
@@ -14292,12 +14292,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const newTask = JSON.parse(JSON.stringify(originalTask));
         newTask.id = 'card-' + Date.now() + Math.random().toString(36).substr(2, 9);
         newTask.title = `${originalTask.title} (Copia)`;
-        newTask.order = originalTask.order + 0.5;
-
+        newTask.order = originalTask.order + 0.5; // Se posiciona justo después de la original
+        
         cardDataStore.set(newTask.id, newTask);
-        renderAllCards();
-        scheduleAutoSave();
+
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Notificamos a los demás que se ha creado (duplicado) una tarjeta.
+        socket.emit('card_created', {
+            board_id: currentBoardId,
+            card: newTask
+        });
+        // --- FIN DE LA CORRECCIÓN ---
+
+        renderAllCards(); // El creador actualiza su propia vista
+        scheduleAutoSave(); // Se guarda el cambio
     }
+
+
+    socket.on('card_created', (data) => {
+        if (data.board_id !== currentBoardId) return;
+
+        console.log('↓ Recibiendo nueva tarjeta en tiempo real:', data.card);
+        const newCard = data.card;
+
+        // 1. Añadimos la tarjeta a nuestro almacén de datos local
+        cardDataStore.set(newCard.id, newCard);
+
+        // 2. Creamos el elemento HTML de la tarjeta
+        const cardElement = createCardElement(newCard);
+
+        // 3. Buscamos la columna correcta y añadimos la tarjeta al final
+        const targetColumnContent = document.querySelector(`#${newCard.columnId} .kanban-column-content`);
+        if (targetColumnContent) {
+            targetColumnContent.appendChild(cardElement);
+        }
+
+        // 4. Actualizamos los contadores de las columnas
+        updateColumnHeaders();
+    });
 
     const moveToColumnModal = document.getElementById('move-to-column-modal');
     const moveToBoardModal = document.getElementById('move-to-board-modal');
@@ -14763,14 +14795,10 @@ function showMoveSuccessModal() {
         if(e.target === columnEditorOverlay) closeDrawer(columnEditorOverlay, columnEditorContent); 
     });
     
+
     addCardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        // --- INICIO DE CORRECCIÓN: Se mueve saveCardDataFromModal() al inicio ---
-        // Esto asegura que todos los datos del formulario, incluidas las etiquetas,
-        // se actualicen en el estado local ANTES de cualquier otra acción.
         saveCardDataFromModal();
-        // --- FIN DE CORRECCIÓN ---
 
         const formData = new FormData(addCardForm);
         const cardId = formData.get('card_id');
@@ -14780,12 +14808,15 @@ function showMoveSuccessModal() {
         let taskData = cardDataStore.get(cardId);
         if (!taskData) return;
 
-        // El resto de la lógica de la función ya está cubierta por saveCardDataFromModal,
-        // pero la mantenemos para acciones adicionales como el manejo de adjuntos y recordatorios.
-
-        if (!saveTimeBoxingData(taskData)) {
-            return;
-        }
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Notificamos a los demás que se ha creado una nueva tarjeta.
+        socket.emit('card_created', {
+            board_id: currentBoardId,
+            card: taskData
+        });
+        // --- FIN DE LA CORRECCIÓN ---
+        
+        if (!saveTimeBoxingData(taskData)) return;
 
         const attachmentFile = document.getElementById('card-attachment').files[0];
         if (attachmentFile) {
@@ -14794,35 +14825,14 @@ function showMoveSuccessModal() {
         } else if (taskData.attachment && document.getElementById('attachment-preview-container').classList.contains('hidden')) {
             taskData.attachment = null;
         }
-
-        // Programar recordatorio (si aplica)
-        if (!taskData.allDay && taskData.dueDate && taskData.startTime) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = taskData.description || '';
-            const cleanDescription = tempDiv.textContent || tempDiv.innerText || '';
-
-            const cardDetails = {
-                card_title: taskData.title,
-                due_date: taskData.dueDate,
-                start_time: taskData.startTime,
-                board_name: document.getElementById('current-board-name').textContent,
-                card_column: columnsConfig.find(c => c.id === taskData.columnId)?.title || 'N/A',
-                card_description: cleanDescription,
-                card_tags: taskData.tags ? taskData.tags.map(t => t.text).join(', ') : ''
-            };
-
-            fetch(`${API_BASE_URL}/schedule-reminder`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-                body: JSON.stringify({ user_email: currentUser.email, card_data: cardDetails })
-            });
-        }
         
-        scheduleAutoSave(); // Guardado final en el backend
+        scheduleAutoSave();
         renderAllCards();
         if(!calendarContainer.classList.contains('hidden')) renderCalendar();
         closeDrawer(addCardOverlay, addCardContent);
     });
+
+
 
     addChecklistItemBtn.addEventListener('click', () => {
         const input = document.getElementById('new-checklist-item-input');

@@ -1016,6 +1016,22 @@ def handle_card_moved(data):
         emit('card_moved', data, room=str(board_id), include_self=False)
         print(f"SOCKET: Retransmitiendo 'card_moved' para el tablero {board_id}")
 
+
+@socketio.on('card_created')
+def handle_card_created(data):
+    """
+    Retransmite el evento de una tarjeta nueva a todos en la sala del tablero.
+    Funciona tanto para tarjetas creadas desde cero como para duplicadas.
+    """
+    board_id = data.get('board_id')
+    if request.sid in active_users:
+        data['email'] = active_users[request.sid].get('email')
+
+    if board_id:
+        emit('card_created', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'card_created' para el tablero {board_id}")
+
+
 @app.route('/ai/writing-suggestions', methods=['POST'])
 def get_ai_suggestions():
     if not genai:
