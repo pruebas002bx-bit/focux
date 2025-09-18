@@ -998,6 +998,24 @@ def handle_notes():
     finally:
         if conn: conn.close()
 
+
+@socketio.on('card_moved')
+def handle_card_moved(data):
+    """
+    Retransmite el evento de una tarjeta movida a todos en la sala del tablero,
+    excluyendo a quien originó el movimiento.
+    """
+    board_id = data.get('board_id')
+    
+    # Añadimos el email de quien envía para que su propio cliente pueda ignorar el evento
+    if request.sid in active_users:
+        data['email'] = active_users[request.sid].get('email')
+
+    if board_id:
+        # 'include_self=False' es clave para no enviarle el evento de vuelta a quien lo emitió
+        emit('card_moved', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'card_moved' para el tablero {board_id}")
+
 @app.route('/ai/writing-suggestions', methods=['POST'])
 def get_ai_suggestions():
     if not genai:

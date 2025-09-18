@@ -5378,14 +5378,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // Listener para cuando TÚ cambias algo (mover una tarjeta, cambiar nombre, etc.)
     socket.on('board_was_updated', (data) => {
-        // Solo actualiza si el cambio lo hizo OTRO usuario para evitar parpadeos
+        // Solo reacciona si el cambio lo hizo OTRO usuario para evitar parpadeos
         if (data.board_id == currentBoardId && data.email !== currentUser.email) {
             console.log('🔄 Sincronizando cambios de contenido (tarjetas/columnas)...');
-            loadBoardData(currentBoardId);
+            
+            // --- CORRECCIÓN CLAVE ---
+            // Se ha eliminado la línea "loadBoardData(currentBoardId);"
+            // Ahora, este evento ya no fuerza una recarga completa, permitiendo
+            // que los eventos más específicos (como 'card_moved') manejen
+            // las actualizaciones de forma sutil.
         }
     });
+
+
+    
 
     // Listener para cuando el DUEÑO cambia los permisos o miembros del tablero
     socket.on('permissions_updated', (data) => {
@@ -13253,6 +13260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
 
+
         contentArea.addEventListener('drop', (e) => {
             e.preventDefault();
             if (!draggedCard) return;
@@ -13266,7 +13274,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const newColumnId = id;
             const oldColumnId = task.columnId;
 
-            // Registrar actividad si la columna cambió
             if (oldColumnId !== newColumnId) {
                 const oldColumn = columnsConfig.find(c => c.id === oldColumnId);
                 const newColumn = columnsConfig.find(c => c.id === newColumnId);
@@ -13286,9 +13293,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (taskToUpdate) taskToUpdate.order = index;
             });
             
+            // Notificamos al servidor del movimiento específico para que lo retransmita.
+            const cardOrder = cardsInNewColumn.map(card => card.id);
+            socket.emit('card_moved', {
+                board_id: currentBoardId,
+                card_id: cardId,
+                new_column_id: newColumnId,
+                new_card_order: cardOrder
+            });
+
             scheduleAutoSave();
         });
         
+
+
+
+
 
         const footerEl = document.createElement('div');
         footerEl.className = 'column-footer flex-shrink-0 p-2 rounded-b-xl border-t border-gray-200/50 bg-white/60 backdrop-blur-sm';
@@ -13631,6 +13651,37 @@ document.addEventListener('DOMContentLoaded', () => {
         addNotificationToList(data);
         const cleanMessage = data.message.replace(/<[^>]*>/g, '');
     });
+
+
+    socket.on('card_moved', (data) => {
+        // Ignora el evento si no es para el tablero actual.
+        if (data.board_id !== currentBoardId) return;
+
+        console.log('↓ Recibiendo movimiento de tarjeta en tiempo real:', data);
+
+        const cardElement = document.getElementById(data.card_id);
+        const targetColumnContent = document.querySelector(`#${data.new_column_id} .kanban-column-content`);
+
+        if (cardElement && targetColumnContent) {
+            // Actualiza el estado local en cardDataStore
+            const task = cardDataStore.get(data.card_id);
+            if (task) task.columnId = data.new_column_id;
+            
+            // Reordena todas las tarjetas en la columna de destino según la nueva lista
+            data.new_card_order.forEach((id, index) => {
+                const cardToUpdate = cardDataStore.get(id);
+                if (cardToUpdate) cardToUpdate.order = index;
+
+                // Mueve físicamente el elemento en el DOM
+                const cardNode = document.getElementById(id);
+                if (cardNode) targetColumnContent.appendChild(cardNode);
+            });
+
+            // Actualiza los contadores de las columnas
+            updateColumnHeaders();
+        }
+    });
+
 
     socket.on('assistants_updated', async () => {
         console.log('🔄 Recibida actualización de asistentes. Recargando lista...');
