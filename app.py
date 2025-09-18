@@ -1285,6 +1285,14 @@ def handle_column_deleted(data):
         print(f"SOCKET: Retransmitiendo 'column_deleted' para el tablero {board_id}")
 
 
+@socketio.on('column_updated')
+def handle_column_updated(data):
+    """ Retransmite los datos de una columna actualizada a los demás. """
+    board_id = data.get('board_id')
+    if board_id:
+        emit('column_updated', data, room=str(board_id), include_self=False)
+        print(f"SOCKET: Retransmitiendo 'column_updated' para el tablero {board_id}")
+
 
 @app.route('/notifications/pending', methods=['GET'])
 def get_pending_notifications():
@@ -1297,6 +1305,9 @@ def get_pending_notifications():
     # realmente consulte notificaciones desde la base de datos.
     # Por ahora, evita el error 404.
     return jsonify(success=True, notifications=[])
+
+
+
 
 
 @app.route('/boards/<int:board_id>', methods=['GET'])

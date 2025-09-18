@@ -5445,6 +5445,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+
     socket.on('connect_error', (error) => {
         console.error('❌ Error de conexión Socket.IO:', error);
     });
@@ -14834,13 +14836,11 @@ function showMoveSuccessModal() {
     });
 
 
-    // Column editor
     columnEditorForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const columnId = e.target.querySelector('[name="column_id"]').value;
         const newTitle = e.target.querySelector('[name="column_name"]').value.trim();
         const selectedColor = document.querySelector('#color-swatches-container .ring-2')?.dataset.color || Object.keys(COLUMN_COLORS)[0];
-
         const attractsToday = e.target.querySelector('[name="attractsToday"]').checked;
         const attractsOverdue = e.target.querySelector('[name="attractsOverdue"]').checked;
         const attractsTag = e.target.querySelector('[name="attractsTag"]').value;
@@ -14848,19 +14848,29 @@ function showMoveSuccessModal() {
         if (!newTitle) return;
 
         if (columnId) {
-            // Lógica para EDITAR una columna existente
+            // --- INICIO DE LA CORRECCIÓN CLAVE ---
+            // EDITANDO: Actualiza la configuración local y notifica a los demás.
             const colIndex = columnsConfig.findIndex(c => c.id === columnId);
             if (colIndex > -1) {
-                Object.assign(columnsConfig[colIndex], { 
+                const updatedColumn = { 
+                    ...columnsConfig[colIndex], // Mantiene el ID y otras propiedades
                     title: newTitle, 
                     color: selectedColor,
                     attractsToday: attractsToday,
                     attractsOverdue: attractsOverdue,
                     attractsTag: attractsTag || null
+                };
+                columnsConfig[colIndex] = updatedColumn;
+
+                // Notificamos a los demás sobre la actualización
+                socket.emit('column_updated', {
+                    board_id: currentBoardId,
+                    updated_column: updatedColumn
                 });
             }
+            // --- FIN DE LA CORRECCIÓN CLAVE ---
         } else {
-            // Lógica para CREAR una nueva columna
+            // CREANDO: (La lógica para crear una nueva columna no cambia)
             const newColumn = { 
                 id: 'column-' + Date.now(), 
                 title: newTitle, 
@@ -14870,16 +14880,12 @@ function showMoveSuccessModal() {
                 attractsTag: attractsTag || null
             };
             columnsConfig.push(newColumn);
-            
-            // --- CORRECCIÓN CLAVE ---
-            // Notificamos a los demás usuarios que se ha creado una nueva columna.
             socket.emit('column_created', {
                 board_id: currentBoardId,
                 new_column: newColumn
             });
-            // --- FIN DE LA CORRECCIÓN ---
         }
-
+        
         scheduleAutoSave();
         initializeBoard(); 
         closeDrawer(columnEditorOverlay, columnEditorContent);
@@ -14961,6 +14967,34 @@ function showMoveSuccessModal() {
     });
 
 
+    socket.on('column_updated', (data) => {
+        if (data.board_id !== currentBoardId) return;
+
+        const updatedColumn = data.updated_column;
+        console.log(`↓ Recibiendo actualización de columna: ${updatedColumn.title}`);
+
+        // 1. Actualizar la configuración local
+        const colIndex = columnsConfig.findIndex(c => c.id === updatedColumn.id);
+        if (colIndex > -1) {
+            columnsConfig[colIndex] = updatedColumn;
+        }
+
+        // 2. Actualizar el DOM
+        const columnElement = document.getElementById(updatedColumn.id);
+        if (columnElement) {
+            // Actualizar el título
+            const titleElement = columnElement.querySelector('.column-header h2');
+            if (titleElement) titleElement.textContent = updatedColumn.title;
+            
+            // Actualizar el color del borde
+            const headerElement = columnElement.querySelector('.column-header');
+            if (headerElement) {
+                Object.values(COLUMN_COLORS).forEach(borderColor => headerElement.classList.remove(borderColor));
+                headerElement.classList.add(COLUMN_COLORS[updatedColumn.color] || 'border-gray-400');
+            }
+        }
+    });
+    
 
     
     deleteCardBtn.addEventListener('click', () => {
