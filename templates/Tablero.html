@@ -5361,7 +5361,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    
+
 
     socket.on('connect', () => {
         console.log('🔌 ✅ Socket.IO conectado exitosamente.');
@@ -6000,8 +6000,6 @@ document.addEventListener('DOMContentLoaded', () => {
     upgradePlanCloseBtn.addEventListener('click', hideUpgradePlanModal);
     upgradePlanOverlay.addEventListener('click', hideUpgradePlanModal);
     notesViewBtn.addEventListener('click', () => switchView('notes'));
-
-    document.getElementById('add-note-btn').addEventListener('click', createNewNote);
 
     // Event listeners para el modal de notas
     document.getElementById('note-editor-close-btn').addEventListener('click', closeNoteModal);
