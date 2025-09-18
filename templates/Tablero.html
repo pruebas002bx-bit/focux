@@ -5408,14 +5408,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     socket.on('note_created', (data) => {
-        if (data.board_id === currentBoardId && notesContainer.classList.contains('active')) {
-            console.log('SOCKET: Nueva nota recibida en tiempo real', data.note);
-
-            // <-- AÑADIR: Verificación anti-duplicados -->
+        // 1. La condición ahora solo verifica si la nota pertenece al tablero actual.
+        //    Esto asegura que el caché se actualice incluso si el usuario no está viendo la pestaña de notas.
+        if (data.board_id === currentBoardId) {
+            
+            // 2. Verificamos si la nota ya existe en el caché local para evitar duplicados.
             const noteExists = notesCache.some(n => n.id === data.note.id);
+            
             if (!noteExists) {
+                // 3. Si la nota es nueva, la añadimos al inicio del caché.
                 notesCache.unshift(data.note);
-                renderNotes();
+                console.log(`SOCKET: Nota [${data.note.id}] añadida al caché. Total: ${notesCache.length}`);
+
+                // 4. [LA CORRECCIÓN CLAVE] Solo volvemos a dibujar la vista si el usuario
+                //    está actualmente en la pestaña de notas. Esto previene la doble
+                //    renderización que causa el error.
+                if (notesContainer.classList.contains('active')) {
+                    renderNotes();
+                }
             }
         }
     });
