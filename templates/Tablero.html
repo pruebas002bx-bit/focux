@@ -7732,6 +7732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     async function saveBoardData() {
         if (!currentBoardId || isLoading) {
             console.log("No se puede guardar: no hay tablero o está cargando.");
@@ -7741,10 +7742,19 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             setAutoSaveStatus('saving');
 
-            // Obtener el objeto del tablero actual para enviar el nombre
-            const currentBoard = boardsData.find(b => b.id === currentBoardId);
+            // --- INICIO DE LA CORRECCIÓN CLAVE ---
+            // La línea original era: boardsData.find(b => b.id === currentBoardId);
+            // Si un elemento 'b' en boardsData es inválido (undefined), 'b.id' falla.
+            // La corrección 'b && b.id' asegura que solo intentemos leer el 'id'
+            // de objetos de tablero que realmente existen, ignorando los corruptos.
+            const currentBoard = boardsData.find(b => b && b.id === currentBoardId);
+            // --- FIN DE LA CORRECCIÓN CLAVE ---
+
             if (!currentBoard) {
-                console.error("No se encontró el tablero actual para guardar.");
+                console.error("No se encontró el tablero actual para guardar. Forzando recarga de datos.");
+                // Como medida de seguridad, si el tablero no se encuentra, intentamos recargar todo.
+                await loadUserBoards(); 
+                setAutoSaveStatus('error');
                 return;
             }
 
@@ -7759,7 +7769,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     email: currentUser.email,
                     boardData: boardData,
-                    boardName: currentBoard.name // <-- Aquí se agrega el nombre
+                    boardName: currentBoard.name
                 })
             });
 
@@ -7782,7 +7792,10 @@ document.addEventListener('DOMContentLoaded', () => {
             setAutoSaveStatus('error');
         }
     }
-    
+
+
+
+
     async function deleteBoard(boardId) {
         try {
             const response = await fetch(`${API_BASE_URL}/boards/${boardId}?email=${encodeURIComponent(currentUser.email)}`, {
