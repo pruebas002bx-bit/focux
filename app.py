@@ -1385,6 +1385,7 @@ def ask_chat():
         if conn: conn.close()
 
 
+
 @app.route('/admin/ai/generate-board', methods=['POST'])
 def generate_ai_board():
     if not genai:
@@ -1606,7 +1607,6 @@ def assign_ai_board():
             # 1. Determinar todos los emails destinatarios
             all_target_emails = set(target_users)
             if target_databases:
-                # Asegurarse de que el tuple no esté vacío si hay un solo elemento
                 cur.execute("SELECT email FROM users WHERE manager_id IN %s", (tuple(target_databases),))
                 db_users = {row['email'] for row in cur.fetchall()}
                 all_target_emails.update(db_users)
@@ -1655,15 +1655,15 @@ def assign_ai_board():
                 if notes_to_add and isinstance(notes_to_add, list):
                     print(f"INFO: Guardando {len(notes_to_add)} nota(s) para el tablero {board_id}...")
                     for note in notes_to_add:
+                        note_content = f"<h1>{note.get('title', 'Nota')}</h1><p>{note.get('content', '')}</p>"
                         cur.execute("""
                             INSERT INTO notes (board_id, user_email, content, color, created_date, updated_date)
                             VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (board_id, email, note.get('content', ''), 'note-yellow', now, now))
+                        """, (board_id, email, note_content, 'note-yellow', now, now))
                 print(f"INFO: Asignación para {email} completada.")
 
             conn.commit()
             
-            # Notificar a los clientes que la lista de asistentes ha cambiado
             socketio.emit('assistants_updated')
             
         return jsonify(success=True, message=f"Tablero, notas y asistentes asignados a {len(final_emails)} usuarios.")
@@ -1673,8 +1673,6 @@ def assign_ai_board():
         return jsonify(success=False, message=str(e)), 500
     finally:
         conn.close()
-
-
 
 
 
