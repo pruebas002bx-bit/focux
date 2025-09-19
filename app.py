@@ -171,6 +171,32 @@ def init_db():
         if conn: conn.close()
 
 
+def migrate_database():
+    """Añade columnas faltantes a tablas existentes para asegurar compatibilidad."""
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT NULL;",
+        # Puedes añadir futuras sentencias ALTER TABLE aquí si es necesario
+    ]
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        for command in migrations:
+            try:
+                cur.execute(command)
+                print(f"✅ Migración ejecutada exitosamente: {command}")
+            except psycopg2.Error as e:
+                print(f"⚠️  Advertencia al ejecutar migración '{command}': {e}")
+                conn.rollback() # Revierte la transacción fallida
+        conn.commit()
+        cur.close()
+    except Exception as error:
+        print(f"🚨 Error durante la migración de la base de datos: {error}")
+        if conn: conn.rollback()
+    finally:
+        if conn: conn.close()
+        
+
 def check_editor_permission(conn, board_id, email):
     """Función auxiliar para verificar si un usuario es editor de un tablero."""
     with conn.cursor() as cursor:
@@ -2270,6 +2296,12 @@ try:
     print("🚀 Inicializando esquema de la base de datos PostgreSQL...")
     init_db()
     print("✅ Esquema de base de datos verificado.")
+    
+    # --- LÍNEA AÑADIDA ---
+    print("🔄 Ejecutando migraciones de base de datos...")
+    migrate_database()
+    # ---------------------
+
 except Exception as e:
     print(f"🚨 ERROR CRÍTICO DURANTE LA INICIALIZACIÓN: {e}")
 
