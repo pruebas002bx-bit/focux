@@ -117,10 +117,17 @@
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <button id="login-btn" class="text-gray-600 hover:text-accent-orange font-semibold transition-colors">Ingresar</button>
-                    
-                    <a href="index2.html" class="text-gray-600 hover:text-accent-orange font-semibold transition-colors">Ingresar Admin</a>
-
+                    <div class="relative">
+                        <button id="login-dropdown-btn" class="text-gray-600 hover:text-accent-orange font-semibold transition-colors flex items-center gap-1">
+                            <span>Ingresar</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                        
+                        <div id="login-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1">
+                            <a href="#" id="login-user-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Usuario</a>
+                            <a href="/admin/index.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Admin</a>
+                        </div>
+                    </div>
                     <button id="register-btn" class="cta-button bg-accent-orange text-white font-bold py-2 px-6 rounded-lg shadow-md">
                         Registrarse
                     </button>
@@ -1070,7 +1077,6 @@
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        document.getElementById('login-btn').addEventListener('click', () => showModal(loginModal));
         const registerButtons = ['register-btn', 'register-btn-hero', 'register-btn-enterprise', 'register-btn-final'];
         registerButtons.forEach(id => document.getElementById(id).addEventListener('click', () => showModal(registerModal)));
 
@@ -1098,6 +1104,33 @@
                 console.error("Error fetching databases:", error);
             }
         }
+
+
+
+        const loginDropdownBtn = document.getElementById('login-dropdown-btn');
+        const loginDropdownMenu = document.getElementById('login-dropdown-menu');
+        const loginUserBtn = document.getElementById('login-user-btn');
+
+        // 1. Muestra/oculta el menú al hacer clic en "Ingresar"
+        loginDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita que el clic se propague y cierre el menú inmediatamente
+            loginDropdownMenu.classList.toggle('hidden');
+        });
+
+        // 2. Muestra el modal de login al hacer clic en "Ingresar Usuario"
+        loginUserBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Evita que el enlace recargue la página
+            loginDropdownMenu.classList.add('hidden'); // Oculta el menú
+            showModal(loginModal); // Llama a tu función existente para mostrar el modal
+        });
+
+        // 3. Cierra el menú si se hace clic en cualquier otro lugar de la página
+        document.addEventListener('click', (e) => {
+            if (!loginDropdownBtn.contains(e.target) && !loginDropdownMenu.contains(e.target)) {
+                loginDropdownMenu.classList.add('hidden');
+            }
+        });
+
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
