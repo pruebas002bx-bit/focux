@@ -1400,66 +1400,193 @@ def generate_board_with_ai():
         return jsonify(success=False, message="El prompt no puede estar vacío."), 400
         
     try:
-        # CORRECCIÓN: Usar el modelo de IA más reciente y eficiente
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        model = genai.GenerativeModel(model_name)
+        print(f"🤖 Iniciando generación de tablero (Parsing Mejorado). Modelo: {model_name}")
+
+        template_prompt = f"""
+        Actúa como un Project Manager experto y genera un plan de proyecto exhaustivo basado en la solicitud: "{user_prompt}"
+
+        INSTRUCCIONES CRÍTICAS Y OBLIGATORIAS:
+        1.  **VOLUMEN**: Genera un mínimo de 40 a 60 tarjetas en total.
+        2.  **NOTAS**: Genera un mínimo de 5 notas de apoyo útiles y detalladas.
+        3.  **DESCRIPCIÓN DE TARJETA**: Cada tarjeta debe tener "Contexto" y "Objetivos" detallados. **DEBE HABER DOS LÍNEAS EN BLANCO (un doble salto de párrafo) entre ellos.**
+        4.  **CHECKLIST**: Cada tarjeta debe tener un checklist con 3 a 4 acciones detalladas. Es OBLIGATORIO usar el separador `---CHECKLIST---` antes de la lista.
+        5.  **FORMATO EXACTO**: Usa los marcadores (BOARD_NAME_START, etc.) EXACTAMENTE como se muestra. No uses `[` `]` ni `**`. Cada tarjeta debe contener una única línea `COLUMN_TITLE::`.
+
+        **ESTRUCTURA OBLIGATORIA:**
+        1. Primero todas las columnas
+        2. Después todas las tarjetas EN ORDEN SECUENCIAL LÓGICO
+        3. Al final todas las notas
+
+        **IMPORTANTE SOBRE SECUENCIA:**
+        - Organiza las tarjetas por orden de ejecución temporal
+        - Las primeras tarjetas deben ser preparación/planificación
+        - Las siguientes deben ser acciones iniciales
+        - Continúa con desarrollo/implementación
+        - Termina con revisión/cierre
+        - Dentro de cada columna, ordena las tarjetas por prioridad
+
+        Usa el siguiente formato de texto plano:
+        BOARD_NAME_START
+        Nombre del Tablero
+        BOARD_NAME_END
+
+        COLUMN_START
+        Título de la Columna
+        COLUMN_END
+
+        CARD_START
+        COLUMN_TITLE::Título de la Columna
+        CARD_TITLE::Título de la Tarjeta
+        CARD_TAGS::Urgente, Importante
+        CARD_DESCRIPTION::
+Contexto: Párrafo detallado sobre la tarea.
+
+
+Objetivos: Párrafo detallado sobre el resultado esperado.
+        ---CHECKLIST---
+        CHECKLIST_ITEM::Acción detallada 1.
+        CHECKLIST_ITEM::Acción detallada 2.
+        CHECKLIST_ITEM::Acción detallada 3.
+        CARD_END
         
-        system_prompt = f"""
-        Eres un asistente experto en gestión de proyectos. Tu tarea es analizar la descripción de un proyecto y generar un tablero Kanban completo en formato JSON.
-        El JSON debe tener la siguiente estructura:
-        {{
-          "board_name": "Nombre del Tablero",
-          "columns": [
-            {{"id": "col-1", "title": "Nombre Columna 1", "color": "bg-gray-200"}},
-            ...
-          ],
-          "cards": [
-            {{
-              "id": "card-1",
-              "title": "Título Tarea 1",
-              "description": "Descripción detallada.",
-              "columnId": "col-1",
-              "tags": [{{"text": "Etiqueta1"}}, ...],
-              "checklist": [{{"id": "item-1", "text": "Subtarea 1", "completed": false}}, ...]
-            }},
-            ...
-          ],
-          "notes": [
-            {{ "title": "Nota de Apoyo 1", "content": "Contenido de la nota..."}},
-            ...
-          ]
-        }}
-        - Genera entre 4 y 6 columnas lógicas para el proyecto.
-        - Asigna colores de Tailwind CSS a las columnas (ej: bg-red-200, bg-yellow-200, bg-green-200, bg-blue-200, bg-indigo-200).
-        - Genera al menos 10-15 tarjetas detalladas con descripciones claras.
-        - Asigna cada tarjeta a una columna.
-        - Añade etiquetas relevantes (Urgente, Importante, Marketing, Desarrollo, etc.).
-        - Crea checklists para tareas complejas.
-        - Genera 2-3 notas de apoyo con consejos, resúmenes o ideas clave para el proyecto.
-        - El JSON debe ser válido. No incluyas comentarios ni texto fuera del JSON.
-        - Si se proporcionan fechas de inicio y fin, distribuye las fechas de las tarjetas de manera lógica dentro de ese rango.
-        Fecha de inicio del proyecto: {start_date or 'No especificada'}
-        Fecha de fin del proyecto: {end_date or 'No especificada'}
+        NOTE_START
+        NOTE_TITLE::Título de la Nota
+        NOTE_CONTENT::Contenido detallado de la nota.
+        NOTE_END
         """
-
-        full_prompt = f"Descripción del proyecto: '{prompt_text}'. Genera el tablero Kanban en JSON."
+        response = model.generate_content(template_prompt)
+        raw_text = response.text
         
-        response = model.generate_content([system_prompt, full_prompt])
-        
-        json_string = response.text.strip().replace('```json', '').replace('```', '')
-        board_data = json.loads(json_string)
+        final_board = { "board_name": "", "columns": [], "cards": [], "notes": [] }
 
-        cards_by_column = {}
-        for card in board_data.get('cards', []):
-            if card['columnId'] not in cards_by_column:
-                cards_by_column[card['columnId']] = 0
-            card['order'] = cards_by_column[card['columnId']]
-            cards_by_column[card['columnId']] += 1
+        def clean_text(text):
+            return text.strip().strip('[]').strip()
+
+        def safe_split_on_first(text, separator):
+            return text.split(separator, 1) if separator in text else (text, '')
+
+        board_name_match = re.search(r"BOARD_NAME_START\n(.*?)\nBOARD_NAME_END", raw_text, re.DOTALL)
+        if board_name_match: 
+            final_board["board_name"] = clean_text(board_name_match.group(1))
+
+        column_titles = re.findall(r"COLUMN_START\n(.*?)\nCOLUMN_END", raw_text, re.DOTALL)
+        column_map = {}
+        for i, title in enumerate(column_titles):
+            clean_title = clean_text(title.split('\n')[0])
+            if clean_title and clean_title not in column_map:
+                col_id = f"col-{i+1}-{uuid.uuid4().hex[:4]}"
+                column_map[clean_title] = col_id
+                final_board["columns"].append({"id": col_id, "title": clean_title, "color": "bg-blue-200"})
+        
+        card_blocks = re.findall(r"CARD_START\n(.*?)\nCARD_END", raw_text, re.DOTALL)
+        print(f"  -> Encontrados {len(card_blocks)} bloques de tarjetas")
+        
+        for i, block in enumerate(card_blocks):
+            try:
+                card_col_title_match = re.search(r"COLUMN_TITLE::(.*?)\n", block)
+                card_title_match = re.search(r"CARD_TITLE::(.*?)\n", block)
+                tags_match = re.search(r"CARD_TAGS::(.*?)\n", block)
+                
+                if not card_col_title_match:
+                    print(f"⚠️ Tarjeta #{i+1} omitida: sin COLUMN_TITLE")
+                    continue
+                
+                card_col_title = clean_text(card_col_title_match.group(1))
+
+                if card_col_title not in column_map:
+                    print(f"  -> Creando columna: '{card_col_title}'")
+                    col_id = f"col-auto-{uuid.uuid4().hex[:4]}"
+                    column_map[card_col_title] = col_id
+                    final_board["columns"].append({"id": col_id, "title": card_col_title, "color": "bg-purple-200"})
+                
+                card = {
+                    "id": str(uuid.uuid4()), "columnId": column_map[card_col_title],
+                    "title": clean_text(card_title_match.group(1)) if card_title_match else f"Tarjeta {i+1}",
+                    "description": "", "checklist": [],
+                    "tags": [{'text': t.strip()} for t in clean_text(tags_match.group(1)).split(',') if t.strip()] if tags_match else [],
+                    "order": i + 1, "sequence": f"Paso {i + 1}"
+                }
+
+                desc_start = block.find('CARD_DESCRIPTION::')
+                if desc_start != -1:
+                    desc_content = block[desc_start + len('CARD_DESCRIPTION::'):]
+                    desc_part, checklist_part = safe_split_on_first(desc_content, '---CHECKLIST---')
+                    
+                    clean_desc = clean_text(desc_part)
+                    if clean_desc:
+                        paragraphs = [p.strip() for p in clean_desc.split('\n\n') if p.strip()]
+                        html_desc = "".join(f"<p>{p.replace(chr(10), '<br>')}</p>" for p in paragraphs)
+                        card['description'] = html_desc
+
+                    if checklist_part.strip():
+                        checklist_clean = checklist_part.split('CARD_END')[0].split('NOTE_START')[0]
+                        checklist_items = []
+                        for line in checklist_clean.split('\n'):
+                            line = line.strip()
+                            if line.startswith('CHECKLIST_ITEM::'):
+                                item_text = clean_text(line.replace('CHECKLIST_ITEM::', ''))
+                                if item_text and len(item_text) < 200:
+                                    checklist_items.append({'id': str(uuid.uuid4()), 'text': item_text, 'completed': False})
+                        card['checklist'] = checklist_items
+
+                final_board["cards"].append(card)
+                print(f"  -> Tarjeta procesada: '{card['title'][:30]}...' con {len(card['checklist'])} items")
+
+            except Exception as card_error:
+                print(f"⚠️ Error procesando tarjeta #{i+1}: {card_error}")
+                continue
+        
+        note_blocks = re.findall(r"NOTE_START\n(.*?)\nNOTE_END", raw_text, re.DOTALL)
+        print(f"  -> Encontradas {len(note_blocks)} notas")
+        
+        for note_block in note_blocks:
+            title_match = re.search(r"NOTE_TITLE::(.*?)\n", note_block)
+            content_match = re.search(r"NOTE_CONTENT::(.*?)(?=\nNOTE_END|\Z)", note_block, re.DOTALL)
             
-        return jsonify(success=True, board=board_data)
+            if title_match and content_match:
+                final_board["notes"].append({"title": clean_text(title_match.group(1)), "content": clean_text(content_match.group(1))})
+
+        if start_date_str and end_date_str and final_board["cards"]:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                total_seconds = (end_date - start_date).total_seconds()
+                card_count = len(final_board["cards"])
+
+                if total_seconds >= 0 and card_count > 0:
+                    seconds_per_card = total_seconds / card_count
+                    
+                    current_start_time = start_date
+                    for card in final_board["cards"]:
+                        current_end_time = current_start_time + timedelta(seconds=seconds_per_card)
+                        final_end_time = min(current_end_time, end_date)
+                        
+                        card['startDate'] = current_start_time.strftime('%Y-%m-%d')
+                        card['endDate'] = final_end_time.strftime('%Y-%m-%d')
+
+                        current_start_time = final_end_time
+                    
+                    print(f"🗓️ Fechas de inicio y fin asignadas a {card_count} tarjetas.")
+            except (ValueError, TypeError):
+                print("⚠️ Formato de fecha inválido o rango incorrecto. Las tarjetas se generarán sin fecha.")
         
+        column_ids_with_cards = {card['columnId'] for card in final_board['cards']}
+        final_board['columns'] = [col for col in final_board['columns'] if col['id'] in column_ids_with_cards]
+        
+        if not any(col['title'].lower().find('complet') != -1 for col in final_board['columns']):
+            final_board["columns"].append({"id": "col-done", "title": "¡Completado! ✅", "color": "bg-green-200"})
+        
+        print(f"✅ Tablero generado: {len(final_board['columns'])} columnas, {len(final_board['cards'])} tarjetas, {len(final_board['notes'])} notas")
+        
+        return jsonify(success=True, board=final_board)
+
     except Exception as e:
+        print(f"🚨 ERROR en generación de tablero IA: {e}")
         traceback.print_exc()
-        return jsonify(success=False, message=f"Error de la IA: {str(e)}"), 500
+        return jsonify(success=False, message=f"Error durante la generación: {str(e)[:200]}"), 500
+
 
 
 @app.route('/admin/ai/assign-board', methods=['POST'])
