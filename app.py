@@ -1478,9 +1478,6 @@ def get_connected_users_details():
     finally:
         conn.close()
 
-
-
-
 @socketio.on('card_moved')
 def handle_card_moved(data):
     """

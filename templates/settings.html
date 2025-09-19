@@ -68,7 +68,7 @@
     </div>
     <div class="card">
       <label for="api-base">API Base URL</label>
-      <input id="api-base" placeholder="https://b10s9f1sip9b.share.zrok.io" class="btn" />
+      <input id="api-base" placeholder="https://focux-app.onrender.com" class="btn" />
       <div style="margin-top:10px; display:flex; gap:10px;">
         <button class="btn" id="btn-apply-api">Aplicar</button>
         <span class="pill">Recuerda habilitar CORS en el backend</span>
@@ -79,7 +79,7 @@
   <div class="toast" id="toast"></div>
   <script>
     
-  const API_BASE_DEFAULT = 'https://b10s9f1sip9b.share.zrok.io';
+  const API_BASE_DEFAULT = 'https://focux-app.onrender.com';
   let API_BASE_URL = window.API_BASE_URL || localStorage.getItem('FOCUX_API_BASE') || API_BASE_DEFAULT;
 
   function apiUrl(path){
