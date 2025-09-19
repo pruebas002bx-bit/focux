@@ -984,6 +984,494 @@ def handle_notes():
         if conn: conn.close()
 
 
+@app.route('/admin/index.html')
+def serve_admin_index():
+    return render_template('index2.html')
+
+@app.route('/admin/dashboard.html')
+def serve_admin_dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/admin/users.html')
+def serve_admin_users():
+    # Asumiendo que tienes un archivo users.html o lo crearás
+    return render_template('users.html')
+
+@app.route('/admin/assistants.html')
+def serve_admin_assistants():
+    return render_template('assistants.html')
+
+@app.route('/admin/notifications.html')
+def serve_admin_notifications():
+    return render_template('notifications.html')
+
+@app.route('/admin/database.html')
+def serve_admin_database():
+    return render_template('database.html')
+
+@app.route('/admin/focux-view.html')
+def serve_admin_focux_view():
+    return render_template('focux-view.html')
+
+@app.route('/admin/focux_message.html')
+def serve_admin_focux_message():
+    return render_template('focux_message.html')
+
+@app.route('/admin/telegram_sender.html')
+def serve_admin_telegram_sender():
+    return render_template('telegram_sender.html')
+
+@app.route('/admin/ia_boards.html')
+def serve_admin_ia_boards():
+    return render_template('ia_boards.html')
+
+@app.route('/admin/settings.html')
+def serve_admin_settings():
+    return render_template('settings.html')
+
+
+def get_user_details_from_db():
+    """Obtiene detalles de todos los usuarios para el dashboard."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    u.email, 
+                    u.first_name, 
+                    u.last_name, 
+                    u.last_login,
+                    u.registration_date,
+                    COUNT(b.id) as boards_count
+                FROM users u
+                LEFT JOIN boards b ON u.email = b.owner_email
+                GROUP BY u.id
+                ORDER BY u.registration_date DESC
+            """)
+            users = [dict(row) for row in cur.fetchall()]
+            
+            # Determinar estado
+            now = datetime.now(timezone.utc)
+            for user in users:
+                user['name'] = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                if not user['last_login']:
+                    user['status'] = 'inactive'
+                    user['days_since_login'] = -1
+                else:
+                    last_login_date = datetime.fromisoformat(user['last_login'])
+                    days_inactive = (now - last_login_date).days
+                    user['days_since_login'] = days_inactive
+                    if days_inactive <= 7:
+                        user['status'] = 'active'
+                    else:
+                        user['status'] = 'inactive'
+
+            return users
+    finally:
+        conn.close()
+
+# --- Rutas de API para el Dashboard ---
+
+@app.route('/admin/dashboard', methods=['GET'])
+def get_dashboard_data():
+    """Endpoint principal para los datos del dashboard de admin."""
+    try:
+        all_users = get_user_details_from_db()
+        
+        # Resumen
+        total_users = len(all_users)
+        active_users_count = len([u for u in all_users if u['status'] == 'active'])
+        
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as total FROM boards")
+            total_boards = cur.fetchone()['total']
+        conn.close()
+
+        summary = {
+            "total_users": total_users,
+            "active_users": active_users_count,
+            "total_boards": total_boards
+        }
+        
+        # Actividad de usuarios (top 15 más recientes)
+        user_activity = sorted(all_users, key=lambda u: u.get('last_login') or '1970-01-01', reverse=True)[:15]
+
+        # Tableros recientes
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    b.name, 
+                    b.owner_email,
+                    b.created_date, 
+                    (SELECT COUNT(*) FROM jsonb_to_recordset(b.board_data->'cards') as c(id text)) as cards_count
+                FROM boards b 
+                ORDER BY b.created_date DESC 
+                LIMIT 10
+            """)
+            recent_boards_raw = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        # Mapear email a nombre de propietario
+        email_to_name = {u['email']: u['name'] for u in all_users}
+        recent_boards = []
+        for board in recent_boards_raw:
+            board['owner'] = email_to_name.get(board['owner_email'], board['owner_email'])
+            recent_boards.append(board)
+            
+        stats = {
+            "summary": summary,
+            "quick_stats": {"active_sessions": len(active_users)},
+            "user_activity": user_activity,
+            "recent_boards": recent_boards,
+            "detailed_users": all_users,
+            "detailed_boards": recent_boards_raw # para gráficas
+        }
+        
+        return jsonify(success=True, stats=stats)
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+
+
+# --- Rutas para Focux View ---
+
+@app.route('/admin/focux-view-data', methods=['GET'])
+def get_focux_view_data():
+    email = request.args.get('email')
+    if not email:
+        return jsonify(success=False, message="Email es requerido"), 400
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Obtener tableros
+            cur.execute("""
+                SELECT b.*, u.first_name, u.last_name 
+                FROM boards b 
+                JOIN users u ON b.owner_email = u.email
+                WHERE b.id IN (SELECT board_id FROM collaborators WHERE user_email = %s)
+            """, (email,))
+            boards = [dict(row) for row in cur.fetchall()]
+            
+            processed_boards = []
+            for board in boards:
+                board['data'] = board.get('board_data', {})
+                # Simplificar para no enviar datos muy pesados
+                if 'cards' in board['data']:
+                    board['data']['cards'] = board['data']['cards'][:50] # Limitar a 50 tarjetas
+                processed_boards.append(board)
+
+            # Obtener notas (si la tabla existe)
+            try:
+                cur.execute("SELECT * FROM notes WHERE board_id IN (SELECT id FROM boards WHERE owner_email = %s)", (email,))
+                notes_raw = [dict(row) for row in cur.fetchall()]
+                
+                # Agrupar notas por tablero
+                for board in processed_boards:
+                    board['notes'] = [n for n in notes_raw if n['board_id'] == board['id']]
+
+            except psycopg2.errors.UndefinedTable:
+                print("Tabla 'notes' no encontrada, se omite.")
+
+
+        return jsonify(success=True, boards=processed_boards)
+    finally:
+        conn.close()
+
+# --- Rutas para Gestión de Asistentes ---
+
+@app.route('/admin/assistants', methods=['GET'])
+def admin_get_assistants():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM assistants ORDER BY name")
+            assistants_raw = [dict(row) for row in cur.fetchall()]
+            
+            # Obtener a quién está compartido cada asistente
+            for assistant in assistants_raw:
+                cur.execute("SELECT user_email FROM assistant_sharing WHERE assistant_id = %s", (assistant['id'],))
+                assistant['shared_with'] = [row['user_email'] for row in cur.fetchall()]
+        return jsonify(success=True, assistants=assistants_raw)
+    finally:
+        conn.close()
+
+@app.route('/admin/assistants', methods=['POST'])
+def admin_save_assistants():
+    assistants_data = request.get_json()
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Sincronización: Eliminar asistentes que ya no están en la lista
+            existing_ids = [a['id'] for a in assistants_data if not str(a.get('id','')).startswith('new-')]
+            if existing_ids:
+                cur.execute("DELETE FROM assistants WHERE id NOT IN %s", (tuple(existing_ids),))
+            else:
+                cur.execute("DELETE FROM assistants")
+
+            for assistant in assistants_data:
+                assistant_id = assistant.get('id')
+                # Si es un asistente nuevo, genera un ID
+                if not assistant_id or str(assistant_id).startswith('new-'):
+                    assistant_id = f"asst_{os.urandom(8).hex()}"
+                
+                cur.execute("""
+                    INSERT INTO assistants (id, name, description, avatar_url, prompt, knowledge_base, is_public)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        description = EXCLUDED.description,
+                        avatar_url = EXCLUDED.avatar_url,
+                        prompt = EXCLUDED.prompt,
+                        knowledge_base = EXCLUDED.knowledge_base,
+                        is_public = EXCLUDED.is_public
+                """, (
+                    assistant_id,
+                    assistant.get('name'),
+                    assistant.get('description'),
+                    assistant.get('avatar_url'),
+                    assistant.get('prompt'),
+                    assistant.get('knowledge_base'),
+                    1 if assistant.get('is_public') else 0
+                ))
+                
+                # Actualizar sharing
+                cur.execute("DELETE FROM assistant_sharing WHERE assistant_id = %s", (assistant_id,))
+                if not assistant.get('is_public') and assistant.get('shared_with'):
+                    sharing_data = [(assistant_id, email) for email in assistant['shared_with']]
+                    psycopg2.extras.execute_values(
+                        cur,
+                        "INSERT INTO assistant_sharing (assistant_id, user_email) VALUES %s",
+                        sharing_data
+                    )
+            
+            conn.commit()
+            # Notificar a los clientes conectados de los cambios
+            socketio.emit('assistants_updated')
+        return jsonify(success=True, message="Asistentes guardados.")
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+@app.route('/admin/assistants/<assistant_id>', methods=['DELETE'])
+def delete_assistant_admin(assistant_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM assistants WHERE id = %s", (assistant_id,))
+            conn.commit()
+            socketio.emit('assistants_updated') # Notificar a los clientes
+        return jsonify(success=True, message="Asistente eliminado.")
+    except Exception as e:
+        conn.rollback()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+
+# --- Rutas para Gestión de Mensajes Focux ---
+
+@app.route('/admin/focux_messages', methods=['GET'])
+def get_focux_messages_admin():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM focux_messages ORDER BY id DESC")
+            messages = [dict(row) for row in cur.fetchall()]
+        return jsonify(success=True, messages=messages)
+    finally:
+        conn.close()
+
+@app.route('/admin/focux_messages', methods=['POST'])
+def save_focux_messages_admin():
+    messages = request.get_json()
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Borrar todos los mensajes existentes para sincronizar
+            cur.execute("DELETE FROM focux_messages")
+            if messages:
+                for msg in messages:
+                    cur.execute("""
+                        INSERT INTO focux_messages (id, title, content, color, image_url, button_text, button_url, is_active, start_date, end_date, target_info)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        msg.get('id') or f"msg_{os.urandom(8).hex()}",
+                        msg.get('title'), msg.get('content'), msg.get('color'),
+                        msg.get('image_url'), msg.get('button_text'), msg.get('button_url'),
+                        1 if msg.get('is_active') else 0,
+                        msg.get('start_date') or None, msg.get('end_date') or None,
+                        msg.get('target_info')
+                    ))
+            conn.commit()
+        return jsonify(success=True, message="Mensajes guardados.")
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+
+# --- Rutas para Generación con IA ---
+
+@app.route('/admin/ai/generate-board', methods=['POST'])
+def generate_board_with_ai():
+    if not genai:
+        return jsonify(success=False, message="Servicio de IA no disponible."), 503
+    
+    data = request.get_json()
+    prompt_text = data.get('prompt', '')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+
+    if not prompt_text:
+        return jsonify(success=False, message="El prompt no puede estar vacío."), 400
+        
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Un prompt más robusto que pide una estructura JSON específica
+        system_prompt = f"""
+        Eres un asistente experto en gestión de proyectos. Tu tarea es analizar la descripción de un proyecto y generar un tablero Kanban completo en formato JSON.
+        El JSON debe tener la siguiente estructura:
+        {{
+          "board_name": "Nombre del Tablero",
+          "columns": [
+            {{"id": "col-1", "title": "Nombre Columna 1", "color": "bg-gray-200"}},
+            ...
+          ],
+          "cards": [
+            {{
+              "id": "card-1",
+              "title": "Título Tarea 1",
+              "description": "Descripción detallada.",
+              "columnId": "col-1",
+              "tags": [{{"text": "Etiqueta1"}}, ...],
+              "checklist": [{{"id": "item-1", "text": "Subtarea 1", "completed": false}}, ...]
+            }},
+            ...
+          ],
+          "notes": [
+            {{ "title": "Nota de Apoyo 1", "content": "Contenido de la nota..."}},
+            ...
+          ]
+        }}
+        - Genera entre 4 y 6 columnas lógicas para el proyecto.
+        - Asigna colores de Tailwind CSS a las columnas (ej: bg-red-200, bg-yellow-200, bg-green-200, bg-blue-200, bg-indigo-200).
+        - Genera al menos 10-15 tarjetas detalladas con descripciones claras.
+        - Asigna cada tarjeta a una columna.
+        - Añade etiquetas relevantes (Urgente, Importante, Marketing, Desarrollo, etc.).
+        - Crea checklists para tareas complejas.
+        - Genera 2-3 notas de apoyo con consejos, resúmenes o ideas clave para el proyecto.
+        - El JSON debe ser válido. No incluyas comentarios ni texto fuera del JSON.
+        - Si se proporcionan fechas de inicio y fin, distribuye las fechas de las tarjetas de manera lógica dentro de ese rango.
+        Fecha de inicio del proyecto: {start_date or 'No especificada'}
+        Fecha de fin del proyecto: {end_date or 'No especificada'}
+        """
+
+        full_prompt = f"Descripción del proyecto: '{prompt_text}'. Genera el tablero Kanban en JSON."
+        
+        response = model.generate_content([system_prompt, full_prompt])
+        
+        # Limpiar la respuesta para asegurar que sea un JSON válido
+        json_string = response.text.strip().replace('```json', '').replace('```', '')
+        board_data = json.loads(json_string)
+
+        # Asignar órdenes a las tarjetas dentro de cada columna
+        cards_by_column = {}
+        for card in board_data.get('cards', []):
+            if card['columnId'] not in cards_by_column:
+                cards_by_column[card['columnId']] = 0
+            card['order'] = cards_by_column[card['columnId']]
+            cards_by_column[card['columnId']] += 1
+            
+        return jsonify(success=True, board=board_data)
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error de la IA: {str(e)}"), 500
+
+
+@app.route('/admin/ai/assign-board', methods=['POST'])
+def assign_ai_board():
+    data = request.get_json()
+    board_data = data.get('board_data')
+    target_users = data.get('target_users', [])
+    target_databases = data.get('target_databases', [])
+
+    if not all([board_data, (target_users or target_databases)]):
+        return jsonify(success=False, message="Faltan datos para asignar."), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            now = datetime.now(timezone.utc).isoformat()
+            
+            # Determinar todos los emails a los que se asignará
+            all_target_emails = set(target_users)
+            if target_databases:
+                cur.execute("SELECT email FROM users WHERE manager_id IN %s", (tuple(target_databases),))
+                db_users = {row['email'] for row in cur.fetchall()}
+                all_target_emails.update(db_users)
+            
+            final_emails = list(all_target_emails)
+
+            if not final_emails:
+                 return jsonify(success=False, message="No se encontraron usuarios para los destinatarios seleccionados."), 404
+
+            # Crear el tablero para cada usuario
+            for email in final_emails:
+                cur.execute(
+                    "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+                    (email, board_data['board_name'], json.dumps(board_data), now, now, "Laboral")
+                )
+                board_id = cur.fetchone()['id']
+                
+                # Asignarse a sí mismo como colaborador
+                cur.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
+            
+            conn.commit()
+        return jsonify(success=True, message=f"Tablero asignado a {len(final_emails)} usuarios.")
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+# --- Rutas para Telegram Sender ---
+
+@app.route('/telegram/stats', methods=['GET'])
+def get_telegram_stats():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM users")
+            total_users = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM users WHERE telegram_chat_id IS NOT NULL")
+            connected_users = cur.fetchone()[0]
+        return jsonify(success=True, stats={'total_users': total_users, 'connected_users': connected_users})
+    finally:
+        conn.close()
+        
+@app.route('/admin/telegram/connected-users-details', methods=['GET'])
+def get_connected_users_details():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT email, first_name, last_name, manager_id FROM users WHERE telegram_chat_id IS NOT NULL")
+            users = [dict(row) for row in cur.fetchall()]
+        return jsonify(success=True, users=users)
+    finally:
+        conn.close()
+
 @socketio.on('card_moved')
 def handle_card_moved(data):
     """
