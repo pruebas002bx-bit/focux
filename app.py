@@ -1401,7 +1401,7 @@ def generate_board_with_ai():
         
     try:
         # CORRECCIÓN: Usar el modelo de IA más reciente y eficiente
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         system_prompt = f"""
         Eres un asistente experto en gestión de proyectos. Tu tarea es analizar la descripción de un proyecto y generar un tablero Kanban completo en formato JSON.
