@@ -55,13 +55,15 @@ def get_db_connection():
     conn.cursor_factory = psycopg2.extras.DictCursor
     return conn
 
+
 def init_db():
     """Inicializa el esquema completo de la base de datos PostgreSQL."""
     commands = [
         """
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY, first_name TEXT, last_name TEXT, email TEXT UNIQUE NOT NULL,
-            password TEXT, registration_date TEXT, last_login TEXT, manager_id TEXT, access_expires_on TEXT
+            password TEXT, registration_date TEXT, last_login TEXT, manager_id TEXT, access_expires_on TEXT,
+            telegram_chat_id TEXT NULL
         )
         """,
         """
@@ -139,6 +141,8 @@ def init_db():
         if conn: conn.rollback()
     finally:
         if conn: conn.close()
+
+
 
 def check_editor_permission(conn, board_id, email):
     """Función auxiliar para verificar si un usuario es editor de un tablero."""
@@ -248,50 +252,7 @@ def get_assistants():
     finally:
         if conn: conn.close()
 
-@app.route('/chat/ask', methods=['POST'])
-def ask_chat():
-    """Procesa un mensaje de un usuario para un asistente de IA específico."""
-    if not genai:
-        return jsonify(success=False, message="El servicio de IA no está configurado."), 500
 
-    data = request.get_json()
-    assistant_id = data.get('assistant_id')
-    message = data.get('message')
-    history = data.get('history', [])
-
-    if not all([assistant_id, message]):
-        return jsonify(success=False, message="Faltan datos para la consulta."), 400
-
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM assistants WHERE id = %s", (assistant_id,))
-        assistant = cursor.fetchone()
-        if not assistant:
-            return jsonify(success=False, message="Asistente no encontrado."), 404
-
-        # Construir el prompt para la IA
-        system_prompt = assistant['prompt'] or "Eres un asistente servicial."
-        
-        # Formatear el historial para la IA
-        formatted_history = []
-        for msg in history:
-            role = 'user' if msg.get('sender') == 'user' else 'model'
-            formatted_history.append({'role': role, 'parts': [msg.get('content', '')]})
-
-        model = genai.GenerativeModel('gemini-pro', system_instruction=system_prompt)
-        chat = model.start_chat(history=formatted_history)
-        response = chat.send_message(message)
-
-        return jsonify(success=True, reply=response.text.strip())
-
-    except Exception as e:
-        print(f"🚨 ERROR en POST /chat/ask: {e}")
-        traceback.print_exc()
-        return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
-    finally:
-        if conn: conn.close()
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -1326,6 +1287,50 @@ def save_focux_messages_admin():
 # --- Rutas para Generación con IA ---
 
 
+@app.route('/chat/ask', methods=['POST'])
+def ask_chat():
+    """Procesa un mensaje de un usuario para un asistente de IA específico."""
+    if not genai:
+        return jsonify(success=False, message="El servicio de IA no está configurado."), 500
+
+    data = request.get_json()
+    assistant_id = data.get('assistant_id')
+    message = data.get('message')
+    history = data.get('history', [])
+
+    if not all([assistant_id, message]):
+        return jsonify(success=False, message="Faltan datos para la consulta."), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM assistants WHERE id = %s", (assistant_id,))
+        assistant = cursor.fetchone()
+        if not assistant:
+            return jsonify(success=False, message="Asistente no encontrado."), 404
+
+        system_prompt = assistant['prompt'] or "Eres un asistente servicial."
+        
+        formatted_history = []
+        for msg in history:
+            role = 'user' if msg.get('sender') == 'user' else 'model'
+            formatted_history.append({'role': role, 'parts': [msg.get('content', '')]})
+
+        # CORRECCIÓN: Usar un modelo más moderno
+        model = genai.GenerativeModel('gemini-2.0-flash', system_instruction=system_prompt)
+        chat = model.start_chat(history=formatted_history)
+        response = chat.send_message(message)
+
+        return jsonify(success=True, reply=response.text.strip())
+
+    except Exception as e:
+        print(f"🚨 ERROR en POST /chat/ask: {e}")
+        traceback.print_exc()
+        return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
+    finally:
+        if conn: conn.close()
+        
 @app.route('/admin/ai/generate-board', methods=['POST'])
 def generate_board_with_ai():
     if not genai:
@@ -1340,9 +1345,9 @@ def generate_board_with_ai():
         return jsonify(success=False, message="El prompt no puede estar vacío."), 400
         
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # CORRECCIÓN: Usar un modelo más moderno
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
-        # Un prompt más robusto que pide una estructura JSON específica
         system_prompt = f"""
         Eres un asistente experto en gestión de proyectos. Tu tarea es analizar la descripción de un proyecto y generar un tablero Kanban completo en formato JSON.
         El JSON debe tener la siguiente estructura:
@@ -1385,11 +1390,9 @@ def generate_board_with_ai():
         
         response = model.generate_content([system_prompt, full_prompt])
         
-        # Limpiar la respuesta para asegurar que sea un JSON válido
         json_string = response.text.strip().replace('```json', '').replace('```', '')
         board_data = json.loads(json_string)
 
-        # Asignar órdenes a las tarjetas dentro de cada columna
         cards_by_column = {}
         for card in board_data.get('cards', []):
             if card['columnId'] not in cards_by_column:
@@ -1402,7 +1405,6 @@ def generate_board_with_ai():
     except Exception as e:
         traceback.print_exc()
         return jsonify(success=False, message=f"Error de la IA: {str(e)}"), 500
-
 
 
 @app.route('/admin/ai/assign-board', methods=['POST'])
@@ -1511,6 +1513,39 @@ def handle_card_created(data):
     if board_id:
         emit('card_created', data, room=str(board_id), include_self=False)
         print(f"SOCKET: Retransmitiendo 'card_created' para el tablero {board_id}")
+
+
+
+@app.route('/admin/databases/details', methods=['GET'])
+def get_database_details():
+    # Esta es una implementación básica. A futuro puedes expandirla para mostrar más detalles.
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT manager_id, COUNT(*) as user_count FROM users WHERE manager_id IS NOT NULL GROUP BY manager_id")
+            db_stats = {row['manager_id']: row['user_count'] for row in cur.fetchall()}
+
+        # Simula datos que el frontend espera
+        databases = []
+        for db_name, user_count in db_stats.items():
+             databases.append({
+                "filename": db_name,
+                "display_name": db_name,
+                "size": f"{user_count} usuario(s)",
+                "last_modified": None, # Puedes añadir esta lógica si la necesitas
+                "background_url": "", # Puedes añadir esta lógica si la necesitas
+                "logo_url": "" # Puedes añadir esta lógica si la necesitas
+             })
+        return jsonify(success=True, databases=databases)
+    finally:
+        conn.close()
+
+
+@app.route('/admin/notifications', methods=['GET'])
+def get_notifications_history():
+    # Esta es una implementación de marcador de posición. Necesitarías una tabla para guardar el historial.
+    # Por ahora, devuelve una lista vacía para evitar el error 404.
+    return jsonify(success=True, notifications=[])
 
 
 @app.route('/ai/writing-suggestions', methods=['POST'])
