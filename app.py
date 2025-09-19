@@ -1481,6 +1481,7 @@ def assign_ai_board():
             # 1. Determinar todos los emails destinatarios
             all_target_emails = set(target_users)
             if target_databases:
+                # Asegurarse de que el tuple no esté vacío si hay un solo elemento
                 cur.execute("SELECT email FROM users WHERE manager_id IN %s", (tuple(target_databases),))
                 db_users = {row['email'] for row in cur.fetchall()}
                 all_target_emails.update(db_users)
@@ -1489,47 +1490,55 @@ def assign_ai_board():
             if not final_emails:
                  return jsonify(success=False, message="No se encontraron usuarios válidos."), 404
 
-            # 2. Guardar asistentes sugeridos y compartirlos
+            # 2. Guardar asistentes sugeridos y compartirlos con los usuarios finales
             if suggested_assistants:
+                print(f"INFO: Guardando {len(suggested_assistants)} asistente(s) sugerido(s)...")
                 for assistant_data in suggested_assistants:
                     assistant_id = f"asst_{os.urandom(8).hex()}"
                     cur.execute("""
                         INSERT INTO assistants (id, name, description, avatar_url, prompt, knowledge_base, is_public)
                         VALUES (%s, %s, %s, %s, %s, %s, 0)
                     """, (
-                        assistant_id, assistant_data.get('name'), assistant_data.get('name'), # Usar nombre como descripción
+                        assistant_id, assistant_data.get('name'), assistant_data.get('name'),
                         assistant_data.get('avatar_url'), assistant_data.get('prompt'),
                         assistant_data.get('knowledge_base')
                     ))
-                    # Compartir este nuevo asistente con todos los usuarios destinatarios
+                    # Compartir el nuevo asistente con todos los usuarios destinatarios
                     sharing_data = [(assistant_id, email) for email in final_emails]
-                    psycopg2.extras.execute_values(
-                        cur, "INSERT INTO assistant_sharing (assistant_id, user_email) VALUES %s", sharing_data
-                    )
+                    if sharing_data:
+                        psycopg2.extras.execute_values(
+                            cur, "INSERT INTO assistant_sharing (assistant_id, user_email) VALUES %s", sharing_data
+                        )
+                print("INFO: Asistentes guardados y compartidos.")
 
             # 3. Crear tablero y notas para cada usuario
             for email in final_emails:
+                print(f"INFO: Procesando asignación para {email}...")
                 # Crear el tablero principal
                 cur.execute(
                     "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                     (email, board_data['board_name'], json.dumps(board_data), now, now, "Laboral")
                 )
                 board_id = cur.fetchone()['id']
+                print(f"INFO: Tablero creado con ID {board_id} para {email}.")
                 
                 # Asignarse a sí mismo como colaborador
                 cur.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
 
-                # Crear las notas de apoyo para este tablero
-                if 'notes' in board_data and isinstance(board_data['notes'], list):
-                    for note in board_data['notes']:
+                # Crear las notas de apoyo para este tablero específico
+                notes_to_add = board_data.get('notes', [])
+                if notes_to_add and isinstance(notes_to_add, list):
+                    print(f"INFO: Guardando {len(notes_to_add)} nota(s) para el tablero {board_id}...")
+                    for note in notes_to_add:
                         cur.execute("""
                             INSERT INTO notes (board_id, user_email, content, color, created_date, updated_date)
                             VALUES (%s, %s, %s, %s, %s, %s)
-                        """, (board_id, email, note.get('content'), 'note-yellow', now, now))
+                        """, (board_id, email, note.get('content', ''), 'note-yellow', now, now))
+                print(f"INFO: Asignación para {email} completada.")
 
             conn.commit()
             
-            # Notificar a los clientes que los asistentes han cambiado
+            # Notificar a los clientes que la lista de asistentes ha cambiado
             socketio.emit('assistants_updated')
             
         return jsonify(success=True, message=f"Tablero, notas y asistentes asignados a {len(final_emails)} usuarios.")
@@ -1539,8 +1548,6 @@ def assign_ai_board():
         return jsonify(success=False, message=str(e)), 500
     finally:
         conn.close()
-
-
 
 
 
