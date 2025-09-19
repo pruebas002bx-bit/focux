@@ -11334,6 +11334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     function conversationListItemTemplate(conv) {
         const initials = (conv.peer_name || 'NN').split(' ').map(n=>n[0]).join('').substring(0,2);
         const color = getUserColor(conv.peer_email).bg;
@@ -11356,9 +11357,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 <div class="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button class="clear-conversation-btn p-1.5 rounded-full hover:bg-yellow-100 text-yellow-600" title="Vaciar chat" data-conv-id="${conv.conv_id}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
                     <button class="delete-conversation-btn p-1.5 rounded-full hover:bg-red-100 text-red-600" title="Eliminar chat" data-conv-id="${conv.conv_id}">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                     </button>
@@ -11366,6 +11364,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     }
+
 
     function renderGeneralChatConversation(data) {
         currentGeneralConvId = data.conv_id;
@@ -11441,8 +11440,6 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('global_chat_list_conversations', { email: currentUser.email });
     });
 
-
-
     async function handleDeleteConversation(convId, isActiveConversation = false) {
         const confirmed = await showGenericConfirmModal(
             'Eliminar Chat',
@@ -11454,12 +11451,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 conv_id: convId,
                 user_email: currentUser.email
             });
+            // Si es la conversación activa, volvemos a la lista principal de chats
             if (isActiveConversation) {
                 document.getElementById('back-to-directory-btn').click();
             }
         }
     }
 
+    // Función para manejar el vaciado de una conversación
     async function handleClearConversation(convId) {
         const confirmed = await showGenericConfirmModal(
             'Vaciar Chat',
@@ -11474,7 +11473,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Listener de eventos unificado para el panel de chats personales
     generalChatView.addEventListener('click', (e) => {
+        // Botón para eliminar un chat de la lista
         const deleteBtn = e.target.closest('.delete-conversation-btn');
         if (deleteBtn) {
             e.stopPropagation();
@@ -11482,6 +11483,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // Botón para vaciar un chat de la lista
         const clearBtn = e.target.closest('.clear-conversation-btn');
         if (clearBtn) {
             e.stopPropagation();
@@ -11489,6 +11491,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // Clic en un item de la lista para abrir la conversación
         const convItem = e.target.closest('.conversation-list-item');
         if (convItem) {
             const peerEmail = convItem.dataset.email;
@@ -11498,22 +11501,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Listener para cuando el servidor confirma la eliminación del chat
     socket.on('conversation_deleted', (data) => {
-        console.log(`Recibido 'conversation_deleted' para ${data.conv_id}`);
+        console.log(`Recibido 'conversation_deleted' para ${data.conv_id}, actualizando lista.`);
+        // Refrescamos la lista de conversaciones para que desaparezca la eliminada
         socket.emit('global_chat_list_conversations', { email: currentUser.email });
     });
 
+    // Listener para cuando el servidor confirma el vaciado del chat
     socket.on('conversation_cleared', (data) => {
-        console.log(`Recibido 'conversation_cleared' para ${data.conv_id}`);
+        console.log(`Recibido 'conversation_cleared' para ${data.conv_id}, actualizando UI.`);
+        // Si la conversación vaciada es la que está abierta, vaciamos los mensajes en la pantalla
         if (currentGeneralConvId === data.conv_id) {
             const messagesContainer = document.getElementById('general-chat-messages');
             if (messagesContainer) {
                 messagesContainer.innerHTML = '';
             }
         }
+        // Y siempre refrescamos la lista para actualizar el "último mensaje"
         socket.emit('global_chat_list_conversations', { email: currentUser.email });
     });
-
 
     // Socket Listeners for General Chat
     socket.on('global_chat_history', (data) => {
