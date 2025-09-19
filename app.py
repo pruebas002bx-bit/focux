@@ -124,7 +124,35 @@ def init_db():
             button_text TEXT, button_url TEXT, is_active INTEGER DEFAULT 0,
             start_date TEXT, end_date TEXT, target_info TEXT
         )
+        """,
+        # --- INICIO: NUEVAS TABLAS PARA EL PANEL DE ADMIN ---
         """
+        CREATE TABLE IF NOT EXISTS admin_notifications (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            target_info JSONB,
+            timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            sent_by TEXT,
+            viewed_count INTEGER DEFAULT 0
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS ia_boards (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            board_data JSONB,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS manager_settings (
+            manager_id TEXT PRIMARY KEY,
+            logo_url TEXT,
+            background_url TEXT
+        )
+        """
+        # --- FIN: NUEVAS TABLAS PARA EL PANEL DE ADMIN ---
     ]
     
     conn = None
@@ -135,13 +163,12 @@ def init_db():
             cur.execute(command)
         conn.commit()
         cur.close()
-        print("✅ Esquema de PostgreSQL verificado/creado exitosamente.")
+        print("✅ Esquema de PostgreSQL (con tablas de admin) verificado/creado exitosamente.")
     except Exception as error:
         print(f"🚨 Error al inicializar la base de datos: {error}")
         if conn: conn.rollback()
     finally:
         if conn: conn.close()
-
 
 
 def check_editor_permission(conn, board_id, email):
@@ -1516,36 +1543,226 @@ def handle_card_created(data):
 
 
 
+# --- Rutas para el Historial de Notificaciones (notifications.html) ---
+
+
+
+# --- Rutas para IA Boards (ia_boards.html) ---
+
+
+
 @app.route('/admin/databases/details', methods=['GET'])
 def get_database_details():
-    # Esta es una implementación básica. A futuro puedes expandirla para mostrar más detalles.
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            # Obtiene el conteo de usuarios por manager_id
             cur.execute("SELECT manager_id, COUNT(*) as user_count FROM users WHERE manager_id IS NOT NULL GROUP BY manager_id")
             db_stats = {row['manager_id']: row['user_count'] for row in cur.fetchall()}
+            
+            # Obtiene las configuraciones de logo y fondo
+            cur.execute("SELECT manager_id, logo_url, background_url FROM manager_settings")
+            settings = {row['manager_id']: {'logo_url': row['logo_url'], 'background_url': row['background_url']} for row in cur.fetchall()}
 
-        # Simula datos que el frontend espera
         databases = []
         for db_name, user_count in db_stats.items():
              databases.append({
                 "filename": db_name,
                 "display_name": db_name,
                 "size": f"{user_count} usuario(s)",
-                "last_modified": None, # Puedes añadir esta lógica si la necesitas
-                "background_url": "", # Puedes añadir esta lógica si la necesitas
-                "logo_url": "" # Puedes añadir esta lógica si la necesitas
+                "last_modified": None, # Puedes añadir esta lógica si necesitas registrar últimas modificaciones
+                "logo_url": settings.get(db_name, {}).get('logo_url', ''),
+                "background_url": settings.get(db_name, {}).get('background_url', '')
              })
         return jsonify(success=True, databases=databases)
     finally:
         conn.close()
 
+@app.route('/admin/database/logo', methods=['POST'])
+def set_db_logo():
+    data = request.get_json()
+    db_name = data.get('db_name')
+    logo_url = data.get('logo_url')
+    
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO manager_settings (manager_id, logo_url) VALUES (%s, %s)
+                ON CONFLICT (manager_id) DO UPDATE SET logo_url = EXCLUDED.logo_url
+            """, (db_name, logo_url))
+            conn.commit()
+        return jsonify(success=True, message="Logo guardado.")
+    except Exception as e:
+        conn.rollback(); traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+# --- Rutas para el Historial y Envío de Notificaciones (notifications.html) ---
 
 @app.route('/admin/notifications', methods=['GET'])
 def get_notifications_history():
-    # Esta es una implementación de marcador de posición. Necesitarías una tabla para guardar el historial.
-    # Por ahora, devuelve una lista vacía para evitar el error 404.
-    return jsonify(success=True, notifications=[])
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM admin_notifications ORDER BY timestamp DESC LIMIT 100")
+            notifications = [dict(row) for row in cur.fetchall()]
+        return jsonify(success=True, notifications=notifications)
+    finally:
+        conn.close()
+
+def send_telegram_message(chat_id, message):
+    """Función auxiliar para enviar un mensaje a un chat de Telegram."""
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        print("⚠️ Advertencia: TELEGRAM_BOT_TOKEN no está configurado.")
+        return False
+    
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        'chat_id': chat_id,
+        'text': message,
+        'parse_mode': 'HTML'
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=5)
+        response.raise_for_status()
+        return response.json().get('ok', False)
+    except requests.exceptions.RequestException as e:
+        print(f"🚨 Error enviando a Telegram (Chat ID: {chat_id}): {e}")
+        return False
+
+@app.route('/admin/send-notification', methods=['POST'])
+def send_notification_admin():
+    data = request.get_json()
+    title = data.get('title')
+    message = data.get('message')
+    target = data.get('target', {})
+    
+    # Prepara el mensaje para Telegram (negrita para el título)
+    telegram_message = f"<b>{title}</b>\n\n{message}"
+    
+    conn = get_db_connection()
+    sent_count = 0
+    try:
+        with conn.cursor() as cur:
+            target_emails = []
+            if target.get('mode') == 'all':
+                cur.execute("SELECT email, telegram_chat_id FROM users WHERE telegram_chat_id IS NOT NULL")
+            elif target.get('mode') == 'database':
+                cur.execute("SELECT email, telegram_chat_id FROM users WHERE manager_id = %s AND telegram_chat_id IS NOT NULL", (target.get('value'),))
+            elif target.get('mode') == 'users':
+                user_emails = tuple(target.get('value', []))
+                if not user_emails: return jsonify(success=True, message="No se seleccionaron usuarios.")
+                cur.execute("SELECT email, telegram_chat_id FROM users WHERE email IN %s AND telegram_chat_id IS NOT NULL", (user_emails,))
+            
+            recipients = cur.fetchall()
+            
+            for user in recipients:
+                if send_telegram_message(user['telegram_chat_id'], telegram_message):
+                    sent_count += 1
+            
+            # Guardar en el historial
+            cur.execute(
+                "INSERT INTO admin_notifications (title, message, target_info, sent_by) VALUES (%s, %s, %s, %s)",
+                (title, message, json.dumps(target), "admin")
+            )
+            conn.commit()
+            
+            # Notificar a usuarios online vía Socket.IO
+            socketio.emit('new_notification', {'title': title, 'message': message, 'type': 'admin', 'timestamp': datetime.now(timezone.utc).isoformat()})
+            
+        return jsonify(success=True, message=f"Notificación enviada a {sent_count} usuarios de Telegram.", sent_count=sent_count)
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
+
+# --- Rutas para IA Boards (ia_boards.html) ---
+
+@app.route('/admin/ai/assignment-data', methods=['GET'])
+def get_assignment_data():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT manager_id FROM users WHERE manager_id IS NOT NULL")
+            databases = [{"name": row['manager_id'], "filename": row['manager_id']} for row in cur.fetchall()]
+            
+            cur.execute("SELECT email, first_name, last_name FROM users")
+            users = [dict(row) for row in cur.fetchall()]
+            
+        return jsonify(success=True, databases=databases, users=users)
+    finally:
+        conn.close()
+
+@app.route('/admin/ai/list-saved-boards', methods=['GET'])
+def list_saved_boards():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, name, created_at FROM ia_boards ORDER BY created_at DESC")
+            boards = [dict(row) for row in cur.fetchall()]
+        return jsonify(success=True, boards=boards)
+    finally:
+        conn.close()
+
+@app.route('/admin/ai/suggest-assistants', methods=['POST'])
+def suggest_assistants_ai():
+    if not genai: return jsonify(success=False, message="IA no disponible."), 503
+    
+    data = request.get_json()
+    prompt = data.get('prompt')
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        system_prompt = """
+        Eres un experto en diseño de equipos y roles de IA. Basado en la descripción de un proyecto,
+        genera 3 perfiles de asistentes de IA que serían útiles.
+        Responde ÚNICAMENTE con un array JSON válido con la siguiente estructura:
+        [
+          {"profile": "Nombre del Perfil (ej. Analista de Datos IA)", "prompt": "Prompt detallado para el asistente (ej. Eres un analista...)", "knowledge_base": "Sugerencia de conocimiento (ej. Documentación de Python, KPIs de marketing)"},
+          ...
+        ]
+        No incluyas texto explicativo antes o después del JSON.
+        """
+        response = model.generate_content([system_prompt, f"Proyecto: '{prompt}'"])
+        json_string = response.text.strip().replace('```json', '').replace('```', '')
+        suggestions = json.loads(json_string)
+        return jsonify(success=True, assistants=suggestions)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+
+@app.route('/admin/ai/save-suggested-assistants', methods=['POST'])
+def save_suggested_assistants():
+    data = request.get_json()
+    assistants = data.get('assistants', [])
+    saved_count = 0
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            for assistant in assistants:
+                assistant_id = f"asst_{os.urandom(8).hex()}"
+                cur.execute("""
+                    INSERT INTO assistants (id, name, description, avatar_url, prompt, knowledge_base, is_public)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,(
+                    assistant_id, assistant.get('name'), assistant.get('description'),
+                    assistant.get('avatar_url'), assistant.get('prompt'),
+                    assistant.get('knowledge_base'), 0 # Por defecto no son públicos
+                ))
+                saved_count += 1
+            conn.commit()
+        socketio.emit('assistants_updated')
+        return jsonify(success=True, message=f"{saved_count} asistentes guardados.", saved_count=saved_count)
+    except Exception as e:
+        conn.rollback()
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        conn.close()
 
 
 @app.route('/ai/writing-suggestions', methods=['POST'])
