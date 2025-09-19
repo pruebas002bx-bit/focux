@@ -1183,6 +1183,7 @@ def get_focux_view_data():
 
 # --- Rutas para Gestión de Asistentes ---
 
+
 @app.route('/admin/assistants', methods=['GET'])
 def admin_get_assistants():
     conn = get_db_connection()
@@ -1198,6 +1199,7 @@ def admin_get_assistants():
         return jsonify(success=True, assistants=assistants_raw)
     finally:
         conn.close()
+
 
 @app.route('/admin/assistants', methods=['POST'])
 def admin_save_assistants():
@@ -1259,6 +1261,8 @@ def admin_save_assistants():
     finally:
         conn.close()
 
+
+
 @app.route('/admin/assistants/<assistant_id>', methods=['DELETE'])
 def delete_assistant_admin(assistant_id):
     conn = get_db_connection()
@@ -1275,7 +1279,6 @@ def delete_assistant_admin(assistant_id):
         conn.close()
 
 
-# --- Rutas para Gestión de Mensajes Focux ---
 
 @app.route('/admin/focux_messages', methods=['GET'])
 def get_focux_messages_admin():
@@ -1319,7 +1322,9 @@ def save_focux_messages_admin():
         conn.close()
 
 
+
 # --- Rutas para Generación con IA ---
+
 
 @app.route('/admin/ai/generate-board', methods=['POST'])
 def generate_board_with_ai():
@@ -1399,6 +1404,7 @@ def generate_board_with_ai():
         return jsonify(success=False, message=f"Error de la IA: {str(e)}"), 500
 
 
+
 @app.route('/admin/ai/assign-board', methods=['POST'])
 def assign_ai_board():
     data = request.get_json()
@@ -1446,7 +1452,7 @@ def assign_ai_board():
     finally:
         conn.close()
 
-# --- Rutas para Telegram Sender ---
+
 
 @app.route('/telegram/stats', methods=['GET'])
 def get_telegram_stats():
@@ -1471,6 +1477,9 @@ def get_connected_users_details():
         return jsonify(success=True, users=users)
     finally:
         conn.close()
+
+
+
 
 @socketio.on('card_moved')
 def handle_card_moved(data):
