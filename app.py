@@ -6,13 +6,16 @@ import os
 import json
 import threading
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
+import re
+import uuid
+
 
 # Cargar variables de entorno
 load_dotenv()
@@ -1903,6 +1906,154 @@ def list_saved_boards():
     finally:
         conn.close()
 
+
+@app.route('/admin/ai/generate-board-content', methods=['POST'])
+def generate_board_content():
+    """Genera solo la estructura del tablero (columnas y tarjetas)."""
+    if not genai:
+        return jsonify(success=False, message="La API de IA no está configurada."), 503
+
+    data = request.get_json()
+    user_prompt = data.get('prompt')
+    if not user_prompt:
+        return jsonify(success=False, message="La descripción del tablero es requerida."), 400
+
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        template_prompt = f"""
+        Actúa como un Project Manager experto y genera un plan de proyecto basado en: "{user_prompt}"
+
+        INSTRUCCIONES CRÍTICAS:
+        1.  **VOLUMEN**: Genera entre 40 y 60 tarjetas en total.
+        2.  **DESCRIPCIÓN**: Cada tarjeta debe tener "Contexto" y "Objetivos" detallados, separados por un doble salto de párrafo.
+        3.  **CHECKLIST**: Cada tarjeta debe tener un checklist con 3-4 acciones, precedido por `---CHECKLIST---`.
+        4.  **FORMATO EXACTO**: Usa los marcadores (BOARD_NAME_START, etc.) sin `[` `]` ni `**`. Cada tarjeta debe tener una única línea `COLUMN_TITLE::`.
+        5.  **ESTRUCTURA**: Primero todas las columnas, luego todas las tarjetas en orden secuencial lógico.
+
+        Usa el siguiente formato de texto plano:
+        BOARD_NAME_START
+        Nombre del Tablero
+        BOARD_NAME_END
+
+        COLUMN_START
+        Título de la Columna
+        COLUMN_END
+
+        CARD_START
+        COLUMN_TITLE::Título de la Columna
+        CARD_TITLE::Título de la Tarjeta
+        CARD_TAGS::Tag1, Tag2
+        CARD_DESCRIPTION::
+Contexto: Párrafo detallado sobre la tarea.
+
+
+Objetivos: Párrafo detallado sobre el resultado esperado.
+        ---CHECKLIST---
+        CHECKLIST_ITEM::Acción detallada 1.
+        CHECKLIST_ITEM::Acción detallada 2.
+        CARD_END
+        """
+        response = model.generate_content(template_prompt)
+        raw_text = response.text
+        
+        # --- Lógica de Parseo (igual a la que ya tenías, pero sin notas) ---
+        final_board = { "board_name": "", "columns": [], "cards": [] }
+        def clean_text(text): return text.strip()
+        def safe_split_on_first(text, separator): return text.split(separator, 1) if separator in text else (text, '')
+
+        board_name_match = re.search(r"BOARD_NAME_START\n(.*?)\nBOARD_NAME_END", raw_text, re.DOTALL)
+        if board_name_match: final_board["board_name"] = clean_text(board_name_match.group(1))
+
+        column_titles = re.findall(r"COLUMN_START\n(.*?)\nCOLUMN_END", raw_text, re.DOTALL)
+        column_map = {}
+        for i, title in enumerate(column_titles):
+            clean_title = clean_text(title)
+            if clean_title and clean_title not in column_map:
+                col_id = f"col-{i+1}-{uuid.uuid4().hex[:4]}"
+                column_map[clean_title] = col_id
+                final_board["columns"].append({"id": col_id, "title": clean_title, "color": "bg-blue-200"})
+        
+        card_blocks = re.findall(r"CARD_START\n(.*?)\nCARD_END", raw_text, re.DOTALL)
+        for i, block in enumerate(card_blocks):
+            try:
+                card_col_title_match = re.search(r"COLUMN_TITLE::(.*?)\n", block)
+                if not card_col_title_match: continue
+                card_col_title = clean_text(card_col_title_match.group(1))
+                if card_col_title not in column_map:
+                    col_id = f"col-auto-{uuid.uuid4().hex[:4]}"
+                    column_map[card_col_title] = col_id
+                    final_board["columns"].append({"id": col_id, "title": card_col_title, "color": "bg-purple-200"})
+                
+                card_title_match = re.search(r"CARD_TITLE::(.*?)\n", block)
+                tags_match = re.search(r"CARD_TAGS::(.*?)\n", block)
+                
+                card = {
+                    "id": str(uuid.uuid4()), "columnId": column_map[card_col_title],
+                    "title": clean_text(card_title_match.group(1)) if card_title_match else f"Tarjeta {i+1}",
+                    "description": "", "checklist": [],
+                    "tags": [{'text': t.strip()} for t in clean_text(tags_match.group(1)).split(',') if t.strip()] if tags_match else []
+                }
+
+                desc_start = block.find('CARD_DESCRIPTION::')
+                if desc_start != -1:
+                    desc_content = block[desc_start + len('CARD_DESCRIPTION::'):]
+                    desc_part, checklist_part = safe_split_on_first(desc_content, '---CHECKLIST---')
+                    card['description'] = "".join(f"<p>{p.strip().replace(chr(10), '<br>')}</p>" for p in clean_text(desc_part).split('\n\n') if p.strip())
+                    if checklist_part.strip():
+                        card['checklist'] = [{'id': str(uuid.uuid4()), 'text': clean_text(line.replace('CHECKLIST_ITEM::', '')), 'completed': False} for line in checklist_part.split('\n') if line.strip().startswith('CHECKLIST_ITEM::')]
+                final_board["cards"].append(card)
+            except Exception as e:
+                print(f"Error procesando tarjeta: {e}")
+                continue
+        
+        final_board["columns"].append({"id": "col-done", "title": "¡Completado! ✅", "color": "bg-green-200"})
+        return jsonify(success=True, board=final_board)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+
+@app.route('/admin/ai/regenerate-notes', methods=['POST'])
+def regenerate_notes_ai():
+    """Genera solo notas de apoyo basadas en el prompt del proyecto."""
+    if not genai: return jsonify(success=False, message="IA no disponible."), 503
+    
+    data = request.get_json()
+    prompt = data.get('prompt')
+    if not prompt: return jsonify(success=False, message="El prompt es requerido."), 400
+
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        template_prompt = f"""
+        Actúa como un asesor experto. Basado en el objetivo de proyecto "{prompt}", genera 5 notas de apoyo MUY útiles y detalladas.
+
+        INSTRUCCIONES DE FORMATO (OBLIGATORIO):
+        - Usa EXACTAMENTE el siguiente formato para cada nota.
+        - No incluyas texto explicativo antes, entre o después de las notas.
+
+        NOTE_START
+        NOTE_TITLE::Título conciso de la Nota
+        NOTE_CONTENT::Contenido detallado de la nota. Puede incluir varios párrafos.
+        NOTE_END
+        """
+        response = model.generate_content(template_prompt)
+        raw_text = response.text
+        
+        notes = []
+        note_blocks = re.findall(r"NOTE_START\n(.*?)\nNOTE_END", raw_text, re.DOTALL)
+        for block in note_blocks:
+            title_match = re.search(r"NOTE_TITLE::(.*?)\n", block)
+            content_match = re.search(r"NOTE_CONTENT::(.*?)(?=\Z)", block, re.DOTALL)
+            if title_match and content_match:
+                notes.append({"title": title_match.group(1).strip(), "content": content_match.group(1).strip()})
+        
+        return jsonify(success=True, notes=notes)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+
+# La ruta /admin/ai/suggest-assistants que ya tienes es correcta, no necesitas cambiarla.
+# Asegúrate de que exista y sea similar a esta:
 @app.route('/admin/ai/suggest-assistants', methods=['POST'])
 def suggest_assistants_ai():
     if not genai: return jsonify(success=False, message="IA no disponible."), 503
@@ -1922,12 +2073,22 @@ def suggest_assistants_ai():
         No incluyas texto explicativo antes o después del JSON.
         """
         response = model.generate_content([system_prompt, f"Proyecto: '{prompt}'"])
-        json_string = response.text.strip().replace('```json', '').replace('```', '')
+        # Limpieza robusta del JSON
+        json_string = response.text.strip()
+        match = re.search(r'\[.*\]', json_string, re.DOTALL)
+        if match:
+            json_string = match.group(0)
+        else:
+            # Si no encuentra un array, intenta limpiar de otra forma
+            json_string = json_string.replace('```json', '').replace('```', '').strip()
+            
         suggestions = json.loads(json_string)
         return jsonify(success=True, assistants=suggestions)
     except Exception as e:
         traceback.print_exc()
         return jsonify(success=False, message=str(e)), 500
+
+
 
 @app.route('/admin/ai/save-suggested-assistants', methods=['POST'])
 def save_suggested_assistants():
