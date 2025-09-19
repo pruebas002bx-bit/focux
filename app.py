@@ -1921,17 +1921,20 @@ def generate_board_content():
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
         
+        # --- PROMPT MEJORADO: Instrucciones más estrictas para la IA ---
         template_prompt = f"""
         Actúa como un Project Manager experto y genera un plan de proyecto basado en: "{user_prompt}"
 
-        INSTRUCCIONES CRÍTICAS:
-        1.  **VOLUMEN**: Genera entre 40 y 60 tarjetas en total.
-        2.  **DESCRIPCIÓN**: Cada tarjeta debe tener "Contexto" y "Objetivos" detallados, separados por un doble salto de párrafo.
-        3.  **CHECKLIST**: Cada tarjeta debe tener un checklist con 3-4 acciones, precedido por `---CHECKLIST---`.
-        4.  **FORMATO EXACTO**: Usa los marcadores (BOARD_NAME_START, etc.) sin `[` `]` ni `**`. Cada tarjeta debe tener una única línea `COLUMN_TITLE::`.
-        5.  **ESTRUCTURA**: Primero todas las columnas, luego todas las tarjetas en orden secuencial lógico.
+        INSTRUCCIONES CRÍTICAS DE FORMATO (OBLIGATORIO):
+        1.  Usa los marcadores (BOARD_NAME_START, etc.) EXACTAMENTE como se indica, sin texto adicional antes o después.
+        2.  Genera entre 4 y 6 columnas.
+        3.  Genera un total de 40 a 60 tarjetas, distribuidas lógicamente entre las columnas.
+        4.  Cada tarjeta DEBE tener `COLUMN_TITLE::`, `CARD_TITLE::`, y `CARD_DESCRIPTION::`.
+        5.  La descripción DEBE contener "Contexto:" y "Objetivos:", separados por DOS saltos de línea.
+        6.  Cada tarjeta DEBE incluir un checklist precedido por `---CHECKLIST---`.
+        7.  Tu respuesta debe contener ÚNICAMENTE el texto con este formato. No agregues introducciones, resúmenes ni la palabra 'json'.
 
-        Usa el siguiente formato de texto plano:
+        ESTRUCTURA DE TEXTO PLANO:
         BOARD_NAME_START
         Nombre del Tablero
         BOARD_NAME_END
@@ -1941,7 +1944,7 @@ def generate_board_content():
         COLUMN_END
 
         CARD_START
-        COLUMN_TITLE::Título de la Columna
+        COLUMN_TITLE::Título de la Columna a la que pertenece
         CARD_TITLE::Título de la Tarjeta
         CARD_TAGS::Tag1, Tag2
         CARD_DESCRIPTION::
@@ -1957,15 +1960,15 @@ Objetivos: Párrafo detallado sobre el resultado esperado.
         response = model.generate_content(template_prompt)
         raw_text = response.text
         
-        # --- Lógica de Parseo (igual a la que ya tenías, pero sin notas) ---
         final_board = { "board_name": "", "columns": [], "cards": [] }
-        def clean_text(text): return text.strip()
-        def safe_split_on_first(text, separator): return text.split(separator, 1) if separator in text else (text, '')
+        def clean_text(text): return text.strip() if text else ''
 
-        board_name_match = re.search(r"BOARD_NAME_START\n(.*?)\nBOARD_NAME_END", raw_text, re.DOTALL)
+        # --- PARSEO MEJORADO: Más flexible con espacios y saltos de línea ---
+        board_name_match = re.search(r"BOARD_NAME_START\s*(.*?)\s*BOARD_NAME_END", raw_text, re.DOTALL)
         if board_name_match: final_board["board_name"] = clean_text(board_name_match.group(1))
 
-        column_titles = re.findall(r"COLUMN_START\n(.*?)\nCOLUMN_END", raw_text, re.DOTALL)
+        # Usamos \s* para permitir espacios o saltos de línea opcionales alrededor de los marcadores
+        column_titles = re.findall(r"COLUMN_START\s*(.*?)\s*COLUMN_END", raw_text, re.DOTALL)
         column_map = {}
         for i, title in enumerate(column_titles):
             clean_title = clean_text(title)
@@ -1974,23 +1977,25 @@ Objetivos: Párrafo detallado sobre el resultado esperado.
                 column_map[clean_title] = col_id
                 final_board["columns"].append({"id": col_id, "title": clean_title, "color": "bg-blue-200"})
         
-        card_blocks = re.findall(r"CARD_START\n(.*?)\nCARD_END", raw_text, re.DOTALL)
+        card_blocks = re.findall(r"CARD_START\s*(.*?)\s*CARD_END", raw_text, re.DOTALL)
         for i, block in enumerate(card_blocks):
             try:
-                card_col_title_match = re.search(r"COLUMN_TITLE::(.*?)\n", block)
+                # Usamos (?:\n|\Z) para que coincida con un salto de línea o el final del texto
+                card_col_title_match = re.search(r"COLUMN_TITLE::(.*?)(?:\n|\Z)", block)
                 if not card_col_title_match: continue
+                
                 card_col_title = clean_text(card_col_title_match.group(1))
                 if card_col_title not in column_map:
                     col_id = f"col-auto-{uuid.uuid4().hex[:4]}"
                     column_map[card_col_title] = col_id
                     final_board["columns"].append({"id": col_id, "title": card_col_title, "color": "bg-purple-200"})
                 
-                card_title_match = re.search(r"CARD_TITLE::(.*?)\n", block)
-                tags_match = re.search(r"CARD_TAGS::(.*?)\n", block)
+                card_title_match = re.search(r"CARD_TITLE::(.*?)(?:\n|\Z)", block)
+                tags_match = re.search(r"CARD_TAGS::(.*?)(?:\n|\Z)", block)
                 
                 card = {
                     "id": str(uuid.uuid4()), "columnId": column_map[card_col_title],
-                    "title": clean_text(card_title_match.group(1)) if card_title_match else f"Tarjeta {i+1}",
+                    "title": clean_text(card_title_match.group(1)) if card_title_match else f"Tarjeta Sin Título {i+1}",
                     "description": "", "checklist": [],
                     "tags": [{'text': t.strip()} for t in clean_text(tags_match.group(1)).split(',') if t.strip()] if tags_match else []
                 }
@@ -1998,20 +2003,29 @@ Objetivos: Párrafo detallado sobre el resultado esperado.
                 desc_start = block.find('CARD_DESCRIPTION::')
                 if desc_start != -1:
                     desc_content = block[desc_start + len('CARD_DESCRIPTION::'):]
-                    desc_part, checklist_part = safe_split_on_first(desc_content, '---CHECKLIST---')
-                    card['description'] = "".join(f"<p>{p.strip().replace(chr(10), '<br>')}</p>" for p in clean_text(desc_part).split('\n\n') if p.strip())
-                    if checklist_part.strip():
-                        card['checklist'] = [{'id': str(uuid.uuid4()), 'text': clean_text(line.replace('CHECKLIST_ITEM::', '')), 'completed': False} for line in checklist_part.split('\n') if line.strip().startswith('CHECKLIST_ITEM::')]
+                    desc_part, checklist_part = (desc_content.split('---CHECKLIST---', 1) + [''])[:2]
+                    
+                    card['description'] = clean_text(desc_part)
+                    if checklist_part:
+                        checklist_items_raw = re.findall(r"CHECKLIST_ITEM::(.*?)(?:\n|\Z)", checklist_part)
+                        card['checklist'] = [{'id': str(uuid.uuid4()), 'text': clean_text(item), 'completed': False} for item in checklist_items_raw]
+
                 final_board["cards"].append(card)
             except Exception as e:
-                print(f"Error procesando tarjeta: {e}")
+                print(f"Error procesando una tarjeta individual: {e}")
                 continue
         
-        final_board["columns"].append({"id": "col-done", "title": "¡Completado! ✅", "color": "bg-green-200"})
+        # Añadir columna 'Completado' si no existe
+        if not any(col['title'].lower().startswith('completado') for col in final_board['columns']):
+            final_board["columns"].append({"id": "col-done", "title": "¡Completado! ✅", "color": "bg-green-200"})
+            
         return jsonify(success=True, board=final_board)
     except Exception as e:
         traceback.print_exc()
         return jsonify(success=False, message=str(e)), 500
+
+
+
 
 @app.route('/admin/ai/regenerate-notes', methods=['POST'])
 def regenerate_notes_ai():

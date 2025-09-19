@@ -478,6 +478,7 @@
             }
         }
         
+
         async function regenerateBoardOnly() {
             const prompt = document.getElementById('prompt-input').value.trim() || (generatedBoardData ? generatedBoardData.board_name : '');
             if (!prompt) return UI.showAlert('No hay un contexto para regenerar el tablero.', 'warning');
@@ -491,7 +492,7 @@
             boardContainer.style.opacity = '0.5';
 
             try {
-                const response = await fetch(`${API_BASE}/admin/ai/regenerate-board-content`, {
+                const response = await fetch(`${API_BASE}/admin/ai/generate-board-content`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: prompt })
@@ -513,6 +514,8 @@
                 boardContainer.style.opacity = '1';
             }
         }
+
+
 
         async function regenerateNotes() {
             const prompt = document.getElementById('prompt-input').value.trim() || (generatedBoardData ? generatedBoardData.board_name : '');
