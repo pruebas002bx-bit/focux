@@ -195,7 +195,7 @@ def migrate_database():
         if conn: conn.rollback()
     finally:
         if conn: conn.close()
-        
+
 
 def check_editor_permission(conn, board_id, email):
     """Función auxiliar para verificar si un usuario es editor de un tablero."""
@@ -1383,7 +1383,9 @@ def ask_chat():
         return jsonify(success=False, message=f"Error al contactar la IA: {str(e)}"), 500
     finally:
         if conn: conn.close()
-        
+
+
+
 @app.route('/admin/ai/generate-board', methods=['POST'])
 def generate_board_with_ai():
     if not genai:
@@ -1398,8 +1400,8 @@ def generate_board_with_ai():
         return jsonify(success=False, message="El prompt no puede estar vacío."), 400
         
     try:
-        # CORRECCIÓN: Usar un modelo más moderno
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        # CORRECCIÓN: Usar el modelo de IA más reciente y eficiente
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         system_prompt = f"""
         Eres un asistente experto en gestión de proyectos. Tu tarea es analizar la descripción de un proyecto y generar un tablero Kanban completo en formato JSON.
@@ -1466,6 +1468,7 @@ def assign_ai_board():
     board_data = data.get('board_data')
     target_users = data.get('target_users', [])
     target_databases = data.get('target_databases', [])
+    suggested_assistants = data.get('suggested_assistants', [])
 
     if not all([board_data, (target_users or target_databases)]):
         return jsonify(success=False, message="Faltan datos para asignar."), 400
@@ -1475,7 +1478,7 @@ def assign_ai_board():
         with conn.cursor() as cur:
             now = datetime.now(timezone.utc).isoformat()
             
-            # Determinar todos los emails a los que se asignará
+            # 1. Determinar todos los emails destinatarios
             all_target_emails = set(target_users)
             if target_databases:
                 cur.execute("SELECT email FROM users WHERE manager_id IN %s", (tuple(target_databases),))
@@ -1483,12 +1486,30 @@ def assign_ai_board():
                 all_target_emails.update(db_users)
             
             final_emails = list(all_target_emails)
-
             if not final_emails:
-                 return jsonify(success=False, message="No se encontraron usuarios para los destinatarios seleccionados."), 404
+                 return jsonify(success=False, message="No se encontraron usuarios válidos."), 404
 
-            # Crear el tablero para cada usuario
+            # 2. Guardar asistentes sugeridos y compartirlos
+            if suggested_assistants:
+                for assistant_data in suggested_assistants:
+                    assistant_id = f"asst_{os.urandom(8).hex()}"
+                    cur.execute("""
+                        INSERT INTO assistants (id, name, description, avatar_url, prompt, knowledge_base, is_public)
+                        VALUES (%s, %s, %s, %s, %s, %s, 0)
+                    """, (
+                        assistant_id, assistant_data.get('name'), assistant_data.get('name'), # Usar nombre como descripción
+                        assistant_data.get('avatar_url'), assistant_data.get('prompt'),
+                        assistant_data.get('knowledge_base')
+                    ))
+                    # Compartir este nuevo asistente con todos los usuarios destinatarios
+                    sharing_data = [(assistant_id, email) for email in final_emails]
+                    psycopg2.extras.execute_values(
+                        cur, "INSERT INTO assistant_sharing (assistant_id, user_email) VALUES %s", sharing_data
+                    )
+
+            # 3. Crear tablero y notas para cada usuario
             for email in final_emails:
+                # Crear el tablero principal
                 cur.execute(
                     "INSERT INTO boards (owner_email, name, board_data, created_date, updated_date, category) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                     (email, board_data['board_name'], json.dumps(board_data), now, now, "Laboral")
@@ -1497,15 +1518,31 @@ def assign_ai_board():
                 
                 # Asignarse a sí mismo como colaborador
                 cur.execute("INSERT INTO collaborators (board_id, user_email, permission_level) VALUES (%s, %s, %s)", (board_id, email, 'editor'))
-            
+
+                # Crear las notas de apoyo para este tablero
+                if 'notes' in board_data and isinstance(board_data['notes'], list):
+                    for note in board_data['notes']:
+                        cur.execute("""
+                            INSERT INTO notes (board_id, user_email, content, color, created_date, updated_date)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (board_id, email, note.get('content'), 'note-yellow', now, now))
+
             conn.commit()
-        return jsonify(success=True, message=f"Tablero asignado a {len(final_emails)} usuarios.")
+            
+            # Notificar a los clientes que los asistentes han cambiado
+            socketio.emit('assistants_updated')
+            
+        return jsonify(success=True, message=f"Tablero, notas y asistentes asignados a {len(final_emails)} usuarios.")
     except Exception as e:
         conn.rollback()
         traceback.print_exc()
         return jsonify(success=False, message=str(e)), 500
     finally:
         conn.close()
+
+
+
+
 
 
 
