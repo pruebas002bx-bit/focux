@@ -1677,7 +1677,6 @@ def assign_ai_board():
 
 
 
-
 @app.route('/telegram/stats', methods=['GET'])
 def get_telegram_stats():
     conn = get_db_connection()
