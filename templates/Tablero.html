@@ -4115,6 +4115,7 @@
                     </svg>
                 </div>
 
+
                 <div class="flex-grow min-h-0 flex flex-col">
                     <div id="chat-mode-selector" class="flex-shrink-0 p-2 border-b border-gray-200 bg-gray-50 flex gap-2">
                         <button id="chat-mode-board" class="chat-mode-btn">Chat Grupal</button>
@@ -4133,10 +4134,6 @@
                         <div class="flex-shrink-0 p-3 border-t">
                             <form id="board-chat-form" class="flex items-center gap-2">
                                 <input type="text" id="board-chat-input" placeholder="Escribe en el chat del tablero..." class="chat-input-field" autocomplete="off">
-                                
-                                <button type="button" id="board-sticker-btn" class="p-2 text-gray-500 hover:text-orange-600 transition-colors flex-shrink-0" title="Enviar sticker">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </button>
                                 <button type="submit" class="chat-send-btn">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                                 </button>
@@ -4153,6 +4150,8 @@
                     
                     <div id="ai-chat-view" class="chat-view">
                         </div>
+                </div>
+
 
                 </div>
             </div>
@@ -4517,23 +4516,6 @@
     </div>
 
 
-    <div id="sticker-modal-container" class="modal-overlay hidden">
-        <div id="sticker-modal-content" 
-             class="modal-content bg-white rounded-2xl shadow-xl flex flex-col transform transition-all" 
-             style="max-width: 640px; width: 100%; max-height: 80vh; transform: scale(0.95); opacity: 0;">
-            
-            <div class="modal-header flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 class="modal-title text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Selecciona un Sticker
-                </h3>
-                <button id="sticker-modal-close-btn" class="close-btn text-2xl">&times;</button>
-            </div>
-            
-            <div class="modal-body flex-grow overflow-y-auto p-2 sm:p-4" id="sticker-modal-grid">
-                </div>
-        </div>
-    </div>
 
     <div id="column-editor-modal" class="hidden fixed inset-0 z-50">
         <div id="column-editor-overlay" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 opacity-0"></div>
@@ -5553,48 +5535,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
-    // EN: Tablero.html
-
-    function sendMessage(messageContent) {
-        const content = (messageContent || '').trim();
-        if (!content) return;
-
-        if (currentChatMode === 'board') {
-            const payload = {
-                board_id: currentBoardId,
-                user_email: currentUser.email,
-                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
-                message: content
-            };
-
-            // --- INICIO DE LA CORRECCIÓN CLAVE ---
-            // Añade tu propio mensaje a la interfaz INMEDIATAMENTE.
-            // Esto soluciona el problema de no ver tus propios mensajes al enviarlos.
-            appendBoardChatMessage(payload);
-            // --- FIN DE LA CORRECCIÓN CLAVE ---
-
-            // Envía el mensaje al servidor para los demás participantes.
-            socket.emit('new_chat_message', payload);
-
-        } else if (currentChatMode === 'general') {
-            const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
-            if (!peerEmail) return;
-
-            const payload = {
-                sender_email: currentUser.email,
-                receiver_email: peerEmail,
-                text: content,
-                sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
-            };
-            
-            // Para el chat general, el servidor re-envía el mensaje a ambos (incluyéndote),
-            // por lo que no es necesario un append local aquí.
-            socket.emit('global_chat_send', payload);
-        }
-    }
-
-
     async function fetchAllUsersForSelector() {
         newChatUserList.innerHTML = '<div class="p-4 text-center text-gray-500">Cargando...</div>';
         try {
@@ -5639,32 +5579,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-
-    // --- PLANTILLA CORREGIDA PARA LA LISTA DE CONVERSACIONES ---
-    function conversationListItemTemplate(conv) {
-        const initials = (conv.peer_name || 'NN').split(' ').map(n=>n[0]).join('').substring(0,2);
-        const color = getUserColor(conv.peer_email).bg;
-        const lastTs = conv.last_ts ? new Date(conv.last_ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
-        
-        const unreadBadge = conv.unread_count > 0 
-            ? `<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">${conv.unread_count}</span>` 
-            : '';
-
-        return `
-            <div class="conversation-list-item" data-conv-id="${conv.conv_id}" data-email="${conv.peer_email}" data-name="${conv.peer_name}">
-                <div class="chat-avatar ${color} mr-3">${initials}</div>
-                <div class="flex-grow min-w-0">
-                    <div class="font-semibold text-gray-800 text-sm truncate">${conv.peer_name}</div>
-                    <div class="text-xs text-gray-500 truncate">${conv.peer_email}</div>
-                </div>
-                <div class="flex flex-col items-end gap-1">
-                    <div class="text-xs text-gray-400 self-start">${lastTs}</div>
-                    ${unreadBadge}
-                </div>
-            </div>
-        `;
-    }
 
     // --- PLANTILLA CORREGIDA PARA EL DIRECTORIO DE USUARIOS AL CREAR NUEVO CHAT ---
     function renderUserSelectorList(users) {
@@ -11398,27 +11312,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    socket.on('global_chat_new_message', (data) => {
-        // 1. Si la conversación del mensaje está abierta, lo mostramos.
-        //    Esta es la única fuente de verdad para dibujar mensajes.
-        if (currentGeneralConvId === data.conv_id) {
-            const container = document.getElementById('general-chat-messages');
-            if (container) {
-                // Dibuja el mensaje sin importar si es tuyo o no.
-                appendGeneralChatMessage(data, container);
-                
-                // 2. Si el mensaje no es mío y la ventana está visible, lo marca como leído.
-                if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
-                    socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
-                }
-            }
-        }
-        
-        // 3. Siempre pide una actualización de la lista de conversaciones para refrescar
-        //    el último mensaje y el contador de no leídos.
-        socket.emit('global_chat_list_conversations', { email: currentUser.email });
-    });
+    function sendMessage(messageContent) {
+        const content = (messageContent || '').trim();
+        if (!content) return;
 
+        if (currentChatMode === 'board') {
+            const payload = {
+                board_id: currentBoardId,
+                user_email: currentUser.email,
+                user_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
+                message: content
+            };
+            appendBoardChatMessage(payload);
+            socket.emit('new_chat_message', payload);
+
+        } else if (currentChatMode === 'general') {
+            const peerEmail = document.getElementById('conversation-view-container').dataset.peerEmail;
+            if (!peerEmail) return;
+
+            const payload = {
+                sender_email: currentUser.email,
+                receiver_email: peerEmail,
+                text: content,
+                sender_name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim()
+            };
+            
+            socket.emit('global_chat_send', payload);
+        }
+    }
+
+    function conversationListItemTemplate(conv) {
+        const initials = (conv.peer_name || 'NN').split(' ').map(n=>n[0]).join('').substring(0,2);
+        const color = getUserColor(conv.peer_email).bg;
+        const lastTs = conv.last_ts ? new Date(conv.last_ts).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        const unreadBadge = conv.unread_count > 0 
+            ? `<span class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">${conv.unread_count}</span>` 
+            : '';
+
+        return `
+            <div class="group relative conversation-list-item" data-conv-id="${conv.conv_id}" data-email="${conv.peer_email}" data-name="${conv.peer_name}">
+                <div class="chat-avatar ${color} mr-3">${initials}</div>
+                <div class="flex-grow min-w-0">
+                    <div class="font-semibold text-gray-800 text-sm truncate">${conv.peer_name}</div>
+                    <div class="text-xs text-gray-500 truncate">${conv.peer_email}</div>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    <div class="text-xs text-gray-400 self-start">${lastTs}</div>
+                    ${unreadBadge}
+                </div>
+                
+                <div class="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button class="clear-conversation-btn p-1.5 rounded-full hover:bg-yellow-100 text-yellow-600" title="Vaciar chat" data-conv-id="${conv.conv_id}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                    <button class="delete-conversation-btn p-1.5 rounded-full hover:bg-red-100 text-red-600" title="Eliminar chat" data-conv-id="${conv.conv_id}">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 
     function renderGeneralChatConversation(data) {
         currentGeneralConvId = data.conv_id;
@@ -11430,9 +11384,19 @@ document.addEventListener('DOMContentLoaded', () => {
         convView.dataset.peerEmail = data.peer_email;
 
         convView.innerHTML = `
-            <div id="conversation-header" class="flex items-center gap-3 p-3 bg-gray-50 border-b">
-                <button id="back-to-directory-btn" class="p-1 rounded-full hover:bg-gray-200">&larr;</button>
-                <div class="font-semibold text-sm">${data.peer_name}</div>
+            <div id="conversation-header" class="flex items-center justify-between gap-3 p-3 bg-gray-50 border-b">
+                <div class="flex items-center gap-3">
+                     <button id="back-to-directory-btn" class="p-1 rounded-full hover:bg-gray-200">&larr;</button>
+                     <div class="font-semibold text-sm">${data.peer_name}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="clear-active-conversation-btn" class="p-1.5 rounded-full hover:bg-yellow-100 text-yellow-600" title="Vaciar chat" data-conv-id="${data.conv_id}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                    <button id="delete-active-conversation-btn" class="p-1.5 rounded-full hover:bg-red-100 text-red-600" title="Eliminar chat" data-conv-id="${data.conv_id}">
+                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                    </button>
+                </div>
             </div>
             <div id="general-chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2"></div>
             <div class="flex-shrink-0 p-3 border-t">
@@ -11465,10 +11429,97 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
+        document.getElementById('clear-active-conversation-btn').onclick = (e) => handleClearConversation(e.currentTarget.dataset.convId);
+        document.getElementById('delete-active-conversation-btn').onclick = (e) => handleDeleteConversation(e.currentTarget.dataset.convId, true);
+        
         socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
     }
 
+    socket.on('global_chat_new_message', (data) => {
+        if (currentGeneralConvId === data.conv_id) {
+            const container = document.getElementById('general-chat-messages');
+            if (container) {
+                appendGeneralChatMessage(data, container);
+                if (data.sender_email !== currentUser.email && document.visibilityState === 'visible') {
+                    socket.emit('mark_general_chat_read', { conv_id: data.conv_id, user_email: currentUser.email });
+                }
+            }
+        }
+        socket.emit('global_chat_list_conversations', { email: currentUser.email });
+    });
 
+
+
+    async function handleDeleteConversation(convId, isActiveConversation = false) {
+        const confirmed = await showGenericConfirmModal(
+            'Eliminar Chat',
+            '¿Estás seguro? Se borrará permanentemente toda la conversación para ambos participantes.'
+        );
+        if (confirmed) {
+            console.log(`Emitiendo 'global_chat_delete_conversation' para ${convId}`);
+            socket.emit('global_chat_delete_conversation', {
+                conv_id: convId,
+                user_email: currentUser.email
+            });
+            if (isActiveConversation) {
+                document.getElementById('back-to-directory-btn').click();
+            }
+        }
+    }
+
+    async function handleClearConversation(convId) {
+        const confirmed = await showGenericConfirmModal(
+            'Vaciar Chat',
+            'Se borrarán todos los mensajes de esta conversación. El chat permanecerá en tu lista.'
+        );
+        if (confirmed) {
+            console.log(`Emitiendo 'global_chat_clear_conversation' para ${convId}`);
+            socket.emit('global_chat_clear_conversation', {
+                conv_id: convId,
+                user_email: currentUser.email
+            });
+        }
+    }
+
+    generalChatView.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-conversation-btn');
+        if (deleteBtn) {
+            e.stopPropagation();
+            handleDeleteConversation(deleteBtn.dataset.convId);
+            return;
+        }
+        
+        const clearBtn = e.target.closest('.clear-conversation-btn');
+        if (clearBtn) {
+            e.stopPropagation();
+            handleClearConversation(clearBtn.dataset.convId);
+            return;
+        }
+        
+        const convItem = e.target.closest('.conversation-list-item');
+        if (convItem) {
+            const peerEmail = convItem.dataset.email;
+            if (peerEmail) {
+                socket.emit('global_chat_start', { email: currentUser.email, partner_email: peerEmail });
+            }
+        }
+    });
+
+    socket.on('conversation_deleted', (data) => {
+        console.log(`Recibido 'conversation_deleted' para ${data.conv_id}`);
+        socket.emit('global_chat_list_conversations', { email: currentUser.email });
+    });
+
+    socket.on('conversation_cleared', (data) => {
+        console.log(`Recibido 'conversation_cleared' para ${data.conv_id}`);
+        if (currentGeneralConvId === data.conv_id) {
+            const messagesContainer = document.getElementById('general-chat-messages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = '';
+            }
+        }
+        socket.emit('global_chat_list_conversations', { email: currentUser.email });
+    });
 
 
     // Socket Listeners for General Chat
@@ -12339,40 +12390,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-
-    function showStickerModal() {
-        const modal = document.getElementById('sticker-modal-container');
-        const content = document.getElementById('sticker-modal-content');
-        if (!modal || !content) return;
-        
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-            modal.classList.add('visible');
-            content.style.transform = 'scale(1)';
-            content.style.opacity = '1';
-        }, 10);
-    }
-
-    function hideStickerModal() {
-        const modal = document.getElementById('sticker-modal-container');
-        const content = document.getElementById('sticker-modal-content');
-        if (!modal || !content) return;
-
-        content.style.transform = 'scale(0.95)';
-        content.style.opacity = '0';
-        setTimeout(() => {
-            modal.classList.remove('visible');
-            modal.classList.add('hidden');
-        }, 200);
-    }
-
-
-    // Función para enviar un sticker (usa la lógica unificada)
-    function sendStickerMessage(stickerUrl) {
-        sendMessage(stickerUrl);
-        hideStickerModal(); // Llama a la nueva función para ocultar el modal
-    }
-
     // ===== NUEVO BLOQUE DE CÓDIGO CORRECTO =====
     document.body.addEventListener('click', async (e) => {
         // Maneja el clic en CUALQUIER botón de sticker
@@ -12966,90 +12983,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
-    let allStickers = [];
-
-
-    async function ensureStickersLoaded() {
-      try {
-        const email = (window.currentUser && currentUser.email) ? currentUser.email : '';
-        const url = `${API_BASE_URL}/stickers${email ? `?email=${encodeURIComponent(email)}` : ''}`;
-
-        const res = await fetch(url, {
-          headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-
-        if (!res.ok) {
-          console.warn('⚠️ /stickers respondió con estado:', res.status, res.statusText);
-          allStickers = allStickers || [];
-          return;
-        }
-
-        const data = await res.json();
-        allStickers = Array.isArray(data && data.stickers) ? data.stickers : [];
-
-        console.log(`✅ Stickers recibidos del servidor: ${allStickers.length}.`);
-      } catch (e) {
-        console.warn('No se pudieron cargar los stickers:', e);
-        allStickers = allStickers || []; // mantener lo que haya
-      }
-    }
-
-
-
-    // Escucha de refresco cuando el admin actualiza
-    if (typeof socket !== 'undefined') {
-        socket.off?.('stickers_updated');
-        socket.on('stickers_updated', async () => {
-          try {
-            const url = `${API_BASE_URL}/stickers?email=${encodeURIComponent(currentUser.email)}`;
-            const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': 'true' } });
-            const data = await res.json();
-            allStickers = Array.isArray(data?.stickers) ? data.stickers : [];
-          } catch (e) {
-            console.warn('No se pudieron recargar los stickers tras stickers_updated:', e);
-          }
-          renderStickerPanel();
-        });
-    }
-
-    async function showStickerModal() {
-        // NUEVO: asegura data antes de mostrar
-        if (!Array.isArray(allStickers) || allStickers.length === 0) {
-            await ensureStickersLoaded();
-        }
-        renderStickerPanel();
-
-        const modal = document.getElementById('sticker-modal-container');
-        const content = document.getElementById('sticker-modal-content');
-        if (!modal || !content) return;
-
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-            modal.classList.add('visible');
-            content.style.transform = 'scale(1)';
-            content.style.opacity = '1';
-        }, 10);
-    }
-
-    async function loadStickersFromServer() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/stickers`, {
-          headers: { 'ngrok-skip-browser-warning': 'true' }
-        });
-        const data = await res.json();
-        allStickers = (data && data.stickers) ? data.stickers : [];
-        renderStickerPanel();
-      } catch (e) {
-        console.warn('No se pudieron cargar los stickers:', e);
-      }
-    }
-
-    // Llamada inicial al cargar la app
-    loadStickersFromServer();
-
-
-
     function openParticipantsModal() {
         const modal = document.getElementById('attendance-modal');
         const content = modal.querySelector('.transform');
@@ -13125,52 +13058,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
         // --- FIN DE LA CORRECCIÓN ---
     }
-
-
-    function renderStickerPanel() {
-        const container = document.getElementById('sticker-modal-grid');
-        if (!container) return;
-
-        container.innerHTML = '';
-
-        if (!allStickers || allStickers.length === 0) {
-            container.innerHTML = '<p class="p-8 text-center text-sm text-gray-500">No hay stickers disponibles. Súbelos desde el panel de Administración.</p>';
-            return;
-        }
-
-        const stickersByCategory = allStickers.reduce((acc, sticker) => {
-            const category = sticker.category || 'General';
-            if (!acc[category]) acc[category] = [];
-            acc[category].push(sticker);
-            return acc;
-        }, {});
-
-        for (const category in stickersByCategory) {
-            const categoryTitle = document.createElement('h5');
-            categoryTitle.className = 'sticker-category-title';
-            categoryTitle.textContent = category;
-            container.appendChild(categoryTitle);
-
-            stickersByCategory[category].forEach(sticker => {
-                const img = document.createElement('img');
-                img.src = sticker.url;
-                img.alt = sticker.name;
-                img.title = sticker.name;
-                img.className = 'sticker-item w-full h-auto object-contain';
-                img.addEventListener('click', () => sendStickerMessage(sticker.url));
-                container.appendChild(img);
-            });
-        }
-    }
-
-
-
-
-
-
-
-
-
 
 
 

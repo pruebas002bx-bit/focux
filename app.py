@@ -78,11 +78,6 @@ def init_db():
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS stickers (
-            id TEXT PRIMARY KEY, name TEXT, category TEXT, url TEXT NOT NULL
-        )
-        """,
-        """
         CREATE TABLE IF NOT EXISTS conversations (
             id TEXT PRIMARY KEY, participants_json TEXT, last_ts TEXT
         )
@@ -144,7 +139,6 @@ def init_db():
         if conn: conn.rollback()
     finally:
         if conn: conn.close()
-
 
 def check_editor_permission(conn, board_id, email):
     """Función auxiliar para verificar si un usuario es editor de un tablero."""
@@ -799,7 +793,6 @@ def get_board_chat_history(board_id):
         if conn: conn.close()
 
 
-
 @app.route('/boards', methods=['GET'])
 def get_boards():
     """
@@ -849,13 +842,7 @@ def get_boards():
             if 'board_data' in board:
                 del board['board_data']
 
-        try:
-            cursor.execute("SELECT id, name, category, url FROM stickers")
-            stickers = [dict(row) for row in cursor.fetchall()]
-        except psycopg2.errors.UndefinedTable:
-            stickers = []
-        
-        return jsonify(success=True, boards=user_boards, stickers=stickers)
+        return jsonify(success=True, boards=user_boards)
         
     except Exception as e:
         print(f"🚨 ERROR en GET /boards: {e}")
@@ -863,8 +850,6 @@ def get_boards():
         return jsonify(success=False, message="Error interno del servidor."), 500
     finally:
         if conn: conn.close()
-
-
         
 @app.route('/boards', methods=['POST'])
 def create_board():
@@ -1420,21 +1405,75 @@ def update_board(board_id):
         if conn: conn.close()
 
 
-# Rutas para stickers, chat, etc.
-@app.route('/stickers', methods=['GET'])
-def get_stickers_route():
+
+@socketio.on('global_chat_delete_conversation')
+def handle_delete_conversation(data):
+    """Elimina permanentemente una conversación y todos sus mensajes."""
+    conv_id = data.get('conv_id')
+    user_email = data.get('user_email')
+    if not all([conv_id, user_email]): return
+
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, name, category, url FROM stickers")
-        stickers = [dict(row) for row in cursor.fetchall()]
-        return jsonify(success=True, stickers=stickers)
+        
+        # Verificamos que el usuario sea participante para seguridad
+        cursor.execute(
+            "SELECT 1 FROM conversations WHERE id = %s AND participants_json::jsonb ? %s",
+            (conv_id, user_email)
+        )
+        if cursor.fetchone():
+            # ON DELETE CASCADE se encargará de los mensajes en direct_messages
+            cursor.execute("DELETE FROM conversations WHERE id = %s", (conv_id,))
+            conn.commit()
+            print(f"SOCKET: Usuario {user_email} eliminó la conversación {conv_id}")
+            
+            # Notifica al cliente que la eliminación fue exitosa para que refresque su lista
+            emit('conversation_deleted', {'conv_id': conv_id})
+            
     except Exception as e:
-        print(f"Error al cargar stickers: {e}")
-        return jsonify(success=False, stickers=[])
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en 'global_chat_delete_conversation': {e}")
     finally:
         if conn: conn.close()
+
+
+@socketio.on('global_chat_clear_conversation')
+def handle_clear_conversation(data):
+    """Elimina todos los mensajes de una conversación, pero la mantiene en la lista."""
+    conv_id = data.get('conv_id')
+    user_email = data.get('user_email')
+    if not all([conv_id, user_email]): return
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verificamos que el usuario sea participante
+        cursor.execute(
+            "SELECT 1 FROM conversations WHERE id = %s AND participants_json::jsonb ? %s",
+            (conv_id, user_email)
+        )
+        if cursor.fetchone():
+            cursor.execute("DELETE FROM direct_messages WHERE conv_id = %s", (conv_id,))
+            
+            # Actualizamos el timestamp para que no aparezca con mensaje antiguo
+            cursor.execute("UPDATE conversations SET last_ts = %s WHERE id = %s", (datetime.now(timezone.utc).isoformat(), conv_id))
+            
+            conn.commit()
+            print(f"SOCKET: Usuario {user_email} vació la conversación {conv_id}")
+
+            # Notifica al cliente para que actualice la vista
+            emit('conversation_cleared', {'conv_id': conv_id})
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"🚨 ERROR en 'global_chat_clear_conversation': {e}")
+    finally:
+        if conn: conn.close()
+
 
 @app.route('/direct-chats/partners', methods=['GET'])
 def get_chat_partners():
