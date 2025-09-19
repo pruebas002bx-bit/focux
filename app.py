@@ -1385,20 +1385,19 @@ def ask_chat():
         if conn: conn.close()
 
 
-
 @app.route('/admin/ai/generate-board', methods=['POST'])
-def generate_board_with_ai():
+def generate_ai_board():
     if not genai:
-        return jsonify(success=False, message="Servicio de IA no disponible."), 503
-    
-    data = request.get_json()
-    prompt_text = data.get('prompt', '')
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
+        return jsonify(success=False, message="La API de IA no está configurada en el servidor."), 503
 
-    if not prompt_text:
-        return jsonify(success=False, message="El prompt no puede estar vacío."), 400
-        
+    data = request.get_json()
+    user_prompt = data.get('prompt')
+    start_date_str = data.get('start_date')
+    end_date_str = data.get('end_date')
+
+    if not user_prompt:
+        return jsonify(success=False, message="La descripción del tablero es requerida."), 400
+
     try:
         model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
         model = genai.GenerativeModel(model_name)
@@ -1588,7 +1587,6 @@ Objetivos: Párrafo detallado sobre el resultado esperado.
         return jsonify(success=False, message=f"Error durante la generación: {str(e)[:200]}"), 500
 
 
-
 @app.route('/admin/ai/assign-board', methods=['POST'])
 def assign_ai_board():
     data = request.get_json()
@@ -1675,6 +1673,8 @@ def assign_ai_board():
         return jsonify(success=False, message=str(e)), 500
     finally:
         conn.close()
+
+
 
 
 
