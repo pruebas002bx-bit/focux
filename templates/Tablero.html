@@ -6353,8 +6353,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-
-
     async function loadUserBoards() {
         try {
             setAutoSaveStatus('saving');
@@ -6370,15 +6368,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (data.success) {
                 boardsData = data.boards || [];
-                allStickers = data.stickers || [];
-                renderStickerPanel();
+                // La línea que llamaba a renderStickerPanel() ha sido eliminada de aquí.
 
                 if (boardsData.length > 0) {
-                    // --- INICIO DE LA CORRECCIÓN CLAVE ---
-                    // En lugar de llamar a loadBoardData, usamos la nueva función
-                    // con los datos que ya tenemos del primer tablero.
                     processAndRenderBoard(boardsData[0]);
-                    // --- FIN DE LA CORRECCIÓN CLAVE ---
                 } else {
                     hideMainLoader();
                     showCreateBoardModal();
