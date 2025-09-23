@@ -1029,6 +1029,7 @@
                     <input type="password" id="register-confirmPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                 </div>
 
+                <!-- Campos ocultos sin el atributo 'required' para evitar errores -->
                 <div hidden>
                     <label for="register-manager-id" class="block text-sm font-medium text-gray-700">Base de Datos</label>
                     <select id="register-manager-id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange"></select>
@@ -1037,12 +1038,23 @@
                     <label for="register-db-password" class="block text-sm font-medium text-gray-700">Contraseña de la Base de Datos</label>
                     <input type="password" id="register-db-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                 </div>
-                <p id="register-status" class="text-sm text-center font-medium h-4"></p>
-                <button type="submit" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
+
+                <!-- Contenedor para mensajes de estado y barra de progreso -->
+                <div id="register-feedback-container" class="h-12">
+                    <p id="register-status" class="text-sm text-center font-medium h-4"></p>
+                    <div id="register-progress-container" class="hidden w-full space-y-2 pt-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="register-progress-bar" class="bg-accent-orange h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <p id="register-progress-text" class="text-sm text-center font-medium text-gray-600 h-4"></p>
+                    </div>
+                </div>
+
+                <!-- Botón de envío con ID para controlarlo desde JavaScript -->
+                <button type="submit" id="register-submit-btn" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
                     Crear Cuenta Gratis
                 </button>
             </form>
-
 
             <button id="register-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
@@ -1093,14 +1105,29 @@
         const loginModal = document.getElementById('login-modal');
         const registerModal = document.getElementById('register-modal');
 
+
         function showModal(modal) {
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.querySelector('.modal-overlay').classList.remove('opacity-0');
                 modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
             }, 10);
+
+            // --- LÓGICA AÑADIDA ---
+            // Si estamos abriendo el modal de login, revisamos si hay un email guardado
+            if (modal.id === 'login-modal') {
+                const registeredEmail = localStorage.getItem('registeredEmail');
+                if (registeredEmail) {
+                    document.getElementById('login-email').value = registeredEmail;
+                    document.getElementById('login-password').focus(); // Pone el cursor en la contraseña
+                    localStorage.removeItem('registeredEmail'); // Limpiamos para no usarlo de nuevo
+                }
+            }
+            // --- FIN LÓGICA AÑADIDA ---
+
             fetchDatabasesForSelects();
         }
+
 
         function hideModal(modal) {
             modal.querySelector('.modal-overlay').classList.add('opacity-0');
@@ -1232,9 +1259,36 @@
 
         document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Elementos de la UI
             const statusEl = document.getElementById('register-status');
-            statusEl.textContent = 'Registrando...';
-            statusEl.className = 'text-sm text-center font-medium h-4 text-yellow-600';
+            const progressContainer = document.getElementById('register-progress-container');
+            const progressBar = document.getElementById('register-progress-bar');
+            const progressText = document.getElementById('register-progress-text');
+            const submitBtn = document.getElementById('register-submit-btn');
+
+            // Ocultar elementos y mostrar progreso
+            statusEl.textContent = '';
+            submitBtn.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+
+            // --- Lógica de la animación ---
+            const messages = [
+                "Organizando tu oficina virtual...",
+                "Asignándote algunos agentes IA...",
+                "Limpiando para que lo veas bonito...",
+                "Casi listo, ¡a la velocidad de la luz!"
+            ];
+            let messageIndex = 0;
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                progress = Math.min(progress + 25, 100);
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = messages[messageIndex % messages.length];
+                messageIndex++;
+            }, 800); // Cambia el mensaje cada 0.8 segundos
+            // --- Fin de la animación ---
 
             const payload = {
                 firstName: document.getElementById('register-firstName').value,
@@ -1242,8 +1296,8 @@
                 email: document.getElementById('register-email').value,
                 password: document.getElementById('register-password').value,
                 confirmPassword: document.getElementById('register-confirmPassword').value,
-                manager_id: "Principal", // Valor por defecto
-                db_password: "123456",    // Valor por defecto
+                manager_id: "Principal",
+                db_password: "123456",
             };
 
             try {
@@ -1253,23 +1307,32 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
+                
+                clearInterval(interval); // Detener la animación
+                
                 if (data.success) {
-                    statusEl.textContent = '¡Registro exitoso! Ya puedes iniciar sesión.';
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '¡Bienvenido a Focux!';
                     statusEl.className = 'text-sm text-center font-medium h-4 text-green-600';
+                    
                     setTimeout(() => {
                         hideModal(registerModal);
+                        // Guardamos el email para auto-rellenarlo en el login
+                        localStorage.setItem('registeredEmail', payload.email); 
                         showModal(loginModal);
-                    }, 2000);
+                    }, 1500);
                 } else {
-                    statusEl.textContent = `Error: ${data.message}`;
-                    statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+                    throw new Error(data.message); // Lanza el error para ser atrapado abajo
                 }
             } catch (error) {
-                statusEl.textContent = 'Error de conexión.';
+                clearInterval(interval); // Detener la animación también en caso de error
+                statusEl.textContent = `Error: ${error.message}`;
                 statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+                // Volver a mostrar el botón y ocultar el progreso
+                progressContainer.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
             }
         });
-
 
     </script>
 </body>
