@@ -125,8 +125,10 @@
                         
                         <div id="login-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1">
                             <a href="#" id="login-user-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Usuario</a>
-                            <a href="/admin/index.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Admin</a>
+                            <a href="/admin/index.html" id="login-admin-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Admin</a>
                         </div>
+
+
                     </div>
                     <button id="register-btn" class="cta-button bg-accent-orange text-white font-bold py-2 px-6 rounded-lg shadow-md">
                         Registrarse
@@ -1193,16 +1195,19 @@
         const adminPasswordModal = document.getElementById('admin-password-modal');
         const loginAdminBtn = document.getElementById('login-admin-btn');
 
-        // Muestra el modal de admin al hacer clic en el enlace
-        loginAdminBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // Evita que el navegador vaya al enlace
-            loginDropdownMenu.classList.add('hidden'); // Oculta el menú desplegable
-            showModal(adminPasswordModal);
-        });
+        // Se agrega una verificación para evitar el error si el botón no existe
+        if (loginAdminBtn) {
+            // Muestra el modal de admin al hacer clic en el enlace
+            loginAdminBtn.addEventListener('click', (e) => {
+                e.preventDefault(); // Evita que el navegador vaya al enlace
+                loginDropdownMenu.classList.add('hidden'); // Oculta el menú desplegable
+                showModal(adminPasswordModal);
+            });
+        }
 
         // Lógica para cerrar el modal de admin
         document.getElementById('admin-password-close-btn').addEventListener('click', () => hideModal(adminPasswordModal));
-        adminPasswordModal.querySelector('.modal-overlay').addEventListener('click', () => hideModal(adminPasswordModal));
+        adminPasswordModal.querySelector('.modal-overlay').addEventListener('click', () => hideModal(adminPasswordTodal));
 
         // Lógica para verificar la contraseña del admin
         document.getElementById('admin-password-form').addEventListener('submit', (e) => {
