@@ -6191,53 +6191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showFocuxMessage() {
-        if (focuxMessages.length === 0) {
-            mrFocusTip.className = 'hidden';
-            return;
-        }
-        
-        const msg = focuxMessages[currentMessageIndex];
-        
-        // Validar que el mensaje tenga contenido
-        if (!msg || !msg.content) {
-            currentMessageIndex = (currentMessageIndex + 1) % focuxMessages.length;
-            setTimeout(() => showFocuxMessage(), 1000);
-            return;
-        }
-        
-        // Mapeo de colores
-        const colorClasses = {
-            blue: 'bg-blue-100 border-blue-300 text-blue-800',
-            orange: 'bg-orange-100 border-orange-300 text-orange-800',
-            green: 'bg-green-100 border-green-300 text-green-800',
-            gray: 'bg-gray-100 border-gray-300 text-gray-800',
-        };
-        const colorClass = colorClasses[msg.color] || colorClasses['blue'];
-        
-        // Formatear el contenido con soporte para markdown básico
-        const formattedContent = formatMessageContent(msg.content);
-        
-        let html = `<div class="p-4 rounded-lg ${colorClass} border shadow-lg max-w-80">`;
-        
-        // Imagen responsive
-        if (msg.image_url) {
-            html += `<img src="${msg.image_url}" class="w-full max-h-40 object-cover rounded-md mb-3" onerror="this.style.display='none'" loading="lazy">`;
-        }
-        
-        html += `<div class="prose prose-sm focux-message-content">${formattedContent}</div>`;
-        
-        if (msg.button_text && msg.button_url) {
-            html += `<a href="${msg.button_url}" target="_blank" class="inline-block mt-3 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors">
-                            ${msg.button_text}
-                         </a>`;
-        }
-        
-        html += `</div>`;
-        
-        mrFocusTip.innerHTML = html;
-        mrFocusTip.className = 'show';
-    }
+
 
     // AGREGAR nueva función para formatear contenido
     function formatMessageContent(content) {
@@ -6869,42 +6823,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function startMessageRotation() {
-        clearInterval(messageInterval);
-        clearTimeout(messageTimeout);
-        isMessageVisible = false;
-        mrFocusTip.className = 'hidden';
-        mrFocusContainer.style.display = 'none';
 
-        if (focuxMessages.length === 0) return;
-
-        const intervalMinutes = boardOptions.mrFocuxInterval || 0;
-
-        if (intervalMinutes === 0) {
-            console.log('🤖 Mr. Focux está desactivado.');
-            return;
-        }
-        
-        mrFocusContainer.style.display = 'flex';
-        const intervalMilliseconds = intervalMinutes * 60 * 1000;
-        const messageDisplayDuration = 20000; // 20 segundos
-
-        const showAndRotate = () => {
-            showFocuxMessage(); // Muestra el mensaje actual
-            isMessageVisible = true;
-            
-            setTimeout(() => {
-                if (mrFocusTip) mrFocusTip.className = 'hidden';
-                isMessageVisible = false;
-            }, messageDisplayDuration);
-
-            currentMessageIndex = (currentMessageIndex + 1) % focuxMessages.length;
-        };
-
-        showAndRotate();
-        messageInterval = setInterval(showAndRotate, intervalMilliseconds);
-        console.log(`🤖 Mr. Focux configurado para aparecer cada ${intervalMinutes} minuto(s).`);
-    }
 
     async function handlePermissionChange(collaboratorEmail, newPermission) {
         shareModalStatus.textContent = 'Actualizando permiso...';
@@ -15387,34 +15306,116 @@ function showMoveSuccessModal() {
     let isMessageVisible = false;
     let messageTimeout;
 
+
+    function showFocuxMessage() {
+        if (focuxMessages.length === 0) {
+            mrFocusTip.className = 'hidden';
+            return;
+        }
+        
+        // MODIFICACIÓN: Se elige un mensaje al azar del array en lugar de seguir una secuencia.
+        const randomIndex = Math.floor(Math.random() * focuxMessages.length);
+        const msg = focuxMessages[randomIndex];
+        
+        // Validar que el mensaje aleatorio seleccionado tenga contenido
+        if (!msg || !msg.content) {
+            console.warn("Mensaje de Focux aleatorio seleccionado estaba vacío. Se omitirá en este ciclo.");
+            return;
+        }
+        
+        // Mapeo de colores
+        const colorClasses = {
+            blue: 'bg-blue-100 border-blue-300 text-blue-800',
+            orange: 'bg-orange-100 border-orange-300 text-orange-800',
+            green: 'bg-green-100 border-green-300 text-green-800',
+            gray: 'bg-gray-100 border-gray-300 text-gray-800',
+        };
+        const colorClass = colorClasses[msg.color] || colorClasses['blue'];
+        
+        const formattedContent = formatMessageContent(msg.content);
+        
+        let html = `<div class="p-4 rounded-lg ${colorClass} border shadow-lg max-w-80">`;
+        
+        if (msg.image_url) {
+            html += `<img src="${msg.image_url}" class="w-full max-h-40 object-cover rounded-md mb-3" onerror="this.style.display='none'" loading="lazy">`;
+        }
+        
+        html += `<div class="prose prose-sm focux-message-content">${formattedContent}</div>`;
+        
+        if (msg.button_text && msg.button_url) {
+            html += `<a href="${msg.button_url}" target="_blank" class="inline-block mt-3 px-4 py-2 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors">
+                            ${msg.button_text}
+                         </a>`;
+        }
+        
+        html += `</div>`;
+        
+        mrFocusTip.innerHTML = html;
+        mrFocusTip.className = 'show';
+    }
+
+    function startMessageRotation() {
+        clearInterval(messageInterval);
+        clearTimeout(messageTimeout);
+        isMessageVisible = false;
+        mrFocusTip.className = 'hidden';
+        mrFocusContainer.style.display = 'none';
+
+        if (focuxMessages.length === 0) return;
+
+        const intervalMinutes = boardOptions.mrFocuxInterval || 0;
+
+        if (intervalMinutes === 0) {
+            console.log('🤖 Mr. Focux está desactivado.');
+            return;
+        }
+        
+        mrFocusContainer.style.display = 'flex';
+        const intervalMilliseconds = intervalMinutes * 60 * 1000;
+        const messageDisplayDuration = 20000; // 20 segundos
+
+        const showAndRotate = () => {
+            showFocuxMessage(); // Muestra un mensaje aleatorio
+            isMessageVisible = true;
+            
+            setTimeout(() => {
+                if (mrFocusTip) mrFocusTip.className = 'hidden';
+                isMessageVisible = false;
+            }, messageDisplayDuration);
+
+            // MODIFICACIÓN: Se elimina la línea que incrementaba el índice secuencial.
+        };
+
+        showAndRotate();
+        messageInterval = setInterval(showAndRotate, intervalMilliseconds);
+        console.log(`🤖 Mr. Focux configurado para aparecer cada ${intervalMinutes} minuto(s).`);
+    }
+
     mrFocusAvatar.addEventListener('click', () => {
         clearTimeout(messageTimeout);
         clearInterval(messageInterval);
         
         if (isMessageVisible) {
-            // Ocultar mensaje actual
             mrFocusTip.className = 'hidden';
             isMessageVisible = false;
-            
-            // Reiniciar rotación después de 3 segundos
             messageTimeout = setTimeout(() => {
                 startMessageRotation();
             }, 3000);
         } else {
-            // Mostrar mensaje actual sin avanzar
+            // MODIFICACIÓN: Al hacer clic, siempre se muestra un mensaje aleatorio nuevo.
             showFocuxMessage();
             isMessageVisible = true;
             
-            // Auto-ocultar después de 15 segundos y avanzar
             messageTimeout = setTimeout(() => {
                 mrFocusTip.className = 'hidden';
                 isMessageVisible = false;
-                currentMessageIndex = (currentMessageIndex + 1) % focuxMessages.length;
+                // MODIFICACIÓN: Se elimina el incremento del índice para mantener la aleatoriedad.
                 startMessageRotation();
             }, 15000);
         }
     });
-        
+
+
     // Programming change notice
     const todayCheckbox = document.getElementById('attracts-today-checkbox');
     const overdueCheckbox = document.getElementById('attracts-overdue-checkbox');
