@@ -969,6 +969,7 @@
                 <h2 class="text-2xl font-bold">Bienvenido de vuelta</h2>
                 <p class="text-gray-600">Ingresa a tu centro de comando</p>
             </div>
+
             <form id="login-form" class="space-y-4">
                 <div>
                     <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
@@ -978,7 +979,8 @@
                     <label for="login-password" class="block text-sm font-medium text-gray-700">Contraseña</label>
                     <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                 </div>
-                <div>
+
+                <div hidden>
                     <label for="login-manager-id" class="block text-sm font-medium text-gray-700">Base de Datos</label>
                     <select id="login-manager-id" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange"></select>
                 </div>
@@ -987,6 +989,8 @@
                     Ingresar
                 </button>
             </form>
+
+
             <button id="login-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
     </div>
@@ -999,6 +1003,7 @@
                 <h2 class="text-2xl font-bold">Únete a Focux</h2>
                 <p class="text-gray-600">Comienza tu prueba gratuita</p>
             </div>
+
             <form id="register-form" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -1010,6 +1015,12 @@
                         <input type="text" id="register-lastName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                     </div>
                 </div>
+
+                <div id="login-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1">
+                    <a href="#" id="login-user-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Usuario</a>
+                    <a href="/admin/index.html" id="login-admin-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Admin</a>
+                </div>
+
                 <div>
                     <label for="register-email" class="block text-sm font-medium text-gray-700">Email</label>
                     <input type="email" id="register-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
@@ -1022,20 +1033,45 @@
                     <label for="register-confirmPassword" class="block text-sm font-medium text-gray-700">Confirmar Contraseña</label>
                     <input type="password" id="register-confirmPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                 </div>
-                <div>
+                
+                <div hidden>
                     <label for="register-manager-id" class="block text-sm font-medium text-gray-700">Base de Datos</label>
                     <select id="register-manager-id" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange"></select>
                 </div>
-                <div>
+                <div hidden>
                     <label for="register-db-password" class="block text-sm font-medium text-gray-700">Contraseña de la Base de Datos</label>
                     <input type="password" id="register-db-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
                 </div>
-                <p id="register-status" class="text-sm text-center font-medium h-4"></p>
+                 <p id="register-status" class="text-sm text-center font-medium h-4"></p>
                 <button type="submit" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
                     Crear Cuenta Gratis
                 </button>
             </form>
+
+
             <button id="register-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <div id="admin-password-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="modal-content bg-white rounded-2xl p-8 z-10 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo" class="h-12 w-auto mx-auto mb-4">
+                <h2 class="text-2xl font-bold">Acceso de Administrador</h2>
+                <p class="text-gray-600">Ingresa la contraseña para continuar</p>
+            </div>
+            <form id="admin-password-form" class="space-y-4">
+                <div>
+                    <label for="admin-password" class="block text-sm font-medium text-gray-700">Contraseña de Administrador</label>
+                    <input type="password" id="admin-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+                <p id="admin-password-status" class="text-sm text-center font-medium h-4"></p>
+                <button type="submit" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
+                    Verificar
+                </button>
+            </form>
+            <button id="admin-password-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
     </div>
 
@@ -1132,6 +1168,39 @@
         });
 
 
+        const adminPasswordModal = document.getElementById('admin-password-modal');
+        const loginAdminBtn = document.getElementById('login-admin-btn');
+
+        // Muestra el modal de admin al hacer clic en el enlace
+        loginAdminBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Evita que el navegador vaya al enlace
+            loginDropdownMenu.classList.add('hidden'); // Oculta el menú desplegable
+            showModal(adminPasswordModal);
+        });
+
+        // Lógica para cerrar el modal de admin
+        document.getElementById('admin-password-close-btn').addEventListener('click', () => hideModal(adminPasswordModal));
+        adminPasswordModal.querySelector('.modal-overlay').addEventListener('click', () => hideModal(adminPasswordModal));
+
+        // Lógica para verificar la contraseña del admin
+        document.getElementById('admin-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('admin-password-status');
+            const passwordInput = document.getElementById('admin-password').value;
+            const correctPassword = '1032491753Focux*+';
+
+            if (passwordInput === correctPassword) {
+                statusEl.textContent = '¡Contraseña correcta! Redirigiendo...';
+                statusEl.className = 'text-sm text-center font-medium h-4 text-green-600';
+                // Redirige a la página de admin si la contraseña es correcta
+                window.location.href = loginAdminBtn.href;
+            } else {
+                statusEl.textContent = 'Contraseña incorrecta. Inténtalo de nuevo.';
+                statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+            }
+        });
+
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const statusEl = document.getElementById('login-status');
@@ -1141,7 +1210,7 @@
             const payload = {
                 email: document.getElementById('login-email').value,
                 password: document.getElementById('login-password').value,
-                manager_id: document.getElementById('login-manager-id').value,
+                manager_id: "Principal", // Valor por defecto
             };
 
             try {
@@ -1178,8 +1247,8 @@
                 email: document.getElementById('register-email').value,
                 password: document.getElementById('register-password').value,
                 confirmPassword: document.getElementById('register-confirmPassword').value,
-                manager_id: document.getElementById('register-manager-id').value,
-                db_password: document.getElementById('register-db-password').value,
+                manager_id: "Principal", // Valor por defecto
+                db_password: "123456",    // Valor por defecto
             };
 
             try {
@@ -1205,6 +1274,8 @@
                 statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
             }
         });
+
+
     </script>
 </body>
 </html>
