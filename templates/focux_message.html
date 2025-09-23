@@ -951,29 +951,46 @@
       }
     }
 
+
     async function deleteMessage(messageId) {
-      if (!confirm('¿Estás seguro de que quieres eliminar este mensaje?')) {
+      // Se añade una confirmación más explícita al usuario
+      if (!confirm('¿Estás seguro de que quieres eliminar este mensaje? Esta acción es PERMANENTE e INMEDIATA.')) {
         return;
       }
 
       setLoading(true);
       try {
-        await apiCall(`/admin/focux_messages/${messageId}`, { method: 'DELETE' });
-        
-        appState.messages = appState.messages.filter(msg => msg.id !== messageId);
-        appState.selectedMessage = null;
-        
-        renderMessagesList();
-        showEmptyEditor();
-        markAsChanged();
-        
-        showToast('Mensaje eliminado exitosamente');
+        // Llama a la nueva ruta en el servidor que acabamos de crear
+        const result = await apiCall(`/admin/focux_messages/${messageId}`, { method: 'DELETE' });
+
+        if (result.success) {
+          // Si la API confirma la eliminación, actualizamos el estado local para que desaparezca de la lista
+          appState.messages = appState.messages.filter(msg => msg.id !== messageId);
+          
+          // Si el mensaje eliminado era el que estaba seleccionado, limpiamos el editor
+          if (appState.selectedMessage?.id === messageId) {
+            appState.selectedMessage = null;
+            showEmptyEditor();
+          }
+          
+          renderMessagesList(); // Volvemos a dibujar la lista de mensajes
+          showToast('Mensaje eliminado permanentemente del servidor.');
+          
+          // NOTA: No marcamos "hasChanges" porque esta acción se guarda de inmediato.
+          // Si tenías otros cambios sin guardar, permanecerán así.
+          
+        } else {
+          // Si el servidor devuelve un error, se lo mostramos al usuario
+          throw new Error(result.message || 'El servidor no pudo eliminar el mensaje.');
+        }
+
       } catch (error) {
         showToast('Error al eliminar: ' + error.message, 'error');
       } finally {
         setLoading(false);
       }
     }
+
 
     // ===== RENDERIZADO =====
     function renderMessagesList() {

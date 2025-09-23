@@ -1339,6 +1339,25 @@ def save_focux_messages_admin():
         conn.close()
 
 
+@app.route('/admin/focux_messages/<message_id>', methods=['DELETE'])
+def delete_focux_message_admin(message_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Ejecuta el comando para borrar el mensaje con el ID específico
+            cur.execute("DELETE FROM focux_messages WHERE id = %s", (message_id,))
+            conn.commit()
+            # cur.rowcount nos dice si se eliminó alguna fila. Si es 0, el mensaje no se encontró.
+            if cur.rowcount == 0:
+                return jsonify(success=False, message="Mensaje no encontrado."), 404
+        return jsonify(success=True, message="Mensaje eliminado.")
+    except Exception as e:
+        conn.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify(success=False, message=str(e)), 500
+    finally:
+        if conn: conn.close()
 
 # --- Rutas para Generación con IA ---
 
