@@ -675,6 +675,73 @@
 
 
 
+        /* INICIO: AÑADE ESTOS ESTILOS PARA LA VISTA DE TABLA */
+        #table-wrapper {
+            overflow: auto; /* Permite scroll si la tabla es muy ancha o alta */
+        }
+        #table-wrapper::-webkit-scrollbar { height: 8px; width: 8px; }
+        #table-wrapper::-webkit-scrollbar-thumb { background-color: #f97316; border-radius: 4px; }
+        #table-wrapper::-webkit-scrollbar-track { background-color: #f3f4f6; }
+
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .modern-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f9fafb; /* gray-50 */
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.75rem; /* 12px */
+            font-weight: 600;
+            color: #4b5563; /* gray-600 */
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid #e5e7eb; /* gray-200 */
+            z-index: 10;
+        }
+
+        .modern-table tbody tr {
+            border-bottom: 1px solid #f3f4f6; /* gray-100 */
+            transition: background-color 0.2s ease;
+        }
+
+        .modern-table tbody tr:hover {
+            background-color: #fffbeb; /* yellow-50 */
+            cursor: pointer;
+        }
+
+        .modern-table td {
+            padding: 12px 16px;
+            font-size: 0.875rem; /* 14px */
+            color: #374151; /* gray-700 */
+            vertical-align: middle;
+        }
+
+        .modern-table .table-task-title {
+            font-weight: 600;
+            color: #1f2937; /* gray-800 */
+        }
+
+        .modern-table .table-due-date.is-overdue {
+            color: #dc2626; /* red-600 */
+            font-weight: 600;
+        }
+
+        .modern-table .table-tags-cell .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 9999px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        /* FIN: ESTILOS VISTA DE TABLA */
+
+
 
         #sticker-modal-container {
             position: fixed;
@@ -3162,11 +3229,21 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
+
+
                             <div class="board-dropdown-menu hidden" id="view-dropdown-menu">
                                 <button id="board-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg active">
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 14a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                                         Tablero
+                                    </div>
+                                </button>
+                                <button id="table-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <div class="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v2H5V5zm0 4h10v2H5V9zm0 4h10v2H5v-2z" clip-rule="evenodd" />
+                                        </svg>
+                                        Tabla
                                     </div>
                                 </button>
                                 <button id="calendar-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -3181,14 +3258,12 @@
                                         Notas
                                     </div>
                                 </button>
-
-                                <button id="eisenhower-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg">
+                                <button id="eisenhower-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2m0 10V7m0 10h2m-2 0h-2"></path></svg>
                                         Eisenhower
                                     </div>
                                 </button>
-
                                 <button id="gantt-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -3197,16 +3272,16 @@
                                         Diagrama de Gantt
                                     </div>
                                 </button>
+                                <button id="documents-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 6a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                        Documentos
+                                    </div>
+                                </button>
+                            </div>
 
-
-                                <button id="documents-view-btn" class="view-dropdown-item w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                                                    <div class="flex items-center gap-2">
-                                                                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2h-5L9 4H4zm2 6a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                                                        </svg>
-                                                                        Documentos
-                                                                    </div>
-                                                                </button>
 
                             </div>
                         </div>
@@ -3966,14 +4041,6 @@
         </div>
     </div>
 
-
-
-
-
-
-
-
-
     <main class="flex-grow min-h-0 relative">
         <div id="kanban-board-container" class="active">
             <div id="board-overlay" class="absolute inset-0 bg-black" style="opacity: 0;"></div>
@@ -3994,6 +4061,15 @@
                 </div>
             </header>
             <div id="calendar-grid"></div>
+        </div>
+
+        <div id="table-view-container" class="hidden absolute inset-0 flex flex-col p-4 sm:p-6 bg-gray-50">
+            <div class="flex-shrink-0 text-center mb-6">
+                <h2 class="text-2xl font-bold text-orange-600">Vista de Tabla</h2>
+                <p class="text-gray-600 text-sm">Todas las tareas del tablero en un formato de tabla interactiva.</p>
+            </div>
+            <div id="table-wrapper" class="flex-grow w-full bg-white rounded-lg shadow-md border overflow-hidden">
+                </div>
         </div>
 
         <div id="notes-container" class="hidden absolute inset-0 p-6 overflow-y-auto">
@@ -4082,10 +4158,7 @@
             </div>
         </div>
 
-
-
         <div id="gantt-container" class="hidden absolute inset-0 flex flex-col p-4 sm:p-6 bg-gray-50 overflow-auto">
-            
             <div class="flex-shrink-0 text-center mb-6">
                 <h2 class="text-2xl font-bold text-orange-600 mb-2">Diagrama de Gantt</h2>
                 <p class="text-gray-600 text-sm max-w-3xl mx-auto">Visualiza la línea de tiempo de tus tareas y subtareas. Solo las tarjetas con fecha de inicio aparecerán aquí.</p>
@@ -4100,237 +4173,38 @@
                 </div>
         </div>
 
-
-
-        <div id="collaborative-chat-container" class="hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-30">
-            <div id="chat-box" class="bg-white/95 backdrop-blur-md rounded-t-lg shadow-2xl border border-gray-200 flex flex-col transition-all duration-300 h-12">
-
-                <div id="chat-header" class="flex items-center justify-between p-3 cursor-pointer border-b border-gray-200 flex-shrink-0">
-                    <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
-                        <span>Chat</span>
-                        <span id="chat-total-unread-badge" class="hidden h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">0</span>
-                    </h3>
-                    <svg id="chat-toggle-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
+        <div id="documents-container" class="hidden pt-24 min-h-screen">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6" style="align-items: start;">
+                <div id="documents-column">
+                    <div class="flex justify-between items-center mb-6 w-full">
+                        <h2 class="text-2xl font-bold text-orange-600">Documentos</h2>
+                        <button id="add-document-btn" class="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-orange-700 transition-colors flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clip-rule="evenodd" /></svg>
+                            Agregar Documento
+                        </button>
+                    </div>
+                    <div id="documents-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
+                        <div class="col-span-full text-center py-8 text-gray-500">
+                            No hay documentos en este tablero. ¡Agrega uno!
+                        </div>
+                    </div>
                 </div>
-
-
-                <div class="flex-grow min-h-0 flex flex-col">
-                    <div id="chat-mode-selector" class="flex-shrink-0 p-2 border-b border-gray-200 bg-gray-50 flex gap-2">
-                        <button id="chat-mode-board" class="chat-mode-btn">Chat Grupal</button>
-                        <button id="chat-mode-general" class="chat-mode-btn">Chats Personales</button>
-                        <button id="chat-mode-ai" class="chat-mode-btn">Asistentes</button>
+                <div id="references-column" class="lg:border-l lg:pl-8 border-gray-200">
+                    <div class="flex justify-between items-center mb-6 w-full">
+                        <h2 class="text-2xl font-bold text-blue-600">Referencias</h2>
+                        <button id="add-reference-btn" class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd" /></svg>
+                            Agregar Referencia
+                        </button>
                     </div>
-
-                    <div id="board-chat-view" class="chat-view">
-                        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2"></div>
-                        <div class="flex-shrink-0 p-2 border-t flex items-center justify-between">
-                            <div id="chat-typing-indicator" class="text-xs text-gray-500 italic h-4"></div>
-                            <button id="open-active-users" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-semibold hover:bg-orange-200 transition-colors">
-                                Ver Participantes
-                            </button>
-                        </div>
-                        <div class="flex-shrink-0 p-3 border-t">
-                            <form id="board-chat-form" class="flex items-center gap-2">
-                                <input type="text" id="board-chat-input" placeholder="Escribe en el chat del tablero..." class="chat-input-field" autocomplete="off">
-                                <button type="submit" class="chat-send-btn">
-                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                                </button>
-                            </form>
+                    <div id="references-grid" class="space-y-4 w-full">
+                        <div class="text-center py-8 text-gray-500">
+                            No hay referencias guardadas.
                         </div>
                     </div>
-
-                    <div id="general-chat-view" class="chat-view">
-                      <div id="user-directory-container" class="flex flex-col h-full w-full">
-                          </div>
-                      <div id="conversation-view-container" class="hidden flex-col h-full w-full">
-                          </div>
-                    </div>
-                    
-                    <div id="ai-chat-view" class="chat-view">
-                        </div>
-                </div>
-
-
                 </div>
             </div>
         </div>
-
-
-
-
-        <div id="ai-chat-modal" class="hidden fixed inset-0 z-[51]">
-            <div id="ai-chat-overlay" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 opacity-0"></div>
-            <div id="ai-chat-content" class="bg-white h-full w-96 max-w-full absolute top-0 right-0 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-full">
-                
-                <div class="flex-shrink-0 flex flex-col p-4 border-b border-gray-200">
-                    <div class="flex items-center justify-center p-2 bg-orange-500 rounded-md">
-                        <h3 id="ai-chat-title" class="text-lg font-semibold text-white text-center"></h3>
-                    </div>
-                    <div class="p-4 bg-gray-50 flex items-center justify-center gap-4 flex-shrink-0">
-                        <button id="ai-chat-prev-btn" class="flex-shrink-0 p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                            </svg>
-                        </button>
-                        <img id="ai-chat-avatar" src="" alt="Avatar" class="w-40 h-40 rounded-lg border-2 border-white shadow-md flex-shrink-0">
-                        <button id="ai-chat-next-btn" class="flex-shrink-0 p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </div>
-                    <p class="text-xs text-center text-gray-600 mt-2">Asistente de IA</p>
-                </div>
-
-                <div id="ai-chat-messages" class="flex-grow p-4 overflow-y-auto space-y-4">
-                </div>
-                
-                <div class="flex-shrink-0 p-4 border-t border-gray-200">
-                    <form id="ai-chat-form" class="flex items-center gap-2">
-                        <input type="text" id="ai-chat-input" placeholder="Pregúntale algo al asistente..." class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-orange-600 focus:border-red-500" autocomplete="off">
-                        <button type="submit" class="p-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 flex-shrink-0">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                            </svg>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div id="note-editor-modal" class="hidden fixed inset-0 z-50">
-            <div id="note-editor-overlay" class="modal-overlay fixed inset-0 bg-black bg-opacity-60 opacity-0"></div>
-            <div id="note-editor-content" class="bg-white h-full w-[600px] max-w-full absolute top-0 right-0 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-full">
-                <form id="note-editor-form" class="flex flex-col h-full">
-                    <div class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200">
-                        <h3 id="note-modal-title" class="text-lg font-semibold text-gray-900">Editar Nota</h3>
-                        <button type="button" id="note-editor-close-btn" class="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="flex-grow p-6 space-y-6 overflow-y-auto">
-                        <input type="hidden" name="note_id">
-                        
-
-
-
-                        <div>
-                            <label for="note-content-input" class="block text-sm font-medium text-gray-700 mb-2">Contenido de la nota</label>
-                            
-                            <div class="flex items-center gap-2 mb-2">
-                                <button type="button" id="ai-improve-note" class="flex-1 text-xs font-medium flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200">
-                                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.218 2.232a1.25 1.25 0 00-1.768 0l-8.5 8.5a1.25 1.25 0 000 1.768l2.53 2.53a1.25 1.25 0 001.768 0l8.5-8.5a1.25 1.25 0 000-1.768l-2.53-2.53z" /><path d="M9.213 4.062a1.25 1.25 0 00-1.768 0l-6.25 6.25a1.25 1.25 0 000 1.768l2.53 2.53a1.25 1.25 0 001.768 0l6.25-6.25a1.25 1.25 0 000-1.768L9.213 4.062z" /></svg>
-                                    Mejorar Redacción
-                                </button>
-                                <button type="button" id="ai-fix-note-spell" class="flex-1 text-xs font-medium flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-md hover:bg-green-100 border border-green-200">
-                                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clip-rule="evenodd" /></svg>
-                                    Corregir Ortografía
-                                </button>
-                            </div>
-                            <input id="note-content-input" type="hidden" name="content">
-                            <trix-editor input="note-content-input" class="note-trix-editor ..."></trix-editor>
-                        </div>
-
-
-
-
-
-                        <!-- Opciones de imagen -->
-                        <div class="space-y-4 pt-4 border-t">
-                            <h4 class="text-base font-semibold text-gray-800">Opciones de Imagen</h4>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Color de la nota</label>
-                                <div id="note-color-swatches" class="grid grid-cols-6 gap-2"></div>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <button type="button" id="insert-image-pc-btn" class="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                    </svg>
-                                    Subir Imagen
-                                </button>
-                                
-                                <button type="button" id="insert-image-pexels-btn" class="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 text-white rounded-md hover:bg-black text-sm font-medium">
-                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                                    </svg>
-                                    Buscar en Pexels
-                                </button>
-                            </div>
-                            
-                            <input type="file" id="note-image-input" class="hidden" accept="image/*">
-                            
-                        </div>
-
-                        <!-- Opciones de formato -->
-                        <div class="space-y-4 pt-4 border-t">
-                            <h4 class="text-base font-semibold text-gray-800">Atajos de Formato</h4>
-                            <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                                <div class="flex items-center gap-2">
-                                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+B</kbd>
-                                    <span>Negrita</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+I</kbd>
-                                    <span>Cursiva</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+U</kbd>
-                                    <span>Subrayado</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+K</kbd>
-                                    <span>Enlace</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex-shrink-0 flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50">
-                        <button type="button" id="delete-note-btn" class="px-4 py-2 bg-white border border-gray-300 text-red-600 rounded-md hover:bg-red-50 text-sm font-medium">
-                            Eliminar Nota
-                        </button>
-                        <div class="flex space-x-3">
-                            <button type="button" id="note-editor-cancel-btn" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
-                                Cancelar
-                            </button>
-                            <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium">
-                                Guardar Nota
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-
-
-        <div id="meeting-invite-modal" class="hidden fixed inset-0 z-[52] flex items-center justify-center">
-            <div id="meeting-invite-overlay" class="absolute inset-0 backdrop-blur-sm bg-black bg-opacity-50"></div>
-            <div class="bg-white rounded-lg p-6 z-10 w-96 max-w-[90vw]">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Iniciar Reunión de Voz</h3>
-                <div class="mb-4">
-                    <label class="flex items-center space-x-2">
-                        <input type="checkbox" id="meeting-select-all-users" class="h-4 w-4 rounded border-gray-300 text-orange-600">
-                        <span class="text-sm font-medium text-gray-700">Seleccionar todos</span>
-                    </label>
-                </div>
-                <div id="meeting-user-list" class="space-y-2 max-h-60 overflow-y-auto border-t border-b py-2 mb-4">
-                    </div>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="meeting-invite-cancel-btn" class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-sm font-medium">Cancelar</button>
-                    <button type="button" id="meeting-invite-call-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">Llamar</button>
-                </div>
-            </div>
-        </div>
-        
     </main>
     
 
@@ -9583,29 +9457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // In Tablero.html, replace the existing updateViewDropdown function with this one:
 
-    function updateViewDropdown(activeView) {
-        document.querySelectorAll('.view-dropdown-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        const viewNames = {
-            'board': 'Tablero',
-            'calendar': 'Calendario', 
-            'notes': 'Notas',
-            'documents': 'Documentos',
-            'gantt': 'Diagrama de Gantt',
-            'eisenhower': 'Eisenhower'
-        };
-        
-        currentViewName.textContent = viewNames[activeView] || 'Tablero';
-        
-        const activeButton = document.getElementById(`${activeView}-view-btn`);
-        if (activeButton) {
-            activeButton.classList.add('active');
-        }
-        
-        viewDropdownMenu.classList.add('hidden');
-    }
+
 
     
     function createScheduledTimeBoxingCard(task) {
@@ -10147,7 +9999,92 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    function switchView(view) {
+        // 1. Ocultar todos los contenedores principales
+        boardContainer.classList.remove('active', 'flex');
+        calendarContainer.classList.remove('active', 'flex');
+        eisenhowerContainer.classList.remove('active', 'flex');
+        notesContainer.classList.remove('active', 'block');
+        documentsContainer.classList.remove('active', 'block');
+        ganttContainer.classList.remove('active', 'flex');
+        const tableViewContainer = document.getElementById('table-view-container');
+        tableViewContainer.classList.remove('active', 'flex');
 
+        boardContainer.classList.add('hidden');
+        calendarContainer.classList.add('hidden');
+        eisenhowerContainer.classList.add('hidden');
+        notesContainer.classList.add('hidden');
+        documentsContainer.classList.add('hidden');
+        ganttContainer.classList.add('hidden');
+        tableViewContainer.classList.add('hidden');
+        
+        const boardSelectorBtn = document.getElementById('board-selector-btn');
+
+        // 2. Lógica para mostrar el contenedor correcto
+        if (view === 'board') {
+            boardSelectorBtn.disabled = false;
+            boardSelectorBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            boardContainer.classList.remove('hidden');
+            boardContainer.classList.add('active', 'flex');
+            adjustColumnWidths();
+        } else {
+            boardSelectorBtn.disabled = true;
+            boardSelectorBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            if (view === 'calendar') {
+                calendarContainer.classList.remove('hidden');
+                calendarContainer.classList.add('active', 'flex');
+                renderCalendar();
+            } else if (view === 'table') {
+                tableViewContainer.classList.remove('hidden');
+                tableViewContainer.classList.add('active', 'flex');
+                renderTableView();
+            } else if (view === 'eisenhower') {
+                eisenhowerContainer.classList.remove('hidden');
+                eisenhowerContainer.classList.add('active', 'flex');
+                renderEisenhowerMatrix();
+            } else if (view === 'notes') {
+                notesContainer.classList.remove('hidden');
+                notesContainer.classList.add('active', 'block');
+                loadAndRenderNotes();
+            } else if (view === 'documents') {
+                documentsContainer.classList.remove('hidden');
+                documentsContainer.classList.add('active', 'block');
+                loadAndRenderDocuments();
+            } else if (view === 'gantt') {
+                ganttContainer.classList.remove('hidden');
+                ganttContainer.classList.add('active', 'flex');
+                renderGanttChart();
+            }
+        }
+        
+        updateViewDropdown(view);
+    }
+
+    function updateViewDropdown(activeView) {
+        document.querySelectorAll('.view-dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        const viewNames = {
+            'board': 'Tablero',
+            'table': 'Tabla',
+            'calendar': 'Calendario',
+            'notes': 'Notas',
+            'documents': 'Documentos',
+            'gantt': 'Diagrama de Gantt',
+            'eisenhower': 'Eisenhower'
+        };
+        
+        currentViewName.textContent = viewNames[activeView] || 'Tablero';
+        
+        const activeButton = document.getElementById(`${activeView}-view-btn`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+        
+        viewDropdownMenu.classList.add('hidden');
+    }
 
 
     function createReferenceElement(ref) {
@@ -10397,60 +10334,115 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ai-suggestions-overlay').addEventListener('click', hideSuggestionsModal);
 
 
-    function switchView(view) {
-        // 1. Ocultar todos los contenedores principales
-        boardContainer.classList.remove('active', 'flex');
-        calendarContainer.classList.remove('active', 'flex');
-        eisenhowerContainer.classList.remove('active', 'flex');
-        notesContainer.classList.remove('active', 'block');
-        documentsContainer.classList.remove('active', 'block');
-        ganttContainer.classList.remove('active', 'flex');
 
-        boardContainer.classList.add('hidden');
-        calendarContainer.classList.add('hidden');
-        eisenhowerContainer.classList.add('hidden');
-        notesContainer.classList.add('hidden');
-        documentsContainer.classList.add('hidden');
-        ganttContainer.classList.add('hidden');
-        
-        const boardSelectorBtn = document.getElementById('board-selector-btn');
 
-        // 2. Lógica para mostrar el contenedor correcto
-        if (view === 'board') {
-            boardSelectorBtn.disabled = false;
-            boardSelectorBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            boardContainer.classList.remove('hidden');
-            boardContainer.classList.add('active', 'flex');
-            adjustColumnWidths();
-        } else {
-            boardSelectorBtn.disabled = true;
-            boardSelectorBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            if (view === 'calendar') {
-                calendarContainer.classList.remove('hidden');
-                calendarContainer.classList.add('active', 'flex');
-                renderCalendar();
-            } else if (view === 'eisenhower') {
-                eisenhowerContainer.classList.remove('hidden');
-                eisenhowerContainer.classList.add('active', 'flex');
-                renderEisenhowerMatrix();
-            } else if (view === 'notes') {
-                notesContainer.classList.remove('hidden');
-                notesContainer.classList.add('active', 'block');
-                loadAndRenderNotes();
-            } else if (view === 'documents') {
-                documentsContainer.classList.remove('hidden');
-                documentsContainer.classList.add('active', 'block');
-                loadAndRenderDocuments();
-            } else if (view === 'gantt') {
-                ganttContainer.classList.remove('hidden');
-                ganttContainer.classList.add('active', 'flex');
-                renderGanttChart();
-            }
+
+
+
+
+
+
+    // INICIO: AÑADE ESTA FUNCIÓN COMPLETA
+    function renderTableView() {
+        const wrapper = document.getElementById('table-wrapper');
+        const tasks = Array.from(cardDataStore.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        wrapper.innerHTML = `
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Tarea</th>
+                        <th>Columna</th>
+                        <th>Asignado a</th>
+                        <th>Etiquetas</th>
+                        <th>Vencimiento</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        `;
+
+        const tbody = document.getElementById('table-body');
+        if (tasks.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-500 py-8">No hay tareas en este tablero.</td></tr>`;
+            return;
         }
-        
-        updateViewDropdown(view);
+
+        const columnsMap = new Map(columnsConfig.map(col => [col.id, col.title]));
+        const board = boardsData.find(b => b.id === currentBoardId);
+        const collaboratorsMap = new Map((board?.shared_with || []).map(m => [m.user_email, m]));
+
+        tasks.forEach(task => {
+            const tr = document.createElement('tr');
+            tr.dataset.cardId = task.id;
+            tr.onclick = () => openCardDrawer(task.id);
+
+            // Celdas
+            const titleTd = document.createElement('td');
+            titleTd.className = 'table-task-title';
+            titleTd.textContent = task.title;
+
+            const columnTd = document.createElement('td');
+            columnTd.textContent = columnsMap.get(task.columnId) || 'N/A';
+
+            const assigneesTd = document.createElement('td');
+            const assignedEmails = task.assignedTo || [];
+            if (assignedEmails.length > 0) {
+                const avatarContainer = document.createElement('div');
+                avatarContainer.className = 'flex -space-x-3';
+                assignedEmails.forEach(email => {
+                    const member = collaboratorsMap.get(email);
+                    const name = member ? `${member.first_name || ''} ${member.last_name || ''}`.trim() : email;
+                    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                    const color = getUserColor(email);
+                    avatarContainer.innerHTML += `<div class="assigned-avatar ${color.bg} ${color.text}" title="${name}">${initials}</div>`;
+                });
+                assigneesTd.appendChild(avatarContainer);
+            } else {
+                assigneesTd.textContent = '---';
+            }
+
+            const tagsTd = document.createElement('td');
+            tagsTd.className = 'table-tags-cell';
+            const tags = task.tags || [];
+            if (tags.length > 0) {
+                tags.forEach(tag => {
+                    const tagEl = document.createElement('span');
+                    const colorClass = TAGS_CONFIG[tag.text]?.color || 'bg-gray-200 text-gray-800';
+                    tagEl.className = `tag ${colorClass}`;
+                    tagEl.textContent = tag.text;
+                    tagsTd.appendChild(tagEl);
+                });
+            } else {
+                tagsTd.textContent = '---';
+            }
+
+            const dueDateTd = document.createElement('td');
+            dueDateTd.className = 'table-due-date';
+            if (task.dueDate) {
+                const dueDate = new Date(task.dueDate + 'T00:00:00');
+                const today = new Date(); today.setHours(0,0,0,0);
+                if (!task.isCompleted && dueDate < today) {
+                    dueDateTd.classList.add('is-overdue');
+                }
+                dueDateTd.textContent = dueDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+            } else {
+                dueDateTd.textContent = '---';
+            }
+
+            const statusTd = document.createElement('td');
+            if (task.isCompleted) {
+                statusTd.innerHTML = `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Completada</span>`;
+            } else {
+                statusTd.innerHTML = `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pendiente</span>`;
+            }
+
+            tr.append(titleTd, columnTd, assigneesTd, tagsTd, dueDateTd, statusTd);
+            tbody.appendChild(tr);
+        });
     }
+    // FIN: FUNCIÓN COMPLETA
     
     function showInfoModal(title, message) {
         const modal = document.getElementById('info-modal');
@@ -14694,6 +14686,7 @@ function showMoveSuccessModal() {
     eisenhowerViewBtn.addEventListener('click', () => switchView('eisenhower')); // NUEVO
     documentsViewBtn.addEventListener('click', () => switchView('documents'));
     ganttViewBtn.addEventListener('click', () => switchView('gantt'));
+    document.getElementById('table-view-btn').addEventListener('click', () => switchView('table'));
 
     
     // Calendar navigation
