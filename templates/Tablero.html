@@ -4208,6 +4208,57 @@
             </div>
         </div>
 
+        <div id="collaborative-chat-container" class="hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-30">
+            <div id="chat-box" class="bg-white/95 backdrop-blur-md rounded-t-lg shadow-2xl border border-gray-200 flex flex-col transition-all duration-300 h-12">
+
+                <div id="chat-header" class="flex items-center justify-between p-3 cursor-pointer border-b border-gray-200 flex-shrink-0">
+                    <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <span>Chat</span>
+                        <span id="chat-total-unread-badge" class="hidden h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">0</span>
+                    </h3>
+                    <svg id="chat-toggle-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+
+
+                <div class="flex-grow min-h-0 flex flex-col">
+                    <div id="chat-mode-selector" class="flex-shrink-0 p-2 border-b border-gray-200 bg-gray-50 flex gap-2">
+                        <button id="chat-mode-board" class="chat-mode-btn">Chat Grupal</button>
+                        <button id="chat-mode-general" class="chat-mode-btn">Chats Personales</button>
+                        <button id="chat-mode-ai" class="chat-mode-btn">Asistentes</button>
+                    </div>
+
+                    <div id="board-chat-view" class="chat-view">
+                        <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col gap-2"></div>
+                        <div class="flex-shrink-0 p-2 border-t flex items-center justify-between">
+                            <div id="chat-typing-indicator" class="text-xs text-gray-500 italic h-4"></div>
+                            <button id="open-active-users" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-semibold hover:bg-orange-200 transition-colors">
+                                Ver Participantes
+                            </button>
+                        </div>
+                        <div class="flex-shrink-0 p-3 border-t">
+                            <form id="board-chat-form" class="flex items-center gap-2">
+                                <input type="text" id="board-chat-input" placeholder="Escribe en el chat del tablero..." class="chat-input-field" autocomplete="off">
+                                <button type="submit" class="chat-send-btn">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="general-chat-view" class="chat-view">
+                      <div id="user-directory-container" class="flex flex-col h-full w-full">
+                          </div>
+                      <div id="conversation-view-container" class="hidden flex-col h-full w-full">
+                          </div>
+                    </div>
+                    
+                    <div id="ai-chat-view" class="chat-view">
+                        </div>
+                </div>
+            </div>
+        </div>
 
     </main>
     
@@ -5098,12 +5149,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // == 4. INICIALIZACIÓN DE LA APLICACIÓN
     // ========================================================================
     
-    // Asigna los listeners a las pestañas
-    document.getElementById('chat-mode-board').addEventListener('click', () => switchChatMode('board'));
-    document.getElementById('chat-mode-general').addEventListener('click', () => switchChatMode('general'));
-    document.getElementById('chat-mode-ai').addEventListener('click', () => switchChatMode('ai'));
 
 
+    // Asigna los listeners a las pestañas de chat de forma segura
+    const chatModeBoardBtn = document.getElementById('chat-mode-board');
+    if (chatModeBoardBtn) {
+        chatModeBoardBtn.addEventListener('click', () => switchChatMode('board'));
+    }
+
+    const chatModeGeneralBtn = document.getElementById('chat-mode-general');
+    if (chatModeGeneralBtn) {
+        chatModeGeneralBtn.addEventListener('click', () => switchChatMode('general'));
+    }
+
+    const chatModeAiBtn = document.getElementById('chat-mode-ai');
+    if (chatModeAiBtn) {
+        chatModeAiBtn.addEventListener('click', () => switchChatMode('ai'));
+    }
 
 
 
