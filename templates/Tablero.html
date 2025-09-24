@@ -5110,10 +5110,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addDocumentBtn) {
         addDocumentBtn.addEventListener('click', openAddDocumentModal);
     }
-    const addReferenceBtn = document.getElementById('add-reference-btn');
-    if (addReferenceBtn) {
-        addReferenceBtn.addEventListener('click', () => openAddReferenceModal());
-    }
+
+
     
     // Authentication Check
     const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
