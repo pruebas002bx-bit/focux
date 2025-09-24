@@ -7660,10 +7660,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    document.getElementById('add-reference-btn').addEventListener('click', () => openAddReferenceModal());
     document.getElementById('add-reference-close-btn').addEventListener('click', closeAddReferenceModal);
     document.getElementById('add-reference-cancel-btn').addEventListener('click', closeAddReferenceModal);
     document.getElementById('add-reference-overlay').addEventListener('click', closeAddReferenceModal);
+
+
+
+    const addReferenceBtn = document.getElementById('add-reference-btn');
+    if (addReferenceBtn) {
+        addReferenceBtn.addEventListener('click', () => openAddReferenceModal());
+    }
 
     document.getElementById('add-reference-form').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -9959,7 +9965,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => modal.classList.add('hidden'), 200);
     }
 
-    document.getElementById('add-reference-btn').addEventListener('click', () => openAddReferenceModal());
     document.getElementById('add-reference-close-btn').addEventListener('click', closeAddReferenceModal);
     document.getElementById('add-reference-cancel-btn').addEventListener('click', closeAddReferenceModal);
     document.getElementById('add-reference-overlay').addEventListener('click', closeAddReferenceModal);
