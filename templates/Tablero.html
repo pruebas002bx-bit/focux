@@ -5172,34 +5172,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!text) return '';
         return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
     }
-    
 
-    // ... Pega aquí el RESTO de tus funciones de JavaScript que ya funcionaban ...
-    // (loadUserBoards, createCardElement, saveBoardData, etc.)
 
     // ========================================================================
     // == 4. INICIALIZACIÓN DE LA APLICACIÓN
     // ========================================================================
-    
-
-
-    // Asigna los listeners a las pestañas de chat de forma segura
-    const chatModeBoardBtn = document.getElementById('chat-mode-board');
-    if (chatModeBoardBtn) {
-        chatModeBoardBtn.addEventListener('click', () => switchChatMode('board'));
-    }
-
-    const chatModeGeneralBtn = document.getElementById('chat-mode-general');
-    if (chatModeGeneralBtn) {
-        chatModeGeneralBtn.addEventListener('click', () => switchChatMode('general'));
-    }
-
-    const chatModeAiBtn = document.getElementById('chat-mode-ai');
-    if (chatModeAiBtn) {
-        chatModeAiBtn.addEventListener('click', () => switchChatMode('ai'));
-    }
-
-
 
     const urlParams = new URLSearchParams(window.location.search);
     const isFirstLogin = urlParams.get('firstLogin') === 'true';
