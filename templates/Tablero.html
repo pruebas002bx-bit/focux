@@ -4041,11 +4041,11 @@
         </div>
     </div>
 
+
     <main class="flex-grow min-h-0 relative">
         <div id="kanban-board-container" class="active">
             <div id="board-overlay" class="absolute inset-0 bg-black" style="opacity: 0;"></div>
-            <div id="kanban-board" class="relative z-10">
-                </div>
+            <div id="kanban-board" class="relative z-10"></div>
         </div>
 
         <div id="calendar-container" class="hidden">
@@ -4068,8 +4068,7 @@
                 <h2 class="text-2xl font-bold text-orange-600">Vista de Tabla</h2>
                 <p class="text-gray-600 text-sm">Todas las tareas del tablero en un formato de tabla interactiva.</p>
             </div>
-            <div id="table-wrapper" class="flex-grow w-full bg-white rounded-lg shadow-md border overflow-hidden">
-                </div>
+            <div id="table-wrapper" class="flex-grow w-full bg-white rounded-lg shadow-md border overflow-hidden"></div>
         </div>
 
         <div id="notes-container" class="hidden absolute inset-0 p-6 overflow-y-auto">
@@ -4080,106 +4079,32 @@
                     Nueva Nota
                 </button>
             </div>
-            <div id="notes-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                </div>
+            <div id="notes-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </div>
-
 
         <div id="eisenhower-container" class="hidden absolute inset-0 flex flex-col p-6 overflow-hidden">
             <div class="text-center mb-6">
                 <h2 class="text-2xl font-bold text-orange-600 mb-2">Matriz de Eisenhower</h2>
-                <p class="text-gray-600 text-sm">Organiza y prioriza tus tareas. Para que una tarea aparezca aquí, debe estar etiquetada con al menos una etiqueta de Urgencia (Urgente / No Urgente) y una de Importancia (Importante / No Importante).</p>
+                <p class="text-gray-600 text-sm">Organiza y prioriza tus tareas por urgencia e importancia.</p>
             </div>
-            
             <div class="grid grid-cols-2 grid-rows-2 h-full w-full gap-4">
-                <div id="eisenhower-do" data-quadrant="do" class="eisenhower-quadrant rounded-xl border border-gray-200/50 shadow-sm flex flex-col">
-                    <div class="eisenhower-header flex-shrink-0 flex items-center justify-between p-3 rounded-t-xl border-t-4 border-orange-400 bg-white/60 backdrop-blur-sm">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
-                            <h3 class="text-base font-semibold text-gray-800">Urgente e Importante</h3>
-                        </div>
-                        <span class="eisenhower-badge text-xs font-bold bg-orange-500 text-white px-2 py-1 rounded-full">HACER</span>
-                    </div>
-                    <div class="eisenhower-content p-3 bg-transparent flex-grow overflow-y-auto">
-                        <div class="eisenhower-description bg-orange-50 border border-orange-200 rounded-lg p-2 mb-3">
-                            <p class="text-xs text-orange-700 font-medium">🔥 Tareas críticas que requieren atención inmediata</p>
-                        </div>
-                        <div class="eisenhower-tasks space-y-2"></div>
-                    </div>
                 </div>
-
-                <div id="eisenhower-plan" data-quadrant="plan" class="eisenhower-quadrant rounded-xl border border-gray-200/50 shadow-sm flex flex-col">
-                    <div class="eisenhower-header flex-shrink-0 flex items-center justify-between p-3 rounded-t-xl border-t-4 border-blue-400 bg-white/60 backdrop-blur-sm">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <h3 class="text-base font-semibold text-gray-800">Importante, No Urgente</h3>
-                        </div>
-                        <span class="eisenhower-badge text-xs font-bold bg-blue-500 text-white px-2 py-1 rounded-full">PLANEAR</span>
-                    </div>
-                    <div class="eisenhower-content p-3 bg-transparent flex-grow overflow-y-auto">
-                        <div class="eisenhower-description bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3">
-                            <p class="text-xs text-blue-700 font-medium">📅 Ideal para programar en tu calendario</p>
-                        </div>
-                        <div class="eisenhower-tasks space-y-2"></div>
-                    </div>
-                </div>
-
-                <div id="eisenhower-delegate" data-quadrant="delegate" class="eisenhower-quadrant rounded-xl border border-gray-200/50 shadow-sm flex flex-col">
-                    <div class="eisenhower-header flex-shrink-0 flex items-center justify-between p-3 rounded-t-xl border-t-4 border-cyan-400 bg-white/60 backdrop-blur-sm">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                            <h3 class="text-base font-semibold text-gray-800">Urgente, No Importante</h3>
-                        </div>
-                        <span class="eisenhower-badge text-xs font-bold bg-cyan-500 text-white px-2 py-1 rounded-full">DELEGAR</span>
-                    </div>
-                    <div class="eisenhower-content p-3 bg-transparent flex-grow overflow-y-auto">
-                        <div class="eisenhower-description bg-cyan-50 border border-cyan-200 rounded-lg p-2 mb-3">
-                            <p class="text-xs text-cyan-700 font-medium">👥 Tareas que otros pueden hacer por ti</p>
-                        </div>
-                        <div class="eisenhower-tasks space-y-2"></div>
-                    </div>
-                </div>
-
-                <div id="eisenhower-eliminate" data-quadrant="eliminate" class="eisenhower-quadrant rounded-xl border border-gray-200/50 shadow-sm flex flex-col">
-                    <div class="eisenhower-header flex-shrink-0 flex items-center justify-between p-3 rounded-t-xl border-t-4 border-gray-400 bg-white/60 backdrop-blur-sm">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 bg-gray-500 rounded-full"></div>
-                            <h3 class="text-base font-semibold text-gray-800">No Urgente, No Importante</h3>
-                        </div>
-                        <span class="eisenhower-badge text-xs font-bold bg-gray-500 text-white px-2 py-1 rounded-full">ELIMINAR</span>
-                    </div>
-                    <div class="eisenhower-content p-3 bg-transparent flex-grow overflow-y-auto">
-                        <div class="eisenhower-description bg-gray-50 border border-gray-200 rounded-lg p-2 mb-3">
-                            <p class="text-xs text-gray-700 font-medium">🗑️ Evita o elimina estas tareas por completo</p>
-                        </div>
-                        <div class="eisenhower-tasks space-y-2"></div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div id="gantt-container" class="hidden absolute inset-0 flex flex-col p-4 sm:p-6 bg-gray-50 overflow-auto">
             <div class="flex-shrink-0 text-center mb-6">
                 <h2 class="text-2xl font-bold text-orange-600 mb-2">Diagrama de Gantt</h2>
-                <p class="text-gray-600 text-sm max-w-3xl mx-auto">Visualiza la línea de tiempo de tus tareas y subtareas. Solo las tarjetas con fecha de inicio aparecerán aquí.</p>
-                <div id="gantt-actions" class="mt-4 flex items-center justify-center gap-3">
-                    <button id="export-gantt-pdf-btn" class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-colors">
-                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v3H4V4zm0 5h12v2H4V9zm0 4h6v2H4v-2z" clip-rule="evenodd" /></svg>
-                        Exportar a PDF
-                    </button>
-                </div>
+                <p class="text-gray-600 text-sm">Visualiza la línea de tiempo de tus tareas.</p>
             </div>
-            <div id="gantt-chart-wrapper" class="flex-grow w-full h-full">
-                </div>
+            <div id="gantt-chart-wrapper" class="flex-grow w-full h-full"></div>
         </div>
 
-
         <div id="documents-container" class="hidden pt-24 min-h-screen">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6" style="align-items: start;">
+             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6" style="align-items: start;">
                 <div id="documents-column">
                     <div class="flex justify-between items-center mb-6 w-full">
                         <h2 class="text-2xl font-bold text-orange-600">Documentos</h2>
-                        <button id="add-document-btn" class="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-orange-700 transition-colors flex items-center gap-2">
+                        <button id="add-document-btn" class="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-orange-700 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clip-rule="evenodd"></path></svg>
                             Agregar Documento
                         </button>
@@ -4189,7 +4114,7 @@
                 <div id="references-column" class="lg:border-l lg:pl-8 border-gray-200">
                     <div class="flex justify-between items-center mb-6 w-full">
                         <h2 class="text-2xl font-bold text-blue-600">Referencias</h2>
-                        <button id="add-reference-btn" class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <button id="add-reference-btn" class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-blue-700 flex items-center gap-2">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l-1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"></path></svg>
                             Agregar Referencia
                         </button>
@@ -4198,9 +4123,7 @@
                 </div>
             </div>
         </div>
-
-    </main>
-    
+    </main>    
 
         <div id="collaborative-chat-container" class="hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-30">
             <div id="chat-box" class="bg-white/95 backdrop-blur-md rounded-t-lg shadow-2xl border border-gray-200 flex flex-col transition-all duration-300 h-12">
