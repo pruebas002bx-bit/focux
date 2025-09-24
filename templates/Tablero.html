@@ -5105,13 +5105,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatModeAiBtn.addEventListener('click', () => switchChatMode('ai'));
     }
     
-    // Add Document/Reference buttons (causa de los errores anteriores)
-    const addDocumentBtn = document.getElementById('add-document-btn');
-    if (addDocumentBtn) {
-        addDocumentBtn.addEventListener('click', openAddDocumentModal);
-    }
-
-
     
     // Authentication Check
     const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
