@@ -12423,8 +12423,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Event listeners for Documents view
 
-
-    document.getElementById('add-document-btn').addEventListener('click', openAddDocumentModal);
+    const addDocumentBtn = document.getElementById('add-document-btn');
+    if (addDocumentBtn) {
+        addDocumentBtn.addEventListener('click', openAddDocumentModal);
+    }
         
     document.getElementById('add-document-close-btn').addEventListener('click', closeAddDocumentModal);
     document.getElementById('add-document-cancel-btn').addEventListener('click', closeAddDocumentModal);
