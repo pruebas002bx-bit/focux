@@ -1422,7 +1422,7 @@ def generate_ai_board():
         return jsonify(success=False, message="La descripción del tablero es requerida."), 400
 
     try:
-        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
         model = genai.GenerativeModel(model_name)
         print(f"🤖 Iniciando generación de tablero (Parsing Mejorado). Modelo: {model_name}")
 
@@ -1938,7 +1938,7 @@ def generate_board_content():
         return jsonify(success=False, message="La descripción del tablero es requerida."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # --- PROMPT MEJORADO: Instrucciones más estrictas para la IA ---
         template_prompt = f"""
@@ -2056,7 +2056,7 @@ def regenerate_notes_ai():
     if not prompt: return jsonify(success=False, message="El prompt es requerido."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         template_prompt = f"""
         Actúa como un asesor experto. Basado en el objetivo de proyecto "{prompt}", genera 5 notas de apoyo MUY útiles y detalladas.
 
@@ -2094,7 +2094,7 @@ def suggest_assistants_ai():
     data = request.get_json()
     prompt = data.get('prompt')
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         system_prompt = """
         Eres un experto en diseño de equipos y roles de IA. Basado en la descripción de un proyecto,
         genera 3 perfiles de asistentes de IA que serían útiles.
@@ -2164,7 +2164,7 @@ def get_ai_suggestions():
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # --- PROMPT MEJORADO Y MÁS ESTRICTO ---
         prompt = f"""
@@ -2202,7 +2202,7 @@ def enhance_text_with_ai():
         return jsonify(success=False, message="No se proporcionó texto."), 400
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash') 
+        model = genai.GenerativeModel('gemini-2.5-flash') 
         
         # --- PROMPTS MEJORADOS Y MÁS RESTRICTIVOS ---
         prompts = {
