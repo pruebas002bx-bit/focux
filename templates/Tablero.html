@@ -15050,52 +15050,158 @@ function showMoveSuccessModal() {
 
 
     confirmDeleteOk.addEventListener('click', async () => {
-      if (deleteTargetType === 'card') {
-        // Lógica corregida para eliminar tarjetas en tiempo real
+        // 1. UI: Ocultar botones originales
+        const btnContainer = confirmDeleteModal.querySelector('.flex.justify-end');
+        if (btnContainer) btnContainer.classList.add('hidden');
+
+        // 2. Inyectar Diseño Moderno y Profesional
+        // Usamos una estructura limpia, con textos de estado y barra animada por JS
+        const loaderHTML = `
+            <div id="delete-process-container" class="mt-2 w-full animate__animated animate__fadeIn">
+                <div class="flex justify-between items-end mb-2">
+                    <span id="dynamic-status-text" class="text-sm font-semibold text-gray-700 tracking-tight">Iniciando solicitud...</span>
+                    <span id="progress-percentage" class="text-xs font-bold text-orange-600">0%</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden shadow-inner border border-gray-200">
+                    <div id="dynamic-progress-bar" class="bg-gradient-to-r from-orange-500 to-red-500 h-1.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-2 text-right font-mono">ID: ${deleteTargetId}</p>
+            </div>
+        `;
+        confirmDeleteMessage.innerHTML = loaderHTML; // Reemplazamos el texto simple por el componente completo
+
+        // 3. Lógica de animación de progreso simulado (UX Profesional)
+        const progressBar = document.getElementById('dynamic-progress-bar');
+        const percentageText = document.getElementById('progress-percentage');
+        const statusText = document.getElementById('dynamic-status-text');
+        
+        const phases = [
+            "Verificando permisos...",
+            "Conectando con base de datos...",
+            "Purgando registros...",
+            "Sincronizando cambios..."
+        ];
+
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            // Aumenta rápido al principio, lento al final, nunca llega a 100% hasta que termine el fetch
+            if (progress < 90) {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                
+                progressBar.style.width = `${progress}%`;
+                percentageText.textContent = `${Math.round(progress)}%`;
+                
+                // Cambiar textos según el avance
+                const phaseIndex = Math.floor((progress / 100) * phases.length);
+                if (phases[phaseIndex]) statusText.textContent = phases[phaseIndex];
+            }
+        }, 200);
+
         try {
-            const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
-                method: 'DELETE',
-                headers: { 'ngrok-skip-browser-warning': 'true' }
-            });
-            const result = await response.json();
-            if (!result.success) {
-                alert(`Error al eliminar la tarjeta: ${result.message}`);
+            if (deleteTargetType === 'card') {
+                const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // FINALIZACIÓN EXITOSA
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+                    percentageText.textContent = '100%';
+                    statusText.textContent = "¡Eliminado!";
+                    
+                    // --- ELIMINACIÓN VISUAL INSTANTÁNEA ---
+                    const cardEl = document.getElementById(deleteTargetId);
+                    if (cardEl) {
+                        cardEl.style.display = 'none'; // Desaparecer visualmente YA
+                        cardEl.remove(); // Eliminar del DOM
+                    }
+                    
+                    // Lógica de datos
+                    cardDataStore.delete(deleteTargetId);
+                    updateColumnHeaders();
+                    
+                    // Cerrar modal muy rápido
+                    setTimeout(hideConfirmDelete, 150); 
+                } else {
+                    throw new Error(result.message);
+                }
+
+            } else if (deleteTargetType === 'column') {
+                const columnIdToDelete = deleteTargetId;
+                const firstColumnId = columnsConfig[0].id;
+
+                cardDataStore.forEach(task => {
+                    if (task.columnId === columnIdToDelete) task.columnId = firstColumnId;
+                });
+                
+                columnsConfig = columnsConfig.filter(c => c.id !== columnIdToDelete);
+                
+                socket.emit('column_deleted', {
+                    board_id: currentBoardId,
+                    column_id: columnIdToDelete
+                });
+                
+                // Simular delay de red para que se vea la barra un momento
+                await new Promise(r => setTimeout(r, 600)); 
+                
+                initializeBoard();
+                scheduleAutoSave();
+                
+                clearInterval(progressInterval);
+                hideConfirmDelete();
+
+            } else if (deleteTargetType === 'board') {
+                // Prevenir errores de auto-guardado mientras se borra
+                if (currentBoardId === deleteTargetId) {
+                    currentBoardId = null;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/boards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                
+                const data = await response.json();
+
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                percentageText.textContent = '100%';
+
+                // CORRECCIÓN DEL ERROR "Tablero no encontrado":
+                // Si es éxito (success: true) O si el mensaje dice que no se encontró (404/mensaje),
+                // consideramos que el objetivo se cumplió (el tablero ya no existe).
+                const isNotFound = data.message && data.message.toLowerCase().includes('encontrado');
+                
+                if (data.success || isNotFound) {
+                    statusText.textContent = "Redirigiendo...";
+                    await loadUserBoards(); // Recargar la lista de tableros
+                    setTimeout(hideConfirmDelete, 200);
+                } else {
+                    // Solo mostrar alerta si es un error real del servidor distinto a 404
+                    statusText.textContent = "Error";
+                    statusText.classList.add("text-red-600");
+                    alert('Error del sistema: ' + data.message);
+                    hideConfirmDelete();
+                }
             }
         } catch (error) {
-            console.error('Error de conexión al eliminar la tarjeta:', error);
-            alert('Error de conexión. No se pudo eliminar la tarjeta.');
-        }
-
-      } else if (deleteTargetType === 'column') {
-        // --- INICIO DE LA CORRECCIÓN CLAVE ---
-        const columnIdToDelete = deleteTargetId;
-        const firstColumnId = columnsConfig[0].id;
-
-        // 1. Mueve las tarjetas de la columna a eliminar a la primera columna
-        cardDataStore.forEach(task => {
-            if (task.columnId === columnIdToDelete) {
-                task.columnId = firstColumnId;
+            console.error('Error crítico:', error);
+            clearInterval(progressInterval);
+            
+            // Filtro para no mostrar alerta si estamos borrando tarjeta y falló la red pero la UI ya se actualizó
+            if (deleteTargetType === 'board') {
+                 // Si falló el tablero, restauramos el ID para que no quede la app rota
+                 if (currentBoardId === null) currentBoardId = deleteTargetId;
+                 alert('No se pudo conectar con el servidor.');
+            } else {
+                 alert('Ocurrió un error de conexión.');
             }
-        });
-        
-        // 2. Elimina la columna de la configuración local
-        columnsConfig = columnsConfig.filter(c => c.id !== columnIdToDelete);
-        
-        // 3. Notifica a los demás clientes que deben eliminar la columna
-        socket.emit('column_deleted', {
-            board_id: currentBoardId,
-            column_id: columnIdToDelete
-        });
-        
-        // 4. Actualiza tu propia interfaz y guarda los cambios
-        initializeBoard();
-        scheduleAutoSave();
-        // --- FIN DE LA CORRECCIÓN CLAVE ---
-
-      } else if (deleteTargetType === 'board') {
-          await deleteBoard(deleteTargetId);
-      }
-      hideConfirmDelete();
+            hideConfirmDelete();
+        }
     });
     
     // Board options
