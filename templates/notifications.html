@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notificaciones • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-orange: #f97316; --primary-orange-dark: #ea580c; --bg-light: #f4f5f7;
+      --panel-bg: #ffffff; --text-dark: #1f2937; --text-muted: #6b7280;
+      --border-light: #e5e7eb; --danger: #dc2626; --danger-light: #fee2e2;
+      --radius-lg: 12px; --radius-xl: 16px; --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Inter', sans-serif; color: var(--text-dark); background-color: var(--bg-light); }
+    main { padding: 28px; height: 100vh; display: flex; flex-direction: column; gap: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-shrink: 0; }
+    .header h2 { font-size: 1.8rem; font-weight: 800; }
+    .header .pill { display: inline-block; margin-top: 4px; padding: 4px 10px; background-color: #f3f4f6; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; border-radius: 999px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: var(--panel-bg); color: var(--text-dark); font-weight: 600; cursor: pointer; transition: all var(--transition); box-shadow: var(--shadow-sm); }
+    .btn.icon { padding: 10px; }
+    .btn:hover { transform: translateY(-1px); border-color: #d1d5db; }
+    .btn.primary { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
+    .btn.primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+    .btn.danger { background: transparent; border-color: transparent; color: var(--danger); box-shadow: none; padding: 6px 8px; }
+    .btn.danger:hover { background-color: var(--danger-light); }
+    .card { background: var(--panel-bg); border: 1px solid var(--border-light); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); padding: 24px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label, .target-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+    .form-input, .form-textarea { width: 100%; padding: 10px 12px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: #f9fafb; font: inherit; font-size: 0.95rem; transition: all var(--transition); }
+    .form-input:focus, .form-textarea:focus { border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, .2); outline: none; background-color: var(--panel-bg); }
+    .grid-layout-main { display: grid; grid-template-columns: .8fr 1.2fr; gap: 24px; flex-grow: 1; min-height: 0; }
+    .table-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .table-card-header { display: flex; justify-content: space-between; align-items: center; padding: 24px 24px 16px; flex-shrink: 0; }
+    .table-container { flex-grow: 1; overflow-y: auto; min-height: 0; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); background-color: #f9fafb; padding: 12px 24px; position: sticky; top: 0; }
+    tbody td { padding: 14px 24px; border-top: 1px solid var(--border-light); font-size: 0.9rem; vertical-align: middle; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 1000; background: var(--text-dark); color: #fff; padding: 12px 18px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); opacity: 0; transform: translateY(10px); visibility: hidden; transition: all var(--transition); font-weight: 600; }
+    .toast.show { opacity: 1; transform: translateY(0); visibility: visible; }
+    .target-options { border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .target-group { display: flex; align-items: center; gap: 10px; }
+    #target-details-container { margin-top: 8px; padding-left: 28px; }
+    .multi-select-container { position: relative; }
+    .multi-select-display { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 42px; padding: 6px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: #fff; cursor: text; }
+    .selected-user-pill { display: inline-flex; align-items: center; gap: 6px; background-color: var(--border-light); padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
+    .remove-pill { cursor: pointer; font-weight: bold; }
+    .multi-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: var(--panel-bg); border: 1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); margin-top: 4px; display: none; flex-direction: column; }
+    .multi-select-dropdown.show { display: flex; }
+    .dropdown-filters { padding: 8px; display: flex; gap: 8px; border-bottom: 1px solid var(--border-light); }
+    .dropdown-list { max-height: 150px; overflow-y: auto; padding: 4px; }
+    .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; }
+    .dropdown-item:hover { background-color: var(--bg-light); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Notificaciones</h2>
+        <div class="pill">Envía mensajes globales a todos los usuarios</div>
+      </div>
+      <button class="btn icon" id="btn-refresh-notifications" title="Actualizar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>
+      </button>
+    </div>
+
+    <div class="grid-layout-main">
+      <div class="card">
+        <form id="notification-form" style="display: flex; flex-direction: column; gap: 20px; height: 100%;">
+            <h3 style="font-size:1.2rem; font-weight:700;">Enviar Notificación</h3>
+            <div class="form-group">
+                <label for="notif-title">Título</label>
+                <input id="notif-title" class="form-input" placeholder="Ej: Mantenimiento Programado" required />
+            </div>
+            <div class="form-group">
+                <label for="notif-message">Mensaje</label>
+                <textarea id="notif-message" class="form-textarea" rows="5" placeholder="El sistema estará en mantenimiento el..." required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Destinatarios</label>
+                <div class="target-options">
+                    <div class="target-group"><input type="radio" id="target-all" name="target_mode" value="all" checked><label for="target-all">Todos los Usuarios</label></div>
+                    <div class="target-group"><input type="radio" id="target-db" name="target_mode" value="database"><label for="target-db">Una Base de Datos</label></div>
+                    <div class="target-group"><input type="radio" id="target-users" name="target_mode" value="users"><label for="target-users">Usuarios Específicos</label></div>
+                </div>
+                <div id="target-details-container"></div>
+            </div>
+
+            <button class="btn primary" type="submit" id="btn-send-notif" style="margin-top: auto;">Enviar Notificación</button>
+        </form>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-card-header">
+          <strong style="font-size: 1.2rem;">Historial de Envíos</strong>
+          <div class="pill" id="notif-count">0 notificaciones</div>
+        </div>
+        <div class="table-container">
+            <table>
+              <thead><tr><th>Título</th><th>Destinatario</th><th>Fecha</th><th>Vistas</th><th></th></tr></thead>
+              <tbody id="tbl-notifications"></tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_BASE_URL = 'https://focux-app.onrender.com';
+    let CACHE = { users: [], databases: [] };
+
+    async function fetchJSON(path, {method='GET', body=null} = {}){
+      const opts = { method, headers: { 'ngrok-skip-browser-warning':'true' }, mode:'cors' };
+      if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      const res = await fetch(`${API_BASE_URL}${path}`, opts);
+      const resData = await res.json();
+      if(!res.ok) throw new Error(resData.message || `HTTP ${res.status}`);
+      return resData;
+    }
+
+    function toast(msg){
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(()=> t.classList.remove('show'), 3200);
+    }
+    
+    function formatTargetInfo(targetInfo) {
+        try {
+            const target = JSON.parse(targetInfo);
+            if (target.mode === 'all') return 'Todos';
+            if (target.mode === 'database') return `DB: ${target.value}`;
+            if (target.mode === 'users') return `${target.value.length} usuario(s)`;
+            return 'Desconocido';
+        } catch (e) {
+            return 'Global (legacy)';
+        }
+    }
+
+    async function loadNotifications(){
+      try{
+        const json = await fetchJSON('/admin/notifications');
+        const list = json.notifications || [];
+        document.getElementById('notif-count').textContent = `${list.length} enviadas`;
+        const T = document.getElementById('tbl-notifications');
+        T.innerHTML = list.length ? '' : '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Sin notificaciones en el historial</td></tr>';
+        
+        list.forEach(n => {
+          const tr = document.createElement('tr');
+          const messageText = String(n.message || '').substring(0, 40);
+          tr.innerHTML = `
+            <td><strong>${n.title || 'Sin título'}</strong><br><span style="font-size:0.8rem; color:var(--text-muted);">${messageText}...</span></td>
+            <td>${formatTargetInfo(n.target_info)}</td>
+            <td>${new Date(n.timestamp).toLocaleString('es-CO')}</td>
+            <td>${n.viewed_count||0}</td>
+            <td><button class="btn danger btn-del-notif" data-id="${n.id}">X</button></td>`;
+          T.appendChild(tr);
+        });
+      } catch(e){ 
+        console.error(e); 
+        toast('❌ No se pudieron cargar las notificaciones'); 
+      }
+    }
+
+    async function deleteNotification(id) {
+        if (!confirm('Esta acción eliminará la notificación para todos los usuarios. ¿Deseas continuar?')) return;
+        try{
+            await fetchJSON(`/admin/notifications/${id}`, { method:'DELETE' });
+            toast('🗑️ Notificación eliminada'); 
+            loadNotifications();
+        } catch(e){ toast('❌ No se pudo eliminar'); }
+    }
+
+    async function sendNotification(event){
+      event.preventDefault();
+      const title = document.getElementById('notif-title').value.trim();
+      const message = document.getElementById('notif-message').value.trim();
+      if (!title || !message) { toast('⚠️ Título y mensaje requeridos'); return; }
+      
+      const targetMode = document.querySelector('input[name="target_mode"]:checked').value;
+      let targetValue;
+      
+      if (targetMode === 'database') {
+          targetValue = document.getElementById('target-db-select').value;
+          if (!targetValue) { toast('⚠️ Debes seleccionar una base de datos.'); return; }
+      } else if (targetMode === 'users') {
+          targetValue = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+          if (targetValue.length === 0) { toast('⚠️ Debes seleccionar al menos un usuario.'); return; }
+      }
+
+      const payload = { title, message, target: { mode: targetMode, value: targetValue } };
+
+      try{
+        const res = await fetchJSON('/admin/send-notification', { method:'POST', body: payload });
+        toast('✅ Notificación enviada correctamente');
+        document.getElementById('notification-form').reset();
+        document.getElementById('target-details-container').innerHTML = '';
+        document.getElementById('target-all').checked = true;
+        loadNotifications();
+      }catch(e){ toast(`❌ No se pudo enviar: ${e.message}`); }
+    }
+    
+    // --- Lógica del Multiselector de Usuarios ---
+    function setupMultiSelectListeners() {
+        const container = document.getElementById('target-details-container');
+
+        container.addEventListener('click', (e) => {
+            if (e.target.closest('.multi-select-display')) {
+                container.querySelector('.multi-select-dropdown').classList.add('show');
+            }
+            if (e.target.classList.contains('remove-pill')) {
+                e.target.parentElement.remove();
+                renderDropdownItems();
+            }
+        });
+
+        container.addEventListener('input', (e) => {
+            if (e.target.id === 'db-filter' || e.target.id === 'user-search') {
+                renderDropdownItems();
+            }
+        });
+        
+        container.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox') {
+                const email = e.target.dataset.email;
+                let selectedEmails = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+                if (e.target.checked) { if (!selectedEmails.includes(email)) selectedEmails.push(email); } 
+                else { selectedEmails = selectedEmails.filter(e => e !== email); }
+                renderSelectedPills(selectedEmails);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.multi-select-container')) {
+                document.querySelector('.multi-select-dropdown')?.classList.remove('show');
+            }
+        });
+    }
+
+    function renderSelectedPills(emails) {
+        const display = document.querySelector('.multi-select-display');
+        if (!display) return;
+        display.innerHTML = '';
+        emails.forEach(email => {
+            const user = CACHE.users.find(u => u.email === email);
+            const name = user ? user.name : email;
+            const pill = document.createElement('span');
+            pill.className = 'selected-user-pill';
+            pill.dataset.email = email;
+            pill.innerHTML = `${name} <span class="remove-pill" title="Quitar">&times;</span>`;
+            display.appendChild(pill);
+        });
+    }
+
+    function renderDropdownItems() {
+        const selectedEmails = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+        const searchTerm = document.getElementById('user-search')?.value.toLowerCase() || '';
+        const dbFilter = document.getElementById('db-filter')?.value || 'all';
+        const userList = document.getElementById('dropdown-user-list');
+        
+        if (!userList) return;
+
+        let filteredUsers = CACHE.users;
+        if (dbFilter !== 'all') { filteredUsers = filteredUsers.filter(user => user.source_db === dbFilter); }
+        if (searchTerm) { filteredUsers = filteredUsers.filter(user => user.name.toLowerCase().includes(searchTerm) || user.email.toLowerCase().includes(searchTerm)); }
+        
+        userList.innerHTML = '';
+        filteredUsers.forEach(user => {
+            const isSelected = selectedEmails.includes(user.email);
+            const item = document.createElement('label');
+            item.className = 'dropdown-item';
+            item.innerHTML = `<input type="checkbox" data-email="${user.email}" ${isSelected ? 'checked' : ''}><span>${user.name} (${user.email})</span>`;
+            userList.appendChild(item);
+        });
+    }
+
+    function renderTargetDetails(mode) {
+        const container = document.getElementById('target-details-container');
+        container.innerHTML = '';
+
+        if (mode === 'database') {
+            const select = document.createElement('select');
+            select.id = 'target-db-select';
+            select.className = 'form-input';
+            select.innerHTML = '<option value="">Selecciona una base de datos...</option>' + 
+                CACHE.databases.map(db => `<option value="${db.filename}">${db.display_name}</option>`).join('');
+            container.appendChild(select);
+        } else if (mode === 'users') {
+            container.innerHTML = `
+                <div class="multi-select-container">
+                    <div class="multi-select-display"></div>
+                    <div class="multi-select-dropdown">
+                        <div class="dropdown-filters">
+                            <select id="db-filter" class="form-input" style="flex-grow: 1;">
+                                <option value="all">Todas las Bases</option>
+                                ${CACHE.databases.map(db => `<option value="${db.filename}">${db.display_name}</option>`).join('')}
+                            </select>
+                            <input id="user-search" class="form-input" placeholder="Buscar..." style="flex-grow: 2;">
+                        </div>
+                        <div class="dropdown-list" id="dropdown-user-list"></div>
+                    </div>
+                </div>`;
+            renderDropdownItems();
+        }
+    }
+
+    async function init() {
+        try {
+            const [dash, dbres] = await Promise.all([
+                fetchJSON('/admin/dashboard'),
+                fetchJSON('/admin/available-databases')
+            ]);
+            CACHE.users = dash.stats.detailed_users || [];
+            CACHE.databases = dbres.databases || [];
+            loadNotifications();
+        } catch(e) {
+            toast('❌ No se pudieron cargar los datos iniciales.');
+        }
+    }
+
+    document.getElementById('btn-refresh-notifications').addEventListener('click', loadNotifications);
+    document.getElementById('notification-form').addEventListener('submit', sendNotification);
+    document.getElementById('tbl-notifications').addEventListener('click', (e) => {
+        if(e.target.closest('.btn-del-notif')) {
+            deleteNotification(e.target.closest('.btn-del-notif').dataset.id);
+        }
+    });
+    
+    document.querySelectorAll('input[name="target_mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            renderTargetDetails(e.target.value);
+        });
+    });
+
+    setupMultiSelectListeners();
+    init();
+  </script>
+</body>
+</html>

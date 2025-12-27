@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Asistentes • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    :root {
+      --primary-orange: #f97316;
+      --primary-orange-dark: #ea580c;
+      --bg-light: #f4f5f7;
+      --panel-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-muted: #6b7280;
+      --border-light: #e5e7eb;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      min-height: 100vh;
+      color: var(--text-dark);
+      background-color: var(--bg-light);
+    }
+
+    main { padding: 28px; }
+
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px; margin-bottom: 24px;
+    }
+    .header h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+    .header .pill {
+      display: inline-block; margin-top: 4px; padding: 4px 10px;
+      background-color: #f3f4f6; color: var(--text-muted);
+      font-size: 0.75rem; font-weight: 500; border-radius: 999px;
+    }
+    .toolbar { display: flex; gap: 12px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);
+      background: var(--panel-bg); color: var(--text-dark); font-weight: 600;
+      cursor: pointer; transition: all var(--transition); box-shadow: var(--shadow-sm);
+    }
+    .btn:hover { transform: translateY(-1px); border-color: #d1d5db; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn.primary { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
+    .btn.primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+    .btn.danger { background-color: var(--danger-light); border-color: transparent; color: var(--danger); }
+    .btn.danger:hover { background-color: var(--danger); color: white; }
+    
+    .grid-layout-main {
+      display: grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap: 24px;
+      padding-top: 24px;
+    }
+
+    .card {
+      background: var(--panel-bg); border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column;
+      height: calc(100vh - 160px);
+    }
+    .card-header {
+      padding: 16px; border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+    }
+    .card-body {
+      padding: 24px; overflow-y: auto; flex-grow: 1;
+    }
+    
+    .filter-input {
+      width: 100%; padding: 8px 12px 8px 32px; border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light); font-size: 0.9rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 10px center;
+    }
+
+    #assistants-list .list-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px;
+      border-radius: var(--radius-lg); cursor: pointer; transition: background-color var(--transition);
+    }
+    #assistants-list .list-item:hover { background-color: var(--bg-light); }
+    #assistants-list .list-item.active { background-color: var(--primary-orange); color: white; }
+    #assistants-list .list-item.active .list-item-name { color: white; }
+    .list-item-avatar {
+      width: 40px; height: 40px; border-radius: 8px; overflow: hidden;
+      flex-shrink: 0; background-color: #ede9fe;
+    }
+    .list-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .list-item-name { font-weight: 600; color: var(--text-dark); transition: color var(--transition); }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+    .form-input, .form-textarea {
+      width: 100%; padding: 10px 12px; border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light); background: #f9fafb;
+      font: inherit; font-size: 0.95rem; transition: all var(--transition);
+    }
+    .form-input:focus, .form-textarea:focus {
+      border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, .2);
+      outline: none; background-color: var(--panel-bg);
+    }
+    #assistant-editor-form { display: flex; flex-direction: column; gap: 20px; }
+    
+    .multi-select-container { position: relative; }
+    .multi-select-display {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      min-height: 42px; padding: 6px; border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light); background: var(--panel-bg); cursor: text;
+    }
+    .multi-select-display.focused { border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, .2); }
+    .selected-user-pill {
+      display: inline-flex; align-items: center; gap: 6px; background-color: var(--border-light);
+      padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 500;
+    }
+    .remove-pill { cursor: pointer; font-weight: bold; color: var(--text-muted); }
+    .remove-pill:hover { color: var(--danger); }
+    .multi-select-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+      background: var(--panel-bg); border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+      margin-top: 4px; display: flex; flex-direction: column;
+      visibility: hidden; opacity: 0; transform: translateY(-10px);
+      transition: all var(--transition);
+    }
+    .multi-select-dropdown.show { visibility: visible; opacity: 1; transform: translateY(0); }
+    .dropdown-filters { padding: 8px; display: flex; gap: 8px; border-bottom: 1px solid var(--border-light); }
+    .dropdown-filters .form-input, .dropdown-filters select { padding: 6px 10px; font-size: 0.85rem; }
+    .dropdown-list { max-height: 200px; overflow-y: auto; padding: 4px; }
+    .dropdown-actions { padding: 8px; border-top: 1px solid var(--border-light); display: flex; gap: 8px; }
+    .dropdown-actions .btn { flex-grow: 1; padding: 8px; font-size: 0.85rem; }
+    .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; }
+    .dropdown-item:hover { background-color: var(--bg-light); }
+    .dropdown-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary-orange); }
+    
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; z-index: 1000;
+      background: var(--text-dark); color: #fff; padding: 12px 18px;
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); opacity: 0;
+      transform: translateY(10px); visibility: hidden;
+      transition: all var(--transition); font-weight: 600;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); visibility: visible; }
+
+    .modal {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, .6); backdrop-filter: blur(4px); z-index: 999;
+      opacity: 0; visibility: hidden; transition: all var(--transition);
+    }
+    .modal.show { opacity: 1; visibility: visible; }
+    .modal-card {
+      width: min(750px, 90vw); max-height: 90vh; background: var(--bg-light);
+      border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+      transform: scale(0.95); transition: all var(--transition);
+      display: flex; flex-direction: column;
+    }
+    .modal.show .modal-card { transform: scale(1); }
+    .modal-head { padding: 16px 24px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; background-color: var(--panel-bg); border-top-left-radius: var(--radius-xl); border-top-right-radius: var(--radius-xl);}
+    .modal-head strong { font-size: 1.25rem; font-weight: 700; }
+    .modal-body { padding: 24px; overflow-y: auto; flex-grow: 1; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 12px; flex-shrink: 0; background-color: #f9fafb; border-bottom-left-radius: var(--radius-xl); border-bottom-right-radius: var(--radius-xl);}
+    
+    .ai-option-card {
+      background: var(--panel-bg); border-radius: var(--radius-lg); border: 1px solid var(--border-light);
+      padding: 16px; margin-bottom: 16px;
+    }
+    .ai-option-card h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+    .ai-option-card pre {
+      background-color: #f3f4f6; padding: 12px; border-radius: 8px;
+      white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem;
+      max-height: 150px; overflow-y: auto;
+    }
+    .ai-option-card .actions { text-align: right; margin-top: 12px; }
+
+    .loader {
+      width: 48px; height: 48px; border: 5px solid var(--border-light); border-bottom-color: var(--primary-orange);
+      border-radius: 50%; display: inline-block; box-sizing: border-box;
+      animation: rotation 1s linear infinite; margin: 20px auto;
+    }
+    @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Asistentes de IA</h2>
+        <div class="pill">Gestiona prompts, visibilidad y comportamiento</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="btn-add-assistant">➕ Nuevo Asistente</button>
+        <button class="btn primary" id="btn-save-assistants">💾 Guardar Cambios</button>
+      </div>
+    </div>
+
+    <div class="grid-layout-main">
+      <div class="card">
+        <div class="card-body" id="editor-panel">
+            <form id="assistant-editor-form" class="hidden">
+                <input type="hidden" id="f-id">
+                <div id="ai-creator-trigger-wrapper" class="hidden">
+                    <button type="button" id="btn-ai-creator" class="btn primary" style="width:100%; margin-bottom: 20px; background: linear-gradient(135deg, #4f46e5, #7c3aed);">✨ Crear con IA (Gemini)</button>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="f-name">Nombre del Asistente</label>
+                    <input id="f-name" class="form-input" placeholder="Ej. Project Manager IA" />
+                </div>
+
+                <div class="form-group">
+                    <label for="f-description">Perfil / Profesión (descripción corta)</label>
+                    <input id="f-description" class="form-input" placeholder="Ej. Experto en metodologías ágiles" />
+                </div>
+
+                <div class="form-group">
+                    <label for="f-avatar">URL del Avatar</label>
+                    <input id="f-avatar" class="form-input" placeholder="https://..." />
+                </div>
+
+
+                <div class="form-group">
+                    <label for="f-prompt">Prompt (Instrucciones)</label>
+                    <textarea id="f-prompt" class="form-textarea" rows="5" placeholder="Eres un asistente experto en..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="f-knowledge">Base de Conocimiento</label>
+                    <textarea id="f-knowledge" class="form-textarea" rows="3" placeholder="Pega texto o URLs separadas por comas..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Compartido con</label>
+                    <div id="multi-select-container" class="multi-select-container">
+                        <div id="multi-select-display" class="multi-select-display"></div>
+                        <div id="multi-select-dropdown" class="multi-select-dropdown">
+                            <div class="dropdown-filters">
+                                <select id="db-filter" class="form-input" style="flex-grow: 1;"></select>
+                                <input id="user-search" class="form-input" placeholder="Buscar..." style="flex-grow: 2;">
+                            </div>
+                            <div class="dropdown-list" id="dropdown-user-list"></div>
+                            <div class="dropdown-actions">
+                                <button type="button" class="btn" id="btn-deselect-all">Deseleccionar</button>
+                                <button type="button" class="btn primary" id="btn-select-all">Seleccionar Visibles</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input id="f-public" type="checkbox" style="width: 16px; height: 16px; accent-color: var(--primary-orange);"/>
+                        <label for="f-public" style="font-weight: 500; cursor: pointer;">Público para todos</label>
+                    </div>
+                    <button type="button" class="btn danger" id="btn-delete-assistant">Eliminar Asistente</button>
+                </div>
+            </form>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+            <input type="search" id="assistant-filter" class="filter-input" placeholder="Buscar asistente...">
+        </div>
+        <div class="card-body" id="assistants-list" style="padding: 8px;"></div>
+      </div>
+    </div>
+  </main>
+  
+  <div class="modal" id="ai-creator-modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="ai-modal-title">Crear Asistente con IA</strong>
+      </div>
+      <div class="modal-body" id="ai-modal-body"></div>
+      <div class="modal-footer" id="ai-modal-footer"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_BASE_DEFAULT = 'https://focux-app.onrender.com';
+    const DEFAULT_AVATAR_URL = 'https://i.ibb.co/ZR8zNXGn/imagen-2025-08-17-163425695.png'; // Nueva URL de imagen
+    let API_BASE_URL = window.API_BASE_URL || localStorage.getItem('FOCUX_API_BASE') || API_BASE_DEFAULT;
+
+    function apiUrl(path) { return API_BASE_URL.replace(/\/$/, '') + (path.startsWith('/') ? path : '/' + path); }
+
+    async function fetchJSON(path, { method = 'GET', body = null } = {}) {
+      const opts = { method, headers: { 'ngrok-skip-browser-warning': 'true' }, mode: 'cors' };
+      if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+      const res = await fetch(apiUrl(path), opts);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status} ${res.statusText}: ${errorText}`);
+      }
+      return res.json();
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3200);
+    }
+    
+    const $assistantsList = document.getElementById('assistants-list');
+    const $editorForm = document.getElementById('assistant-editor-form');
+    let CACHE = { assistants: [], users: [], databases: [] };
+    let selectedAssistantId = null;
+
+    function paintAssistantsList(filterTerm = '') {
+        $assistantsList.innerHTML = '';
+        const term = filterTerm.toLowerCase();
+        const filteredAssistants = CACHE.assistants.filter(a => (a.name || '').toLowerCase().includes(term));
+        if (filteredAssistants.length === 0) {
+            $assistantsList.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:20px;">No se encontraron asistentes.</p>`;
+        }
+        filteredAssistants.forEach(a => {
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.dataset.id = a.id;
+            if (a.id === selectedAssistantId) { item.classList.add('active'); }
+            item.innerHTML = `
+                <div class="list-item-avatar">${a.avatar_url ? `<img src="${a.avatar_url}" alt="Avatar">` : ''}</div>
+                <span class="list-item-name">${a.name || 'Sin nombre'}</span>`;
+            item.addEventListener('click', () => {
+                selectedAssistantId = a.id;
+                paintAssistantsList(term);
+                showAssistantInEditor(a.id);
+            });
+            $assistantsList.appendChild(item);
+        });
+    }
+
+    function showAssistantInEditor(id) {
+        const assistant = CACHE.assistants.find(a => a.id === id);
+        if (!assistant) { showPlaceholder(); return; }
+        document.getElementById('ai-creator-trigger-wrapper').classList.add('hidden');
+        $editorForm.classList.remove('hidden');
+        document.getElementById('f-id').value = assistant.id;
+        document.getElementById('f-name').value = assistant.name || '';
+        document.getElementById('f-description').value = assistant.description || ''; // <-- AÑADIDO
+        document.getElementById('f-avatar').value = assistant.avatar_url || '';
+        document.getElementById('f-prompt').value = assistant.prompt || '';
+        document.getElementById('f-knowledge').value = assistant.knowledge_base || '';
+        document.getElementById('f-public').checked = !!assistant.is_public;
+        setupMultiSelect(assistant.shared_with || []);
+    }
+
+    function showPlaceholder() {
+        selectedAssistantId = null;
+        $editorForm.classList.add('hidden');
+        document.getElementById('ai-creator-trigger-wrapper').classList.remove('hidden');
+        $editorForm.reset();
+        paintAssistantsList(document.getElementById('assistant-filter').value);
+    }
+
+
+    async function loadInitialData() {
+        try {
+            // ========= INICIO DE LA CORRECCIÓN CLAVE =========
+            // Se limpian los datos locales ANTES de solicitar los nuevos.
+            // Esto asegura que no se muestren datos viejos si la nueva petición falla.
+            CACHE = { assistants: [], users: [], databases: [] }; 
+            // ========= FIN DE LA CORRECCIÓN CLAVE =========
+
+            const [assistantsRes, usersRes, dbRes] = await Promise.all([
+                fetchJSON('/admin/assistants'),
+                fetchJSON('/admin/dashboard'),
+                fetchJSON('/admin/available-databases')
+            ]);
+            
+            // Asignar los nuevos datos frescos del servidor
+            CACHE.assistants = (assistantsRes.assistants || []).map(a => ({ id: a.id || String(Date.now()), ...a }));
+            CACHE.users = usersRes.stats.detailed_users || [];
+            CACHE.databases = dbRes.databases || [];
+            
+            paintAssistantsList();
+            showPlaceholder(); // Muestra el formulario vacío o el de IA
+            populateDbFilter();
+            toast('✅ Datos cargados');
+        } catch (e) { 
+            console.error(e); 
+            toast('❌ No se pudieron cargar los datos iniciales'); 
+        }
+    }
+
+
+    async function saveAssistants() {
+      // Recolecta todos los datos del formulario, incluyendo el campo de descripción
+      const assistantId = document.getElementById('f-id').value;
+      const assistantToSave = {
+        id: assistantId,
+        name: document.getElementById('f-name').value,
+        description: document.getElementById('f-description').value,
+        avatar_url: document.getElementById('f-avatar').value,
+        prompt: document.getElementById('f-prompt').value,
+        knowledge_base: document.getElementById('f-knowledge').value,
+        is_public: document.getElementById('f-public').checked,
+        shared_with: Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email),
+      };
+
+      // Si el asistente es público, la lista de "compartido con" debe estar vacía
+      if (assistantToSave.is_public) {
+        assistantToSave.shared_with = [];
+      }
+
+      // Actualiza el caché local con los datos del editor
+      let found = false;
+      CACHE.assistants = CACHE.assistants.map(a => {
+        if (a.id === assistantId) {
+          found = true;
+          return assistantToSave;
+        }
+        return a;
+      });
+      if (!found && assistantToSave.id) {
+        CACHE.assistants.push(assistantToSave);
+      }
+
+      try {
+        // Deshabilita el botón para evitar envíos duplicados
+        document.getElementById('btn-save-assistants').disabled = true;
+        document.getElementById('btn-save-assistants').textContent = 'Guardando...';
+
+        // Envía la lista COMPLETA de asistentes al backend
+        const response = await fetchJSON('/admin/assistants', {
+          method: 'POST',
+          body: CACHE.assistants
+        });
+
+        if (response.success) {
+          toast('✅ Asistentes guardados correctamente.');
+          // Recarga los datos para obtener IDs actualizados del servidor
+          await loadInitialData();
+        } else {
+          throw new Error(response.message || 'Error desconocido al guardar.');
+        }
+      } catch (e) {
+        console.error('Error al guardar asistentes:', e);
+        toast(`❌ Error en el servidor: ${e.message}`);
+      } finally {
+        // Vuelve a habilitar el botón
+        document.getElementById('btn-save-assistants').disabled = false;
+        document.getElementById('btn-save-assistants').textContent = '💾 Guardar Cambios';
+      }
+    }
+    
+    // --- New delete function ---
+    async function deleteAssistant(assistantId) {
+        if (!assistantId) {
+            toast('❌ No se puede eliminar: ID de asistente no válido.');
+            return;
+        }
+
+        if (!confirm('¿Estás seguro de que quieres eliminar este asistente? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        try {
+            const response = await fetchJSON(`/admin/assistants/${assistantId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.success) {
+                toast('✅ Asistente eliminado correctamente.');
+                loadInitialData(); // Reload all data to reflect the change
+                showPlaceholder();
+            } else {
+                throw new Error(response.message || 'Error desconocido al eliminar.');
+            }
+        } catch (e) {
+            console.error('Error al eliminar asistente:', e);
+            toast(`❌ Error al eliminar asistente: ${e.message}`);
+        }
+    }
+
+    // --- Multi-Select Logic ---
+    const $multiSelectContainer = document.getElementById('multi-select-container');
+    const $multiSelectDisplay = document.getElementById('multi-select-display');
+    const $multiSelectDropdown = document.getElementById('multi-select-dropdown');
+    const $dbFilter = document.getElementById('db-filter');
+    const $userSearch = document.getElementById('user-search');
+    const $userList = document.getElementById('dropdown-user-list');
+    
+    function setupMultiSelect(selectedEmails = []) { renderSelectedPills(selectedEmails); renderDropdownItems(); }
+    function populateDbFilter() {
+        $dbFilter.innerHTML = '<option value="all">Todas las Bases de Datos</option>';
+        CACHE.databases.forEach(db => {
+            const option = document.createElement('option');
+            option.value = db.filename;
+            option.textContent = db.display_name || db.filename;
+            $dbFilter.appendChild(option);
+        });
+    }
+    function renderSelectedPills(emails) {
+        $multiSelectDisplay.innerHTML = '';
+        emails.forEach(email => {
+            const user = CACHE.users.find(u => u.email === email);
+            const name = user ? user.name : email;
+            const pill = document.createElement('span');
+            pill.className = 'selected-user-pill';
+            pill.dataset.email = email;
+            pill.innerHTML = `${name} <span class="remove-pill" title="Quitar">&times;</span>`;
+            $multiSelectDisplay.appendChild(pill);
+        });
+    }
+    function renderDropdownItems() {
+        const selectedEmails = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+        const searchTerm = $userSearch.value.toLowerCase();
+        const dbFilter = $dbFilter.value;
+        let filteredUsers = CACHE.users;
+        if (dbFilter !== 'all') { filteredUsers = filteredUsers.filter(user => user.source_db === dbFilter); }
+        if (searchTerm) { filteredUsers = filteredUsers.filter(user => user.name.toLowerCase().includes(searchTerm) || user.email.toLowerCase().includes(searchTerm)); }
+        $userList.innerHTML = '';
+        if (filteredUsers.length === 0) { $userList.innerHTML = `<div style="padding:10px; text-align:center; color:var(--text-muted);">No se encontraron usuarios</div>`; return; }
+        filteredUsers.forEach(user => {
+            const isSelected = selectedEmails.includes(user.email);
+            const item = document.createElement('label');
+            item.className = 'dropdown-item';
+            item.innerHTML = `<input type="checkbox" data-email="${user.email}" ${isSelected ? 'checked' : ''}><span>${user.name} <em style="color:var(--text-muted); font-style:normal;">(${user.email})</em></span>`;
+            $userList.appendChild(item);
+        });
+    }
+    $multiSelectDisplay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-pill')) { e.target.parentElement.remove(); renderDropdownItems(); return; }
+        $multiSelectDropdown.classList.add('show'); $multiSelectDisplay.classList.add('focused');
+    });
+    document.addEventListener('click', (e) => {
+        if (!$multiSelectContainer.contains(e.target)) { $multiSelectDropdown.classList.remove('show'); $multiSelectDisplay.classList.remove('focused'); }
+    });
+    $userList.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+            const email = e.target.dataset.email;
+            let selectedEmails = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+            if (e.target.checked) { if (!selectedEmails.includes(email)) selectedEmails.push(email); } 
+            else { selectedEmails = selectedEmails.filter(e => e !== email); }
+            renderSelectedPills(selectedEmails);
+        }
+    });
+    $dbFilter.addEventListener('input', renderDropdownItems);
+    $userSearch.addEventListener('input', renderDropdownItems);
+    document.getElementById('btn-select-all').addEventListener('click', () => {
+        let selectedEmails = new Set(Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email));
+        $userList.querySelectorAll('input[type="checkbox"]').forEach(chk => selectedEmails.add(chk.dataset.email));
+        setupMultiSelect(Array.from(selectedEmails));
+    });
+    document.getElementById('btn-deselect-all').addEventListener('click', () => { setupMultiSelect([]); });
+
+    // --- AI Creator Modal Logic ---
+    const $aiCreatorModal = document.getElementById('ai-creator-modal');
+    const $aiModalTitle = document.getElementById('ai-modal-title');
+    const $aiModalBody = document.getElementById('ai-modal-body');
+    const $aiModalFooter = document.getElementById('ai-modal-footer');
+    
+    function showAiCreatorModal(state = 'input', data = {}) {
+        $aiCreatorModal.classList.add('show');
+        if (state === 'input') {
+            $aiModalTitle.textContent = 'Crear Asistente con IA';
+            $aiModalBody.innerHTML = `
+                <div class="form-group">
+                    <label for="ai-prompt-input">Describe el perfil o función del asistente que necesitas:</label>
+                    <textarea id="ai-prompt-input" class="form-textarea" rows="5" placeholder="Ej: Un asistente experto en carpintería que da consejos sobre herramientas y técnicas."></textarea>
+                </div>`;
+            $aiModalFooter.innerHTML = `
+                <button class="btn" id="btn-ai-cancel">Cancelar</button>
+                <button class="btn primary" id="btn-ai-generate">Generar Opciones</button>`;
+            
+            document.getElementById('btn-ai-cancel').onclick = hideAiCreatorModal;
+            document.getElementById('btn-ai-generate').onclick = async () => {
+                const userPrompt = document.getElementById('ai-prompt-input').value;
+                if (!userPrompt.trim()) { toast('⚠️ Debes describir al asistente.'); return; }
+                await generateAiOptions(userPrompt);
+            };
+        } else if (state === 'loading') {
+            $aiModalBody.innerHTML = `<div style="text-align:center;"><div class="loader"></div><p>Generando perfiles de asistente...</p></div>`;
+            $aiModalFooter.innerHTML = '';
+        } else if (state === 'results') {
+            $aiModalTitle.textContent = 'Elige una Opción';
+            $aiModalBody.innerHTML = data.options.map((opt, index) => `
+                <div class="ai-option-card">
+                    <h4>${opt.name}</h4>
+                    <pre>${opt.prompt}</pre>
+                    <div class="actions">
+                        <button class="btn primary btn-select-option" data-index="${index}">Seleccionar este</button>
+                    </div>
+                </div>
+            `).join('');
+            $aiModalFooter.innerHTML = `
+                <button class="btn" id="btn-ai-cancel">Cancelar</button>
+                <button class="btn" id="btn-ai-regenerate">Generar otras 3 opciones</button>`;
+
+            document.getElementById('btn-ai-cancel').onclick = hideAiCreatorModal;
+            document.getElementById('btn-ai-regenerate').onclick = () => generateAiOptions(data.originalPrompt);
+            document.querySelectorAll('.btn-select-option').forEach(btn => {
+                btn.onclick = () => {
+                    const selectedOption = data.options[parseInt(btn.dataset.index)];
+                    const userPrompt = data.originalPrompt;
+                    const assistantRole = userPrompt.length > 50 ? userPrompt.substring(0, 50) + '...' : userPrompt;
+                    
+                    document.getElementById('f-name').value = `${selectedOption.name} (${assistantRole})`;
+                    document.getElementById('f-prompt').value = selectedOption.prompt;
+                    hideAiCreatorModal();
+                };
+            });
+        }
+    }
+    
+    function hideAiCreatorModal() { $aiCreatorModal.classList.remove('show'); }
+
+    async function generateAiOptions(userPrompt) {
+        showAiCreatorModal('loading');
+        try {
+            const res = await fetchJSON('/admin/assistants/generate-with-ai', { method: 'POST', body: { prompt: userPrompt } });
+            if (res.success && res.options) {
+                showAiCreatorModal('results', { options: res.options, originalPrompt: userPrompt });
+            } else { throw new Error(res.message || 'La respuesta de la IA no fue válida.'); }
+        } catch (e) { toast(`❌ Error de IA: ${e.message}`); showAiCreatorModal('input'); }
+    }
+
+    document.getElementById('btn-add-assistant').addEventListener('click', () => {
+      // --- INICIO DE LA MODIFICACIÓN ROBUSTA ---
+      // Se elimina la lógica de cálculo del número en el cliente.
+      // El servidor asignará el nombre consecutivo final al guardar.
+      // Se usa un nombre temporal para que el usuario sepa que aún no se ha guardado.
+      const newName = `Nuevo Asistente (sin guardar)`;
+      // --- FIN DE LA MODIFICACIÓN ROBUSTA ---
+
+      const newId = `new-${Date.now()}`;
+      selectedAssistantId = newId;
+      CACHE.assistants.push({ 
+        id: newId, 
+        name: newName, // Se usa el nuevo nombre de marcador de posición
+        avatar_url: DEFAULT_AVATAR_URL,
+        description: '',
+        prompt: '', 
+        knowledge_base: '', 
+        shared_with: [], 
+        is_public: false 
+      });
+      paintAssistantsList(document.getElementById('assistant-filter').value);
+      showAssistantInEditor(newId);
+      document.getElementById('ai-creator-trigger-wrapper').classList.remove('hidden');
+      document.getElementById('f-name').focus();
+    });
+
+
+
+    document.getElementById('btn-ai-creator').addEventListener('click', () => showAiCreatorModal('input'));
+    document.getElementById('btn-save-assistants').addEventListener('click', saveAssistants);
+    document.getElementById('btn-delete-assistant').addEventListener('click', () => {
+        if (!selectedAssistantId) return;
+        deleteAssistant(selectedAssistantId);
+    });
+    document.getElementById('assistant-filter').addEventListener('input', (e) => { paintAssistantsList(e.target.value); });
+
+    $editorForm.addEventListener('input', () => {
+        const assistantId = document.getElementById('f-id').value;
+        const assistant = CACHE.assistants.find(a => a.id === assistantId);
+        if (assistant) {
+            assistant.name = document.getElementById('f-name').value;
+            assistant.description = document.getElementById('f-description').value; // <-- AÑADIDO
+            assistant.avatar_url = document.getElementById('f-avatar').value;
+            assistant.prompt = document.getElementById('f-prompt').value;
+            assistant.knowledge_base = document.getElementById('f-knowledge').value;
+            assistant.is_public = document.getElementById('f-public').checked;
+            assistant.shared_with = Array.from(document.querySelectorAll('.selected-user-pill')).map(p => p.dataset.email);
+            paintAssistantsList(document.getElementById('assistant-filter').value); // Update list view
+        }
+    });
+
+    
+    
+    let socket;
+    try {
+        socket = io(API_BASE_URL, { transports: ['websocket', 'polling'] });
+        socket.on('assistants_updated', () => loadInitialData());
+    } catch (e) { console.error("Socket.IO connection failed.", e); }
+    loadInitialData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary-orange: #f97316;
+      --primary-orange-dark: #ea580c;
+      --bg-light: #f4f5f7;
+      --panel-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-muted: #6b7280;
+      --border-light: #e5e7eb;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --info: #2563eb;
+
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html, body {
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text-dark);
+      background-color: var(--bg-light);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    main {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition);
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .header h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background-color: #fff7ed;
+      color: var(--primary-orange-dark);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      background: var(--panel-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      color: var(--text-dark);
+      border-color: #d1d5db;
+    }
+
+    /* === SISTEMA DE PESTAÑAS === */
+    .dashboard-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border-light);
+      margin-bottom: 24px;
+      background: var(--panel-bg);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      padding: 0 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tab-button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 24px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all var(--transition);
+      position: relative;
+    }
+
+    .tab-button:hover {
+      color: var(--text-dark);
+      background-color: rgba(249, 115, 22, 0.05);
+    }
+
+    .tab-button.active {
+      color: var(--primary-orange);
+      border-bottom-color: var(--primary-orange);
+      background-color: rgba(249, 115, 22, 0.1);
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .grid {
+      display: grid;
+      gap: 24px;
+    }
+    .cards-4 {
+      grid-template-columns: repeat(4, 1fr);
+      flex-shrink: 0;
+    }
+    
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: all var(--transition);
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    .stat-card .icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .stat-card .icon svg {
+        width: 24px;
+        height: 24px;
+    }
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+    .stat-card p {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+
+    .icon.users { background-color: #dbeafe; color: #2563eb; }
+    .icon.active { background-color: #dcfce7; color: #16a34a; }
+    .icon.boards { background-color: #ede9fe; color: #7c3aed; }
+    .icon.connected { background-color: #fef3c7; color: #d97706; }
+
+    .grid-layout-main {
+      grid-template-columns: 1.2fr .8fr;
+    }
+    .table-card {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .table-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-shrink: 0;
+    }
+    .table-container {
+        flex-grow: 1;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .filter-input {
+        padding: 6px 12px 6px 32px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-light);
+        font-size: 0.9rem;
+        width: 220px;
+        transition: all var(--transition);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: 10px center;
+    }
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--primary-orange);
+        box-shadow: 0 0 0 2px rgba(249, 115, 22, .2);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      text-align: left;
+      font-size: 0.75rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      background-color: #f9fafb;
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      border-bottom: 1px solid var(--border-light);
+    }
+    tbody td {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-light);
+      font-size: 0.9rem;
+      vertical-align: middle;
+    }
+    tbody tr:first-child td { border-top: none; }
+    tbody tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-badge.online {
+      background-color: #dcfce7;
+      color: #16a34a;
+    }
+    .status-badge.online::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #16a34a;
+    }
+    .status-badge.active {
+      background-color: #fef3c7;
+      color: #d97706;
+    }
+    .status-badge.active::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #d97706;
+    }
+    .status-badge.inactive {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+    .status-badge.inactive::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #dc2626;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .loading-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border-light);
+      border-top: 2px solid var(--primary-orange);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 1000;
+      background: var(--text-dark);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transform: translateY(10px);
+      visibility: hidden;
+      transition: all var(--transition);
+      font-weight: 600;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      visibility: visible;
+    }
+    .toast.success {
+      background: var(--ok);
+    }
+    .toast.error {
+      background: var(--danger);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    /* === ESTILOS PARA GRÁFICAS === */
+    .charts-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .charts-bottom {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .chart-box {
+        background: var(--panel-bg);
+        border: 1px solid var(--border-light);
+        border-radius: var(--radius-xl);
+        padding: 28px;
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-box::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-orange), var(--primary-orange-dark));
+    }
+    
+    .chart-box:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .chart-box.chart-bottom {
+        max-width: 600px;
+        width: 100%;
+    }
+
+    .chart-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .chart-icon {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .chart-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .chart-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-align: center;
+        margin-top: 4px;
+    }
+
+    .chart-canvas-container {
+        position: relative;
+        height: 350px;
+        margin-top: 8px;
+    }
+
+    .charts-empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-muted);
+        background: var(--panel-bg);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .charts-empty-state .icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+
+    .charts-empty-state h3 {
+        font-size: 1.4rem;
+        margin-bottom: 8px;
+        color: var(--text-dark);
+    }
+
+    .charts-empty-state p {
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+
+    /* Indicadores de métricas */
+    .chart-metric {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-top: 1px solid #f3f4f6;
+        margin-top: 16px;
+        font-size: 0.9rem;
+    }
+
+    .metric-label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .metric-value {
+        font-weight: 700;
+        color: var(--primary-orange);
+    }
+
+    @media (max-width: 1200px) {
+      .cards-4 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .grid-layout-main {
+        grid-template-columns: 1fr;
+      }
+      .charts-container {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 768px) {
+      .cards-4 {
+        grid-template-columns: 1fr;
+      }
+      .filter-input {
+        width: 180px;
+      }
+      main {
+        padding: 16px;
+      }
+      .dashboard-tabs {
+        padding: 0 16px;
+      }
+      .tab-button {
+        padding: 12px 16px;
+        font-size: 0.9rem;
+      }
+    }
+    @media (max-width: 640px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filter-input {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Dashboard</h2>
+        <div class="pill" id="last-updated">
+          <div class="loading-spinner"></div>
+          Cargando…
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="btn-refresh-dashboard" title="Actualizar dashboard">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="dashboard-tabs">
+      <button class="tab-button active" data-tab="datos">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
+        </svg>
+        Datos
+      </button>
+      <button class="tab-button" data-tab="graficas">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M4 11H2v3h2v-3zm5-4H7v7h2V7zm5-5v12h-2V2h2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-2zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3z"/>
+        </svg>
+        Gráficas
+      </button>
+    </div>
+
+    <div id="datos" class="tab-content active">
+      <div class="grid cards-4" id="stats-cards">
+          <div class="card stat-card">
+            <div class="icon users">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 id="stat-total-users">-</h3>
+              <p>Usuarios totales</p>
+            </div>
+          </div>
+          
+          <div class="card stat-card">
+            <div class="icon active">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 id="stat-active-users">-</h3>
+              <p>Usuarios activos</p>
+            </div>
+          </div>
+          
+          <div class="card stat-card">
+            <div class="icon boards">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+              </svg>
+            </div>
+            <div>
+              <h3 id="stat-total-boards">-</h3>
+              <p>Tableros creados</p>
+            </div>
+          </div>
+          
+          <div class="card stat-card">
+            <div class="icon connected">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 id="stat-connected-users">-</h3>
+              <p>Usuarios conectados</p>
+            </div>
+          </div>
+      </div>
+
+      <div class="grid grid-layout-main">
+        <div class="card table-card">
+          <div class="table-card-header">
+            <strong style="font-size: 1.1rem;">Actividad Reciente de Usuarios</strong>
+            <input type="search" id="user-filter" class="filter-input" placeholder="Filtrar usuarios...">
+          </div>
+          <div class="table-container">
+              <div id="user-activity-loading" class="loading">
+                <div class="loading-spinner"></div>
+                Cargando actividad de usuarios...
+              </div>
+              <table id="user-activity-table" style="display: none;">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Estado</th>
+                    <th>Tableros</th>
+                    <th>Último acceso</th>
+                  </tr>
+                </thead>
+                <tbody id="tbl-user-activity"></tbody>
+              </table>
+          </div>
+        </div>
+        
+        <div class="card table-card">
+          <div class="table-card-header">
+            <strong style="font-size: 1.1rem;">Tableros Recientes</strong>
+            <input type="search" id="board-filter" class="filter-input" placeholder="Filtrar tableros...">
+          </div>
+          <div class="table-container">
+              <div id="recent-boards-loading" class="loading">
+                <div class="loading-spinner"></div>
+                Cargando tableros recientes...
+              </div>
+              <table id="recent-boards-table" style="display: none;">
+                <thead>
+                  <tr>
+                    <th>Tablero</th>
+                    <th>Propietario</th>
+                    <th>Tarjetas</th>
+                    <th>Creado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbl-recent-boards"></tbody>
+              </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="graficas" class="tab-content">
+      <div id="charts-empty-state" class="charts-empty-state" style="display: none;">
+        <div class="icon">📊</div>
+        <h3>Sin datos para gráficas</h3>
+        <p>Las gráficas se mostrarán cuando haya datos disponibles.</p>
+      </div>
+      <div id="charts-main-container">
+          <div class="charts-container">
+              <div class="chart-box">
+                  <div class="chart-header">
+                    <div class="chart-icon">👥</div>
+                    <div>
+                      <h3 class="chart-title">Registro de Usuarios</h3>
+                      <p class="chart-subtitle">Nuevos usuarios por mes</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-container">
+                    <canvas id="usersByMonthChart"></canvas>
+                  </div>
+                  <div class="chart-metric">
+                    <span class="metric-label">Total registrados:</span>
+                    <span class="metric-value" id="total-users-metric">0</span>
+                  </div>
+              </div>
+              
+              <div class="chart-box">
+                  <div class="chart-header">
+                    <div class="chart-icon">📋</div>
+                    <div>
+                      <h3 class="chart-title">Creación de Tableros</h3>
+                      <p class="chart-subtitle">Nuevos tableros por mes</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-container">
+                    <canvas id="boardsByMonthChart"></canvas>
+                  </div>
+                  <div class="chart-metric">
+                    <span class="metric-label">Total creados:</span>
+                    <span class="metric-value" id="total-boards-metric">0</span>
+                  </div>
+              </div>
+          </div>
+          
+          <div class="charts-bottom">
+              <div class="chart-box chart-bottom">
+                  <div class="chart-header">
+                    <div class="chart-icon">🏆</div>
+                    <div>
+                      <h3 class="chart-title">Top Usuarios Activos</h3>
+                      <p class="chart-subtitle">Los 5 usuarios con más tableros</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-container">
+                    <canvas id="boardsByOwnerChart"></canvas>
+                  </div>
+                  <div class="chart-metric">
+                    <span class="metric-label">Promedio por usuario:</span>
+                    <span class="metric-value" id="avg-boards-metric">0</span>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    // =================================================================================
+    // CONFIGURACIÓN INICIAL (¡IMPORTANTE!)
+    // =================================================================================
+    // Reemplaza esta URL por la URL de tu servidor backend.
+    const API_BASE_URL = 'https://focux-app.onrender.com';
+    
+    let usersByMonthChart = null;
+    let boardsByMonthChart = null;
+    let boardsByOwnerChart = null;
+    let currentActiveTab = 'datos';
+
+    // =================================================================================
+    // FUNCIONES AUXILIARES
+    // =================================================================================
+
+    async function fetchJSON(path) {
+      const res = await fetch(`${API_BASE_URL}${path}`, {
+        method: 'GET',
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+      if (!res.ok) {
+        throw new Error(`Error en la petición: ${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    }
+
+    function toast(msg, type = 'info') {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.className = 'toast';
+      if (type === 'success') t.classList.add('success');
+      if (type === 'error') t.classList.add('error');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    function formatRelativeTime(dateString) {
+      if (!dateString || dateString === 'Nunca') return 'Nunca';
+      const date = new Date(dateString);
+      const diffMins = Math.floor((new Date() - date) / 60000);
+      if (diffMins < 1) return 'Ahora mismo';
+      if (diffMins < 60) return `Hace ${diffMins}m`;
+      if (diffMins < 1440) return `Hace ${Math.floor(diffMins / 60)}h`;
+      return date.toLocaleDateString('es-CO');
+    }
+
+    function getStatusBadge(status, daysInactive = 0) {
+      if (status === 'online') return `<span class="status-badge online">En línea</span>`;
+      if (status === 'active') return `<span class="status-badge active">Activo</span>`;
+      const daysText = daysInactive > 0 ? ` (${daysInactive}d)` : '';
+      return `<span class="status-badge inactive">Inactivo${daysText}</span>`;
+    }
+
+    function showEmptyState(containerId, message, icon = '📭') {
+      const container = document.getElementById(containerId);
+      if (container) {
+        container.innerHTML = `<tr><td colspan="4" class="empty-state"><div style="font-size: 2rem; margin-bottom: 8px;">${icon}</div><div>${message}</div></td></tr>`;
+      }
+    }
+
+    // =================================================================================
+    // LÓGICA PRINCIPAL DEL DASHBOARD
+    // =================================================================================
+
+    async function loadDashboard() {
+      try {
+        console.log('🔄 Cargando dashboard...');
+        document.getElementById('last-updated').innerHTML = '<div class="loading-spinner"></div>Actualizando...';
+        setLoadingState(true);
+
+        const json = await fetchJSON('/admin/dashboard');
+        
+        if (!json.success) {
+          throw new Error(json.message || 'Respuesta no exitosa del servidor');
+        }
+        
+        renderDashboardUI(json.stats);
+        
+        const now = new Date();
+        document.getElementById('last-updated').innerHTML = `Actualizado: ${now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        
+        toast('✅ Dashboard actualizado', 'success');
+        console.log('✅ Dashboard actualizado exitosamente');
+      
+      } catch (error) {
+        console.error('❌ Error cargando dashboard:', error);
+        toast('❌ Error al cargar datos: ' + error.message, 'error');
+        setErrorState();
+      }
+    }
+
+    function setLoadingState(isLoading) {
+        const loadingElements = {
+            'user-activity-loading': 'user-activity-table',
+            'recent-boards-loading': 'recent-boards-table'
+        };
+
+        for (const loadingId in loadingElements) {
+            const tableId = loadingElements[loadingId];
+            document.getElementById(loadingId).style.display = isLoading ? 'flex' : 'none';
+            document.getElementById(tableId).style.display = isLoading ? 'none' : 'table';
+        }
+    }
+
+    function setErrorState() {
+        document.getElementById('last-updated').textContent = 'Error de conexión';
+        
+        // Poner guiones en las tarjetas de estadísticas
+        ['stat-total-users', 'stat-active-users', 'stat-total-boards', 'stat-connected-users'].forEach(id => {
+            document.getElementById(id).textContent = '-';
+        });
+
+        // Mostrar estado vacío en las tablas
+        updateUserActivityTable([]);
+        updateRecentBoardsTable([]);
+
+        // Ocultar las gráficas y mostrar el mensaje de "sin datos"
+        document.getElementById('charts-main-container').style.display = 'none';
+        document.getElementById('charts-empty-state').style.display = 'block';
+
+        // Asegurarse de que los spinners de carga se oculten
+        setLoadingState(false);
+    }
+
+    function renderDashboardUI(data) {
+        setLoadingState(false);
+        const summary = data.summary || {};
+        const quickStats = data.quick_stats || {};
+        const userActivity = data.user_activity || [];
+        const recentBoards = data.recent_boards || [];
+
+        document.getElementById('stat-total-users').textContent = summary.total_users || 0;
+        document.getElementById('stat-active-users').textContent = summary.active_users || 0;
+        document.getElementById('stat-total-boards').textContent = summary.total_boards || 0;
+        document.getElementById('stat-connected-users').textContent = quickStats.active_sessions || 0;
+        
+        updateUserActivityTable(userActivity);
+        updateRecentBoardsTable(recentBoards);
+        
+        if (currentActiveTab === 'graficas') {
+            setTimeout(() => renderCharts(data), 100);
+        }
+    }
+
+    function updateUserActivityTable(userActivity) {
+      const tbody = document.getElementById('tbl-user-activity');
+      tbody.innerHTML = '';
+      
+      if (!userActivity.length) {
+        showEmptyState('tbl-user-activity', 'No hay actividad de usuarios registrada', '👥');
+        return;
+      }
+
+      userActivity.slice(0, 15).forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <strong>${user.name || user.email}</strong>
+            ${user.email && user.name ? `<br><small style="color: var(--text-muted);">${user.email}</small>` : ''}
+          </td>
+          <td>${getStatusBadge(user.status, user.days_since_login)}</td>
+          <td><strong>${user.boards_count || 0}</strong></td>
+          <td>${formatRelativeTime(user.last_login)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateRecentBoardsTable(recentBoards) {
+      const tbody = document.getElementById('tbl-recent-boards');
+      tbody.innerHTML = '';
+      
+      if (!recentBoards.length) {
+        showEmptyState('tbl-recent-boards', 'No hay tableros recientes', '📋');
+        return;
+      }
+
+      recentBoards.slice(0, 10).forEach(board => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${board.name || 'Tablero sin nombre'}</strong></td>
+          <td>${board.owner ? board.owner.split('@')[0] : 'N/A'}</td>
+          <td><span class="pill" style="font-size: 0.75rem; padding: 2px 8px;">${board.cards_count || 0}</span></td>
+          <td>${board.created_date ? new Date(board.created_date).toLocaleDateString('es-CO') : 'N/A'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCharts(data) {
+        const chartsEmptyState = document.getElementById('charts-empty-state');
+        const chartsMainContainer = document.getElementById('charts-main-container');
+
+        if (!data || !data.detailed_users || !data.detailed_boards || data.detailed_users.length === 0) {
+            chartsEmptyState.style.display = 'block';
+            chartsMainContainer.style.display = 'none';
+            return;
+        }
+      
+        chartsEmptyState.style.display = 'none';
+        chartsMainContainer.style.display = 'block';
+      
+        if (usersByMonthChart) usersByMonthChart.destroy();
+        if (boardsByMonthChart) boardsByMonthChart.destroy();
+        if (boardsByOwnerChart) boardsByOwnerChart.destroy();
+
+        const users = data.detailed_users;
+        const boards = data.detailed_boards;
+      
+        document.getElementById('total-users-metric').textContent = users.length;
+        document.getElementById('total-boards-metric').textContent = boards.length;
+        document.getElementById('avg-boards-metric').textContent = users.length > 0 ? (boards.length / users.length).toFixed(1) : 0;
+      
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+        };
+
+        const usersByMonth = users.reduce((acc, user) => {
+            const month = new Date(user.registration_date).toLocaleString('es-CO', { month: 'short', year: 'numeric' });
+            acc[month] = (acc[month] || 0) + 1;
+            return acc;
+        }, {});
+      
+        usersByMonthChart = new Chart(document.getElementById('usersByMonthChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(usersByMonth),
+                datasets: [{ data: Object.values(usersByMonth), backgroundColor: '#3B82F6', borderRadius: 4 }]
+            },
+            options: { ...commonOptions, scales: { y: { beginAtZero: true } } }
+        });
+
+        const boardsByMonth = boards.reduce((acc, board) => {
+            const month = new Date(board.created_date).toLocaleString('es-CO', { month: 'short', year: 'numeric' });
+            acc[month] = (acc[month] || 0) + 1;
+            return acc;
+        }, {});
+
+        boardsByMonthChart = new Chart(document.getElementById('boardsByMonthChart'), {
+            type: 'line',
+            data: {
+                labels: Object.keys(boardsByMonth),
+                datasets: [{ data: Object.values(boardsByMonth), borderColor: '#F97316', borderWidth: 3, fill: true, tension: 0.4, backgroundColor: 'rgba(249, 115, 22, 0.1)' }]
+            },
+            options: { ...commonOptions, scales: { y: { beginAtZero: true } } }
+        });
+
+        const boardsPerUser = users.reduce((acc, user) => {
+            acc[user.name || user.email] = user.boards_count || 0;
+            return acc;
+        }, {});
+        
+        const sortedUsers = Object.entries(boardsPerUser).sort(([, a], [, b]) => b - a).slice(0, 5);
+
+        boardsByOwnerChart = new Chart(document.getElementById('boardsByOwnerChart'), {
+            type: 'doughnut',
+            data: {
+                labels: sortedUsers.map(([user]) => user.split('@')[0]),
+                datasets: [{ data: sortedUsers.map(([, count]) => count), backgroundColor: ['#F97316', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'], borderWidth: 3, borderColor: '#FFFFFF' }]
+            },
+            options: { ...commonOptions, cutout: '50%', plugins: { legend: { display: true, position: 'right' } } }
+        });
+    }
+
+    // =================================================================================
+    // INICIALIZACIÓN Y EVENTOS
+    // =================================================================================
+
+    function setupTabs() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetTab = button.dataset.tab;
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(targetTab).classList.add('active');
+                currentActiveTab = targetTab;
+                if (targetTab === 'graficas') {
+                    loadDashboard();
+                }
+            });
+        });
+    }
+
+    function setupTableFilter(inputId, tableBodyId) {
+        const input = document.getElementById(inputId);
+        input.addEventListener('input', () => {
+            const searchTerm = input.value.toLowerCase().trim();
+            const rows = document.getElementById(tableBodyId).getElementsByTagName('tr');
+            for (let row of rows) {
+                row.style.display = row.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setupTabs();
+        document.getElementById('btn-refresh-dashboard').addEventListener('click', loadDashboard);
+        setupTableFilter('user-filter', 'tbl-user-activity');
+        setupTableFilter('board-filter', 'tbl-recent-boards');
+        loadDashboard();
+        setInterval(loadDashboard, 60000); // Actualización automática cada 60 segundos
+    });
+  </script>
+</body>
+</html>

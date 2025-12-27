@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mensajes Focux • Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-orange: #f97316;
+      --primary-orange-dark: #ea580c;
+      --bg-light: #f4f5f7;
+      --panel-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-muted: #6b7280;
+      --border-light: #e5e7eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      color: var(--text-dark);
+      background-color: var(--bg-light);
+    }
+
+    main { padding: 28px; max-width: 1400px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .header h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary-orange), var(--primary-orange-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header .subtitle {
+      display: block;
+      margin-top: 4px;
+      padding: 6px 12px;
+      background-color: #f3f4f6;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-light);
+      background: var(--panel-bg);
+      color: var(--text-dark);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      box-shadow: var(--shadow-sm);
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn.primary {
+      background: var(--primary-orange);
+      color: white;
+      border-color: var(--primary-orange);
+    }
+
+    .btn.primary:hover {
+      background: var(--primary-orange-dark);
+    }
+
+    .btn.success {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-light);
+      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    }
+
+    .card-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .card-header p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    .messages-list {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .message-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all var(--transition);
+      background: var(--panel-bg);
+    }
+
+    .message-item:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .message-item.selected {
+      border-color: var(--primary-orange);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .message-item.incomplete {
+      border-color: #fed7aa;
+      background: #fffbeb;
+    }
+
+    .message-item.incomplete .message-content h4 {
+      color: #d97706;
+    }
+
+    .message-content h4 {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--text-dark);
+    }
+
+    .message-content p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .message-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.active {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-badge.inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-badge.incomplete {
+      background: #fed7aa;
+      color: #d97706;
+    }
+
+    .form-section {
+      margin-bottom: 24px;
+      padding: 20px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      background: #fafbfc;
+    }
+
+    .form-section h4 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text-dark);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: var(--text-dark);
+      font-size: 0.875rem;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      font-size: 0.875rem;
+      transition: all var(--transition);
+      background: var(--panel-bg);
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: var(--primary-orange);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .form-input:invalid,
+    .form-textarea:invalid {
+      border-color: var(--danger);
+    }
+
+    .form-input:invalid:focus,
+    .form-textarea:invalid:focus {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .color-selector {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .color-option {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid white;
+      box-shadow: 0 0 0 2px var(--border-light);
+      transition: all var(--transition);
+    }
+
+    .color-option.selected {
+      box-shadow: 0 0 0 3px var(--primary-orange);
+      transform: scale(1.1);
+    }
+
+    .color-option.blue { background-color: #dbeafe; }
+    .color-option.orange { background-color: #fed7aa; }
+    .color-option.green { background-color: #dcfce7; }
+    .color-option.gray { background-color: #f3f4f6; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .target-selector {
+      margin-top: 12px;
+    }
+
+    .target-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+
+    .multi-select {
+      margin-top: 8px;
+      padding: 12px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      background: var(--panel-bg);
+      min-height: 80px;
+    }
+
+    .multi-select.hidden {
+      display: none;
+    }
+
+    .selected-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .selected-item {
+      background: var(--primary-orange);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .remove-item {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .available-items {
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .available-item {
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      transition: background-color var(--transition);
+    }
+
+    .available-item:hover {
+      background: var(--bg-light);
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      padding: 16px 20px;
+      border-radius: var(--radius-lg);
+      color: white;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(400px);
+      transition: all var(--transition);
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+      color: var(--text-dark);
+    }
+
+    @media (max-width: 1024px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    code {
+      background: var(--bg-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.875em;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h1>Mensajes Focux</h1>
+        <span class="subtitle">Gestiona los mensajes de Mr. Focux en el tablero</span>
+        <div style="margin-top: 8px;">
+          <small style="color: var(--text-muted); font-size: 0.75rem;">
+            🌐 Servidor: <span id="server-url" style="font-family: monospace;">Cargando...</span>
+            <button style="margin-left: 8px; padding: 2px 8px; font-size: 0.7rem; border: 1px solid var(--border-light); background: white; border-radius: 4px; cursor: pointer;" onclick="configureServer()">⚙️ Configurar</button>
+          </small>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="btn-new-message">➕ Nuevo Mensaje</button>
+        <button class="btn success" id="btn-save-all" disabled>💾 Guardar Cambios</button>
+        <button class="btn" id="btn-refresh">🔄 Actualizar</button>
+      </div>
+    </div>
+
+    <div class="grid-layout">
+      <div class="card">
+        <div class="card-header">
+          <h3>Lista de Mensajes</h3>
+          <p>Selecciona un mensaje para editarlo</p>
+          <div id="messages-stats" style="margin-top: 8px; font-size: 0.75rem; color: var(--text-muted);"></div>
+        </div>
+        <div class="card-body">
+          <div id="messages-container" class="messages-list">
+            </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Editor de Mensaje</h3>
+          <p>Configura el contenido y apariencia</p>
+        </div>
+        <div class="card-body">
+          <div id="editor-form">
+
+            <div class="form-section">
+              <h4>📝 Contenido Principal</h4>
+              <div class="form-group">
+                <label for="message-title">Título <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="message-title" class="form-input" placeholder="Ej. Bienvenida, Mantenimiento, Anuncio..." required>
+              </div>
+              <div class="form-group">
+                <label for="message-content">Contenido del Mensaje <span style="color: var(--danger);">*</span></label>
+                <div style="border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden;">
+                  <div style="background: #f8f9fa; padding: 8px; border-bottom: 1px solid var(--border-light); display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" onclick="formatText('bold')" style="padding: 4px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" onclick="formatText('italic')" style="padding: 4px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                      <em>I</em>
+                    </button>
+                    <button type="button" onclick="formatText('heading')" style="padding: 4px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                      H1
+                    </button>
+                    <button type="button" onclick="formatText('break')" style="padding: 4px 8px; border: 1px solid #ccc; background: white; border-radius: 4px; cursor: pointer;">
+                      ↵
+                    </button>
+                  </div>
+                  <textarea id="message-content" class="form-textarea" style="border: none; border-radius: 0; resize: vertical; min-height: 120px;" placeholder="Escribe aquí el contenido que verán los usuarios...&#10;&#10;Puedes usar:&#10;**texto en negrilla**&#10;*texto en cursiva*&#10;# Título grande&#10;## Título mediano" required></textarea>
+                </div>
+                <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+                  💡 Usa **negrilla**, *cursiva*, # Títulos, y saltos de línea para dar formato
+                </small>
+              </div>
+              <small style="color: var(--text-muted); font-size: 0.75rem;">
+                <span style="color: var(--danger);">*</span> Campos obligatorios
+              </small>
+            </div>
+
+            <div class="form-section">
+              <h4>🎨 Apariencia</h4>
+              <div class="form-group">
+                <label for="message-image">URL de Imagen (Opcional)</label>
+                <input type="url" id="message-image" class="form-input" placeholder="https://ejemplo.com/imagen.jpg">
+              </div>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="button-text">Texto del Botón</label>
+                  <input type="text" id="button-text" class="form-input" placeholder="Ver más">
+                </div>
+                <div class="form-group">
+                  <label for="button-url">URL del Botón</label>
+                  <input type="url" id="button-url" class="form-input" placeholder="https://ejemplo.com">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Color del Mensaje</label>
+                <div class="color-selector">
+                  <div class="color-option blue" data-color="blue"></div>
+                  <div class="color-option orange" data-color="orange"></div>
+                  <div class="color-option green" data-color="green"></div>
+                  <div class="color-option gray" data-color="gray"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h4>⏰ Programación y Estado</h4>
+              <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="message-active" style="transform: scale(1.2);">
+                  <span>Mensaje activo (visible para usuarios)</span>
+                </label>
+                <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+                  Solo los mensajes activos se mostrarán en Mr. Focux
+                </small>
+              </div>
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="start-date">Visible Desde</label>
+                  <input type="date" id="start-date" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label for="end-date">Visible Hasta</label>
+                  <input type="date" id="end-date" class="form-input">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h4>👥 Destinatarios</h4>
+              <div class="target-selector">
+                <div class="target-option">
+                  <input type="radio" name="target-mode" value="all" id="target-all" checked>
+                  <label for="target-all">Todos los usuarios</label>
+                </div>
+                <div class="target-option">
+                  <input type="radio" name="target-mode" value="databases" id="target-databases">
+                  <label for="target-databases">Bases de datos específicas</label>
+                </div>
+                <div class="target-option">
+                  <input type="radio" name="target-mode" value="users" id="target-users">
+                  <label for="target-users">Usuarios específicos</label>
+                </div>
+                
+                <div id="databases-selector" class="multi-select hidden">
+                  <div class="selected-items" id="selected-databases"></div>
+                  <div class="available-items" id="available-databases"></div>
+                </div>
+                
+                <div id="users-selector" class="multi-select hidden">
+                  <div class="selected-items" id="selected-users"></div>
+                  <div class="available-items" id="available-users"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn" id="btn-clear-form">🗑️ Limpiar</button>
+                <button class="btn primary" id="btn-save-message" disabled>💾 Guardar Mensaje</button>
+                <button class="btn danger" id="btn-delete-message" disabled>🗑️ Eliminar</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="empty-editor" class="empty-state">
+            <h3>Selecciona un mensaje</h3>
+            <p>Elige un mensaje de la lista para editarlo, o crea uno nuevo</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </main>
+
+  <script>
+    // ===== CONFIGURACIÓN Y ESTADO =====
+    // CONFIGURAR LA URL DE TU SERVIDOR NGROK AQUÍ
+    let API_BASE = 'https://focux-app.onrender.com'; // ⚠️ CAMBIAR POR TU URL DE NGROK
+    
+    // Auto-detectar si estamos en desarrollo local
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      API_BASE = 'http://localhost:8080';
+    }
+    
+    // Permitir configuración manual vía prompt
+    if (window.location.search.includes('config=true')) {
+      const customUrl = prompt('Ingresa la URL de tu servidor:', API_BASE);
+      if (customUrl) {
+        API_BASE = customUrl.replace(/\/$/, ''); // Remover slash final
+        localStorage.setItem('focux_api_base', API_BASE);
+      }
+    }
+    
+    // Cargar URL guardada
+    const savedApiBase = localStorage.getItem('focux_api_base');
+    if (savedApiBase) {
+      API_BASE = savedApiBase;
+    }
+    
+    let appState = {
+      messages: [],
+      databases: [],
+      users: [],
+      selectedMessage: null,
+      hasChanges: false,
+      isLoading: false
+    };
+
+    // ===== ELEMENTOS DEL DOM =====
+    const elements = {
+      messagesContainer: document.getElementById('messages-container'),
+      editorForm: document.getElementById('editor-form'),
+      emptyEditor: document.getElementById('empty-editor'),
+      toast: document.getElementById('toast'),
+      
+      // Botones principales
+      btnNewMessage: document.getElementById('btn-new-message'),
+      btnSaveAll: document.getElementById('btn-save-all'),
+      btnRefresh: document.getElementById('btn-refresh'),
+      btnClearForm: document.getElementById('btn-clear-form'),
+      btnSaveMessage: document.getElementById('btn-save-message'),
+      btnDeleteMessage: document.getElementById('btn-delete-message'),
+      
+      // Campos del formulario
+      messageTitle: document.getElementById('message-title'),
+      messageContent: document.getElementById('message-content'),
+      messageImage: document.getElementById('message-image'),
+      buttonText: document.getElementById('button-text'),
+      buttonUrl: document.getElementById('button-url'),
+      startDate: document.getElementById('start-date'),
+      endDate: document.getElementById('end-date'),
+      messageActive: document.getElementById('message-active'),
+      
+      // Selectores
+      colorSelector: document.querySelector('.color-selector'),
+      targetModeRadios: document.querySelectorAll('input[name="target-mode"]'),
+      databasesSelector: document.getElementById('databases-selector'),
+      usersSelector: document.getElementById('users-selector'),
+      selectedDatabases: document.getElementById('selected-databases'),
+      selectedUsers: document.getElementById('selected-users'),
+      availableDatabases: document.getElementById('available-databases'),
+      availableUsers: document.getElementById('available-users')
+    };
+
+    // ===== UTILIDADES =====
+    function isValidUrl(string) {
+      try {
+        new URL(string);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+    
+    function configureServer() {
+      const newUrl = prompt('Ingresa la URL de tu servidor (con https://):', API_BASE);
+      if (newUrl && newUrl.trim()) {
+        API_BASE = newUrl.trim().replace(/\/$/, '');
+        localStorage.setItem('focux_api_base', API_BASE);
+        document.getElementById('server-url').textContent = API_BASE;
+        showToast('Servidor configurado. Actualizando datos...');
+        loadInitialData();
+      }
+    }
+    
+    function updateServerDisplay() {
+      const serverUrlElement = document.getElementById('server-url');
+      if (serverUrlElement) {
+        serverUrlElement.textContent = API_BASE;
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      elements.toast.textContent = message;
+      elements.toast.className = `toast ${type} show`;
+      setTimeout(() => {
+        elements.toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function setLoading(isLoading) {
+      appState.isLoading = isLoading;
+      elements.btnSaveAll.disabled = isLoading || !appState.hasChanges;
+      elements.btnRefresh.disabled = isLoading;
+      
+      if (isLoading) {
+        elements.btnRefresh.innerHTML = '<span class="loading"></span> Cargando...';
+      } else {
+        elements.btnRefresh.innerHTML = '🔄 Actualizar';
+      }
+    }
+
+    function markAsChanged() {
+      appState.hasChanges = true;
+      elements.btnSaveAll.disabled = false;
+      elements.btnSaveMessage.disabled = false;
+    }
+
+    function markAsSaved() {
+      appState.hasChanges = false;
+      elements.btnSaveAll.disabled = true;
+      elements.btnSaveMessage.disabled = true;
+    }
+
+    // ===== API CALLS =====
+    async function apiCall(endpoint, options = {}) {
+      try {
+        const url = `${API_BASE}${endpoint}`;
+        console.log(`🌐 API Call: ${options.method || 'GET'} ${url}`);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            'Accept': 'application/json',
+            ...options.headers
+          },
+          ...options
+        });
+
+        if (!response.ok) {
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorText = await response.text();
+            if (errorText.includes('<!DOCTYPE html>')) {
+              errorMessage += ': Página no encontrada. Verifica la URL del servidor.';
+            } else {
+              errorMessage += `: ${errorText}`;
+            }
+          } catch (e) {
+            errorMessage += `: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        console.log(`✅ API Response:`, data);
+        return data;
+      } catch (error) {
+        console.error(`❌ Error en ${endpoint}:`, error);
+        
+        if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+          error.message = `No se puede conectar al servidor (${API_BASE}). Verifica que el servidor esté ejecutándose.`;
+        }
+        
+        throw error;
+      }
+    }
+
+    // REEMPLAZAR la función loadInitialData en focux_message.html
+    async function loadInitialData() {
+      setLoading(true);
+      try {
+        console.log('📡 Cargando datos desde:', API_BASE);
+        
+        const [messagesRes, databasesRes, usersRes] = await Promise.all([
+          apiCall('/admin/focux_messages'),
+          apiCall('/admin/available-databases'),
+          apiCall('/admin/dashboard')
+        ]);
+
+        // Procesar mensajes
+        appState.messages = messagesRes.messages || [];
+        
+        // Procesar bases de datos con validación
+        if (databasesRes.databases && Array.isArray(databasesRes.databases)) {
+          appState.databases = databasesRes.databases.map(db => ({
+            id: db.filename || db.id,
+            filename: db.filename || db.id,
+            name: db.display_name || db.name || db.filename || db.id,
+            display_name: db.display_name || db.name || db.filename || db.id
+          }));
+        } else {
+          appState.databases = [];
+          console.warn('⚠️ No se encontraron bases de datos válidas');
+        }
+        
+        // Procesar usuarios con validación
+        if (usersRes.stats?.detailed_users && Array.isArray(usersRes.stats.detailed_users)) {
+          appState.users = usersRes.stats.detailed_users.map(user => ({
+            id: user.email,
+            name: user.name || user.email,
+            email: user.email
+          }));
+        } else {
+          appState.users = [];
+          console.warn('⚠️ No se encontraron usuarios válidos');
+        }
+
+        console.log('✅ Datos cargados:', {
+          messages: appState.messages.length,
+          databases: appState.databases.length,
+          users: appState.users.length
+        });
+
+        console.log('📋 Bases de datos cargadas:', appState.databases);
+
+        renderMessagesList();
+        renderTargetSelectors();
+        markAsSaved();
+        
+        showToast('Datos cargados correctamente');
+      } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        
+        let errorMessage = 'Error al cargar datos: ' + error.message;
+        
+        if (error.message.includes('No se puede conectar')) {
+          errorMessage = `No se puede conectar al servidor. 
+                         Verifica que tu aplicación Flask esté ejecutándose en: ${API_BASE}`;
+        }
+        
+        showToast(errorMessage, 'error');
+        
+        // Mostrar mensaje en la interfaz
+        elements.messagesContainer.innerHTML = `
+          <div class="empty-state">
+            <h3>⚠️ Error de Conexión</h3>
+            <p>No se puede conectar al servidor: <code>${API_BASE}</code></p>
+            <p>Verifica que tu aplicación Flask esté ejecutándose.</p>
+            <button class="btn primary" onclick="configureServer()" style="margin-top: 12px;">
+              ⚙️ Configurar Servidor
+            </button>
+          </div>
+        `;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function saveAllChanges() {
+      if (!appState.hasChanges) return;
+
+      setLoading(true);
+      try {
+        // CORRECCIÓN: Solo filtrar mensajes que NO sean nuevos vacíos
+        const validMessages = appState.messages.filter(msg => {
+          // Si es un mensaje nuevo sin contenido, no incluirlo
+          if (msg.id && msg.id.toString().startsWith('new-') && 
+              (!msg.title || !msg.title.trim() || !msg.content || !msg.content.trim())) {
+            console.log('🗑️ Filtrando mensaje nuevo vacío:', msg.id);
+            return false;
+          }
+          
+          // Si es un mensaje existente O un mensaje nuevo con contenido, incluirlo
+          if (msg.title && msg.title.trim() && msg.content && msg.content.trim()) {
+            return true;
+          }
+          
+          // Si no cumple las condiciones básicas, no incluirlo
+          return false;
+        });
+
+        console.log('📤 Enviando mensajes válidos:', validMessages.length);
+        console.log('📋 Mensajes a guardar:', validMessages.map(m => ({ 
+          id: m.id, 
+          title: m.title, 
+          is_active: m.is_active,
+          has_content: !!(m.content && m.content.trim())
+        })));
+        console.log('🗑️ Mensajes que se filtrarán:', appState.messages.length - validMessages.length);
+
+        const result = await apiCall('/admin/focux_messages', {
+          method: 'POST',
+          body: JSON.stringify(validMessages)
+        });
+
+        if (result.success) {
+          showToast('Cambios guardados exitosamente');
+          
+          // Actualizar el estado local para remover mensajes filtrados
+          appState.messages = validMessages;
+          
+          markAsSaved();
+          
+          // Notificar a otras ventanas
+          localStorage.setItem('focux_messages_updated', Date.now().toString());
+          
+          // Recargar datos desde el servidor
+          await loadInitialData();
+        } else {
+          throw new Error(result.message || 'Error desconocido');
+        }
+      } catch (error) {
+        showToast('Error al guardar: ' + error.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+
+    async function deleteMessage(messageId) {
+      // Se añade una confirmación más explícita al usuario
+      if (!confirm('¿Estás seguro de que quieres eliminar este mensaje? Esta acción es PERMANENTE e INMEDIATA.')) {
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Llama a la nueva ruta en el servidor que acabamos de crear
+        const result = await apiCall(`/admin/focux_messages/${messageId}`, { method: 'DELETE' });
+
+        if (result.success) {
+          // Si la API confirma la eliminación, actualizamos el estado local para que desaparezca de la lista
+          appState.messages = appState.messages.filter(msg => msg.id !== messageId);
+          
+          // Si el mensaje eliminado era el que estaba seleccionado, limpiamos el editor
+          if (appState.selectedMessage?.id === messageId) {
+            appState.selectedMessage = null;
+            showEmptyEditor();
+          }
+          
+          renderMessagesList(); // Volvemos a dibujar la lista de mensajes
+          showToast('Mensaje eliminado permanentemente del servidor.');
+          
+          // NOTA: No marcamos "hasChanges" porque esta acción se guarda de inmediato.
+          // Si tenías otros cambios sin guardar, permanecerán así.
+          
+        } else {
+          // Si el servidor devuelve un error, se lo mostramos al usuario
+          throw new Error(result.message || 'El servidor no pudo eliminar el mensaje.');
+        }
+
+      } catch (error) {
+        showToast('Error al eliminar: ' + error.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+
+    // ===== RENDERIZADO =====
+    function renderMessagesList() {
+      if (appState.messages.length === 0) {
+        elements.messagesContainer.innerHTML = `
+          <div class="empty-state">
+            <h3>No hay mensajes</h3>
+            <p>Crea tu primer mensaje para comenzar</p>
+          </div>
+        `;
+        updateMessagesStats(0, 0, 0);
+        return;
+      }
+
+      const validMessages = appState.messages.filter(msg => 
+        msg.title && msg.title.trim() && msg.content && msg.content.trim()
+      );
+      const activeMessages = validMessages.filter(msg => msg.is_active);
+      const incompleteMessages = appState.messages.filter(msg => 
+        !msg.title || !msg.title.trim() || !msg.content || !msg.content.trim()
+      );
+
+      elements.messagesContainer.innerHTML = appState.messages.map(message => {
+        const isComplete = message.title && message.title.trim() && message.content && message.content.trim();
+        const isNew = message.id && message.id.toString().startsWith('new-');
+        
+        let statusClass = 'active';
+        let statusText = 'Activo';
+        
+        if (!isComplete) {
+          statusClass = 'incomplete';
+          statusText = isNew ? 'Incompleto' : 'Sin contenido';
+        } else if (!message.is_active) {
+          statusClass = 'inactive';
+          statusText = 'Inactivo';
+        }
+        
+        return `
+          <div class="message-item ${appState.selectedMessage?.id === message.id ? 'selected' : ''} ${!isComplete ? 'incomplete' : ''}" 
+               data-id="${message.id}">
+            <div class="message-content">
+              <h4>${message.title || 'Sin título'} ${isNew ? '(Nuevo)' : ''}</h4>
+              <p>${(message.content || 'Sin contenido').substring(0, 80)}${message.content?.length > 80 ? '...' : ''}</p>
+            </div>
+            <div class="message-status">
+              <span class="status-badge ${statusClass}">
+                ${statusText}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      updateMessagesStats(validMessages.length, activeMessages.length, incompleteMessages.length);
+    }
+    
+    function updateMessagesStats(valid, active, incomplete) {
+      const statsElement = document.getElementById('messages-stats');
+      if (statsElement) {
+        statsElement.innerHTML = `
+          📊 ${valid} válido(s) • ${active} activo(s) • ${incomplete > 0 ? `${incomplete} incompleto(s)` : 'Todos completos'}
+        `;
+      }
+    }
+
+
+    function formatText(type) {
+      const textarea = document.getElementById('message-content');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = textarea.value.substring(start, end);
+      let replacement = '';
+      
+      switch (type) {
+        case 'bold':
+          replacement = `**${selectedText || 'texto en negrilla'}**`;
+          break;
+        case 'italic':
+          replacement = `*${selectedText || 'texto en cursiva'}*`;
+          break;
+        case 'heading':
+          replacement = `# ${selectedText || 'Título'}`;
+          break;
+        case 'break':
+          replacement = '\n\n';
+          break;
+      }
+      
+      textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+      textarea.focus();
+      
+      // Posicionar cursor
+      if (selectedText) {
+        textarea.setSelectionRange(start, start + replacement.length);
+      } else {
+        const newPos = start + replacement.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }
+      
+      // Trigger change event
+      textarea.dispatchEvent(new Event('input'));
+    }
+
+
+    // REEMPLAZAR completamente esta función en focux_message.html
+    function renderTargetSelectors() {
+      console.log('🔄 Renderizando selectores de destinatarios');
+      console.log('📊 Bases de datos disponibles:', appState.databases);
+      console.log('👥 Usuarios disponibles:', appState.users);
+
+      // Renderizar bases de datos
+      if (appState.databases && appState.databases.length > 0) {
+        elements.availableDatabases.innerHTML = appState.databases.map(db => `
+          <div class="available-item" data-id="${db.filename || db.id}" data-type="database">
+            <span style="font-weight: 600;">${db.display_name || db.name || db.filename}</span>
+            <small style="color: var(--text-muted); display: block;">${db.filename || db.id}</small>
+          </div>
+        `).join('');
+      } else {
+        elements.availableDatabases.innerHTML = `
+          <div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+            ⚠️ No hay bases de datos disponibles
+          </div>
+        `;
+      }
+
+      // Renderizar usuarios
+      if (appState.users && appState.users.length > 0) {
+        elements.availableUsers.innerHTML = appState.users.map(user => `
+          <div class="available-item" data-id="${user.email}" data-type="user">
+            <span style="font-weight: 600;">${user.name || user.email}</span>
+            ${user.email !== (user.name || user.email) ? `<small style="color: var(--text-muted); display: block;">${user.email}</small>` : ''}
+          </div>
+        `).join('');
+      } else {
+        elements.availableUsers.innerHTML = `
+          <div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+            ⚠️ No hay usuarios disponibles
+          </div>
+        `;
+      }
+    }
+
+    function showEmptyEditor() {
+      elements.editorForm.style.display = 'none';
+      elements.emptyEditor.style.display = 'block';
+      elements.btnSaveMessage.disabled = true;
+      elements.btnDeleteMessage.disabled = true;
+    }
+
+    function showEditor() {
+      elements.editorForm.style.display = 'block';
+      elements.emptyEditor.style.display = 'none';
+    }
+
+    function clearForm() {
+      elements.messageTitle.value = '';
+      elements.messageContent.value = '';
+      elements.messageImage.value = '';
+      elements.buttonText.value = '';
+      elements.buttonUrl.value = '';
+      elements.startDate.value = '';
+      elements.endDate.value = '';
+      elements.messageActive.checked = true; // Default activo
+      
+      // Resetear color
+      document.querySelectorAll('.color-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      document.querySelector('.color-option.blue').classList.add('selected');
+      
+      // Resetear target mode
+      document.getElementById('target-all').checked = true;
+      elements.databasesSelector.classList.add('hidden');
+      elements.usersSelector.classList.add('hidden');
+      
+      // Limpiar selecciones
+      elements.selectedDatabases.innerHTML = '';
+      elements.selectedUsers.innerHTML = '';
+    }
+
+    function loadMessageToEditor(message) {
+      elements.messageTitle.value = message.title || '';
+      elements.messageContent.value = message.content || '';
+      elements.messageImage.value = message.image_url || '';
+      elements.buttonText.value = message.button_text || '';
+      elements.buttonUrl.value = message.button_url || '';
+      elements.startDate.value = message.start_date || '';
+      elements.endDate.value = message.end_date || '';
+      elements.messageActive.checked = message.is_active !== false; // Default true
+      
+      // Seleccionar color
+      document.querySelectorAll('.color-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      const colorOption = document.querySelector(`.color-option.${message.color || 'blue'}`);
+      if (colorOption) colorOption.classList.add('selected');
+      
+      // Configurar target mode
+      try {
+        const targetInfo = JSON.parse(message.target_info || '{"mode":"all","values":[]}');
+        
+        document.querySelector(`input[name="target-mode"][value="${targetInfo.mode}"]`).checked = true;
+        
+        // Mostrar/ocultar selectores
+        elements.databasesSelector.classList.toggle('hidden', targetInfo.mode !== 'databases');
+        elements.usersSelector.classList.toggle('hidden', targetInfo.mode !== 'users');
+        
+        // Cargar selecciones
+        if (targetInfo.mode === 'databases') {
+          loadSelectedItems('databases', targetInfo.values);
+        } else if (targetInfo.mode === 'users') {
+          loadSelectedItems('users', targetInfo.values);
+        }
+      } catch (e) {
+        console.error('Error parsing target_info:', e);
+      }
+      
+      elements.btnSaveMessage.disabled = false;
+      elements.btnDeleteMessage.disabled = !message.id || message.id.toString().startsWith('new-');
+    }
+
+    function loadSelectedItems(type, values) {
+      const selectedContainer = type === 'databases' ? elements.selectedDatabases : elements.selectedUsers;
+      const items = type === 'databases' ? appState.databases : appState.users;
+      
+      selectedContainer.innerHTML = values.map(value => {
+        const item = items.find(i => (type === 'databases' ? i.id : i.email) === value);
+        const name = item ? (type === 'databases' ? item.name : item.email) : value;
+        
+        return `
+          <span class="selected-item" data-value="${value}">
+            ${name}
+            <span class="remove-item" data-value="${value}">&times;</span>
+          </span>
+        `;
+      }).join('');
+    }
+
+    function getFormData() {
+      const selectedColor = document.querySelector('.color-option.selected')?.getAttribute('data-color') || 'blue';
+      const targetMode = document.querySelector('input[name="target-mode"]:checked').value;
+      
+      let targetValues = [];
+      if (targetMode === 'databases') {
+        targetValues = Array.from(elements.selectedDatabases.querySelectorAll('.selected-item'))
+          .map(item => item.getAttribute('data-value'));
+      } else if (targetMode === 'users') {
+        targetValues = Array.from(elements.selectedUsers.querySelectorAll('.selected-item'))
+          .map(item => item.getAttribute('data-value'));
+      }
+
+      return {
+        title: elements.messageTitle.value.trim(),
+        content: elements.messageContent.value.trim(),
+        image_url: elements.messageImage.value.trim(),
+        button_text: elements.buttonText.value.trim(),
+        button_url: elements.buttonUrl.value.trim(),
+        color: selectedColor,
+        start_date: elements.startDate.value || null,
+        end_date: elements.endDate.value || null,
+        is_active: elements.messageActive.checked,
+        target_info: JSON.stringify({
+          mode: targetMode,
+          values: targetValues
+        })
+      };
+    }
+
+    // ===== EVENT LISTENERS =====
+    function setupEventListeners() {
+      // Botones principales
+      elements.btnNewMessage.addEventListener('click', () => {
+        const newMessage = {
+          id: 'new-' + Date.now(),
+          title: '', // Dejar vacío para que el usuario lo llene
+          content: '', // Dejar vacío para que el usuario lo llene
+          color: 'blue',
+          image_url: '',
+          button_text: '',
+          button_url: '',
+          is_active: true,
+          start_date: null,
+          end_date: null,
+          target_info: '{"mode":"all","values":[]}'
+        };
+        
+        appState.messages.unshift(newMessage);
+        appState.selectedMessage = newMessage;
+        
+        renderMessagesList();
+        showEditor();
+        clearForm();
+        loadMessageToEditor(newMessage);
+        markAsChanged();
+        
+        // Focus en el campo título para guiar al usuario
+        setTimeout(() => {
+          elements.messageTitle.focus();
+        }, 100);
+        
+        showToast('📝 Nuevo mensaje creado. Completa el título y contenido.');
+      });
+
+      elements.btnSaveAll.addEventListener('click', async () => {
+        if (!appState.hasChanges) return;
+        
+        // Mostrar resumen antes de guardar
+        const validMessages = appState.messages.filter(msg => {
+          if (msg.id && msg.id.toString().startsWith('new-') && 
+              (!msg.title || !msg.title.trim() || !msg.content || !msg.content.trim())) {
+            return false;
+          }
+          return msg.title && msg.title.trim() && msg.content && msg.content.trim();
+        });
+        
+        const invalidMessages = appState.messages.filter(msg => {
+          if (msg.id && msg.id.toString().startsWith('new-') && 
+              (!msg.title || !msg.title.trim() || !msg.content || !msg.content.trim())) {
+            return true;
+          }
+          return !(msg.title && msg.title.trim() && msg.content && msg.content.trim());
+        });
+        
+        let confirmMessage = `Se guardarán ${validMessages.length} mensaje(s) válido(s).`;
+        
+        if (invalidMessages.length > 0) {
+          confirmMessage += `\n\n⚠️ Se descartarán ${invalidMessages.length} mensaje(s) incompleto(s):\n`;
+          confirmMessage += invalidMessages.map(msg => `- ${msg.title || 'Sin título'}`).join('\n');
+        }
+        
+        confirmMessage += '\n\n¿Continuar?';
+        
+        if (confirm(confirmMessage)) {
+          await saveAllChanges();
+        }
+      });
+      elements.btnRefresh.addEventListener('click', loadInitialData);
+      
+      elements.btnClearForm.addEventListener('click', () => {
+        if (confirm('¿Estás seguro de que quieres limpiar el formulario?')) {
+          clearForm();
+        }
+      });
+
+      elements.btnSaveMessage.addEventListener('click', () => {
+        if (!appState.selectedMessage) return;
+        
+        const formData = getFormData();
+        
+        // VALIDACIÓN MEJORADA
+        if (!formData.title || !formData.title.trim()) {
+          showToast('El título es obligatorio', 'error');
+          elements.messageTitle.focus();
+          return;
+        }
+        
+        if (!formData.content || !formData.content.trim()) {
+          showToast('El contenido es obligatorio', 'error');
+          elements.messageContent.focus();
+          return;
+        }
+        
+        // Validar URLs si están presentes
+        if (formData.image_url && formData.image_url.trim() && !isValidUrl(formData.image_url)) {
+          showToast('La URL de la imagen no es válida', 'error');
+          elements.messageImage.focus();
+          return;
+        }
+        
+        if (formData.button_url && formData.button_url.trim() && !isValidUrl(formData.button_url)) {
+          showToast('La URL del botón no es válida', 'error');
+          elements.buttonUrl.focus();
+          return;
+        }
+        
+        // Actualizar mensaje
+        Object.assign(appState.selectedMessage, formData);
+        
+        renderMessagesList();
+        markAsChanged();
+        showToast('✅ Mensaje actualizado (haz clic en "Guardar Cambios" para guardar en el servidor)');
+      });
+
+      elements.btnDeleteMessage.addEventListener('click', () => {
+        if (!appState.selectedMessage) return;
+        
+        if (appState.selectedMessage.id.toString().startsWith('new-')) {
+          // Mensaje nuevo, solo remover de la lista
+          appState.messages = appState.messages.filter(msg => msg.id !== appState.selectedMessage.id);
+          appState.selectedMessage = null;
+          renderMessagesList();
+          showEmptyEditor();
+          markAsChanged();
+          showToast('Mensaje descartado');
+        } else {
+          // Mensaje existente, eliminar del servidor
+          deleteMessage(appState.selectedMessage.id);
+        }
+      });
+
+      // Lista de mensajes
+      elements.messagesContainer.addEventListener('click', (e) => {
+        const messageItem = e.target.closest('.message-item');
+        if (!messageItem) return;
+        
+        const messageId = messageItem.getAttribute('data-id');
+        appState.selectedMessage = appState.messages.find(msg => msg.id == messageId);
+        
+        if (appState.selectedMessage) {
+          renderMessagesList();
+          showEditor();
+          loadMessageToEditor(appState.selectedMessage);
+        }
+      });
+
+      // Selector de colores
+      elements.colorSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('color-option')) {
+          document.querySelectorAll('.color-option').forEach(option => {
+            option.classList.remove('selected');
+          });
+          e.target.classList.add('selected');
+          markAsChanged();
+        }
+      });
+
+      // Target mode radios
+      elements.targetModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const mode = e.target.value;
+          elements.databasesSelector.classList.toggle('hidden', mode !== 'databases');
+          elements.usersSelector.classList.toggle('hidden', mode !== 'users');
+          markAsChanged();
+        });
+      });
+
+      // Multi-select para bases de datos
+      elements.availableDatabases.addEventListener('click', (e) => {
+        const item = e.target.closest('.available-item');
+        if (!item) return;
+        
+        const id = item.getAttribute('data-id');
+        const name = item.textContent.trim();
+        
+        // Verificar si ya está seleccionado
+        if (elements.selectedDatabases.querySelector(`[data-value="${id}"]`)) return;
+        
+        elements.selectedDatabases.insertAdjacentHTML('beforeend', `
+          <span class="selected-item" data-value="${id}">
+            ${name}
+            <span class="remove-item" data-value="${id}">&times;</span>
+          </span>
+        `);
+        
+        markAsChanged();
+      });
+
+      // Multi-select para usuarios
+      elements.availableUsers.addEventListener('click', (e) => {
+        const item = e.target.closest('.available-item');
+        if (!item) return;
+        
+        const email = item.getAttribute('data-id');
+        const name = item.textContent.trim();
+        
+        // Verificar si ya está seleccionado
+        if (elements.selectedUsers.querySelector(`[data-value="${email}"]`)) return;
+        
+        elements.selectedUsers.insertAdjacentHTML('beforeend', `
+          <span class="selected-item" data-value="${email}">
+            ${name}
+            <span class="remove-item" data-value="${email}">&times;</span>
+          </span>
+        `);
+        
+        markAsChanged();
+      });
+
+      // Remover elementos seleccionados
+      elements.selectedDatabases.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-item')) {
+          e.target.closest('.selected-item').remove();
+          markAsChanged();
+        }
+      });
+
+      elements.selectedUsers.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-item')) {
+          e.target.closest('.selected-item').remove();
+          markAsChanged();
+        }
+      });
+
+      // Cambios en campos del formulario
+      const formInputs = [
+        elements.messageTitle,
+        elements.messageContent,
+        elements.messageImage,
+        elements.buttonText,
+        elements.buttonUrl,
+        elements.startDate,
+        elements.endDate,
+        elements.messageActive
+      ];
+
+      formInputs.forEach(input => {
+        if (input.type === 'checkbox') {
+          input.addEventListener('change', markAsChanged);
+        } else {
+          input.addEventListener('input', markAsChanged);
+        }
+      });
+
+      // Detectar cambios desde otras ventanas
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'focux_messages_updated') {
+          setTimeout(() => {
+            loadInitialData();
+            showToast('Datos actualizados desde otra ventana');
+          }, 1000);
+        }
+      });
+
+      // Prevenir pérdida de datos
+      window.addEventListener('beforeunload', (e) => {
+        if (appState.hasChanges) {
+          e.preventDefault();
+          e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?';
+        }
+      });
+    }
+
+    // ===== INICIALIZACIÓN =====
+    
+    // Hacer configureServer disponible globalmente
+    window.configureServer = configureServer;
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Iniciando Focux Messages Admin');
+      console.log('📡 Servidor configurado:', API_BASE);
+      
+      setupEventListeners();
+      showEmptyEditor();
+      updateServerDisplay();
+      
+      // Probar conexión y cargar datos
+      loadInitialData().catch(error => {
+        console.error('Error en inicialización:', error);
+        showToast('Error de conexión. Haz clic en "Configurar" para verificar la URL del servidor.', 'error');
+      });
+    });
+  </script>
+</body>
+</html>

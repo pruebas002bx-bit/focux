@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Tableros con IA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script>
+        // Configuración necesaria para que PDF.js funcione correctamente
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+    </script>
+    <style>
+        :root {
+            --primary-orange: #f97316; --primary-orange-light: #fb923c; --primary-orange-dark: #ea580c;
+            --primary-blue: #3b82f6; --primary-blue-light: #60a5fa; --primary-blue-dark: #1d4ed8;
+            --bg-light: #f8fafc; --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --panel-bg: #ffffff; --text-dark: #0f172a; --text-medium: #475569;
+            --text-muted: #64748b; --text-light: #94a3b8; --border-light: #e2e8f0;
+            --border-medium: #cbd5e1; --success-color: #059669; --error-color: #dc2626;
+            --warning-color: #d97706; --radius-sm: 6px; --radius-md: 8px;
+            --radius-lg: 12px; --radius-xl: 16px;
+            --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+            --transition-fast: 0.15s ease-in-out; --transition-normal: 0.3s ease-in-out;
+            --transition-slow: 0.5s ease-in-out;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-gradient); color: var(--text-dark); padding: 0; margin: 0; line-height: 1.6; min-height: 100vh; }
+        .header { background: var(--panel-bg); border-bottom: 1px solid var(--border-light); padding: 1rem 0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); box-shadow: var(--shadow-sm); }
+        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1.5rem; font-weight: 700; color: var(--text-dark); text-decoration: none; }
+        .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-dark) 100%); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem; }
+        .main-wrapper { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .container { display: grid; grid-template-columns: 1fr 380px; gap: 2rem; align-items: start; }
+        .main-content, .sidebar { background: var(--panel-bg); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); border: 1px solid var(--border-light); overflow: hidden; transition: all var(--transition-normal); }
+        .main-content:hover, .sidebar:hover { box-shadow: var(--shadow-xl); }
+        .content-header { padding: 2rem 2rem 1rem 2rem; border-bottom: 1px solid var(--border-light); background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%); }
+        .content-body { padding: 2rem; }
+        .sidebar-section { padding: 1.5rem; border-bottom: 1px solid var(--border-light); }
+        .sidebar-section:last-child { border-bottom: none; }
+        h1 { font-size: 2rem; font-weight: 700; color: var(--text-dark); margin: 0 0 0.5rem 0; background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-blue) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        h2 { font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 1rem 0; }
+        h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-dark); margin: 0 0 1rem 0; }
+        .subtitle { font-size: 1rem; color: var(--text-muted); margin: 0 0 1.5rem 0; line-height: 1.7; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-medium); margin-bottom: 0.5rem; }
+        textarea, select, input { width: 100%; padding: 0.875rem 1rem; border: 2px solid var(--border-light); border-radius: var(--radius-lg); font-size: 0.95rem; font-family: inherit; background: var(--panel-bg); color: var(--text-dark); transition: all var(--transition-fast); resize: vertical; }
+        textarea:focus, select:focus, input:focus { outline: none; border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1); }
+        textarea::placeholder { color: var(--text-light); }
+        select[multiple] { height: 160px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.875rem 1.5rem; font-size: 0.95rem; font-weight: 600; border-radius: var(--radius-lg); border: none; cursor: pointer; transition: all var(--transition-fast); text-decoration: none; position: relative; overflow: hidden; }
+        .btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: left var(--transition-normal); }
+        .btn:hover::before { left: 100%; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-dark) 100%); color: white; box-shadow: var(--shadow-md); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .btn-secondary { background: linear-gradient(135deg, var(--text-muted) 0%, var(--text-medium) 100%); color: white; }
+        .btn-secondary:hover { transform: translateY(-1px); }
+        .btn:disabled { background: var(--border-medium); color: var(--text-light); cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn:disabled::before { display: none; }
+        .loading-container { display: none; text-align: center; padding: 3rem 2rem; }
+        .loading-container.show { display: block; animation: fadeIn var(--transition-normal); }
+        .spinner { width: 48px; height: 48px; margin: 0 auto 1rem auto; border: 4px solid var(--border-light); border-top: 4px solid var(--primary-orange); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 2000px; } }
+        .loading-text { font-size: 1rem; color: var(--text-medium); font-weight: 500; }
+        .preview-area { display: none; animation: slideDown var(--transition-slow); margin-top: 2rem; }
+        .preview-area.show { display: block; }
+        .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-medium), transparent); margin: 2rem 0; }
+        .board-preview { display: flex; gap: 1.5rem; overflow-x: auto; padding: 1.5rem; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border-radius: var(--radius-lg); border: 2px solid var(--border-light); transition: opacity var(--transition-fast); }
+        .board-preview::-webkit-scrollbar { height: 8px; }
+        .board-preview::-webkit-scrollbar-track { background: var(--border-light); border-radius: 4px; }
+        .board-preview::-webkit-scrollbar-thumb { background: var(--primary-orange); border-radius: 4px; }
+        .column-preview { flex: 0 0 300px; background: var(--panel-bg); padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 1px solid var(--border-light); }
+        .column-preview h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 3px solid var(--primary-orange); color: var(--text-dark); }
+        .card-preview { background: var(--panel-bg); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 0.75rem; box-shadow: var(--shadow-sm); border: 1px solid var(--border-light); transition: all var(--transition-fast); }
+        .card-preview:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .card-preview:last-child { margin-bottom: 0; }
+        .card-preview h4 { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; color: var(--text-dark); }
+        .card-preview p { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 0.5rem 0; line-height: 1.5; }
+        .card-preview ul { padding-left: 1.25rem; font-size: 0.8rem; color: var(--text-muted); margin: 0.5rem 0 0 0; }
+        .card-preview li { margin-bottom: 0.25rem; }
+        .notes-section { margin-top: 2rem; }
+        #notes-preview-content { transition: opacity var(--transition-fast); }
+        .note-preview { border-left: 4px solid var(--primary-blue); padding: 1rem 1rem 1rem 1.5rem; margin-bottom: 1rem; background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border-radius: 0 var(--radius-md) var(--radius-md) 0; box-shadow: var(--shadow-sm); }
+        .note-preview h4 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5rem 0; color: var(--primary-blue-dark); }
+        .note-preview p { font-size: 0.9rem; color: var(--text-medium); margin: 0; line-height: 1.6; }
+        .saved-board-item { padding: 1rem; border-bottom: 1px solid var(--border-light); transition: all var(--transition-fast); border-radius: var(--radius-md); margin-bottom: 0.5rem; background: var(--panel-bg); }
+        .saved-board-item:hover { background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%); box-shadow: var(--shadow-sm); }
+        .saved-board-item:last-child { border-bottom: none; margin-bottom: 0; }
+        .saved-board-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+        .saved-board-info { flex: 1; cursor: pointer; }
+        .saved-board-name { font-weight: 600; color: var(--text-dark); margin-bottom: 0.25rem; transition: color var(--transition-fast); }
+        .saved-board-info:hover .saved-board-name { color: var(--primary-orange); }
+        .saved-board-date { font-size: 0.8rem; color: var(--text-muted); }
+        .saved-board-actions { display: flex; gap: 0.5rem; opacity: 0; transition: opacity var(--transition-fast); }
+        .saved-board-item:hover .saved-board-actions { opacity: 1; }
+        .btn-small { padding: 0.375rem 0.75rem; font-size: 0.75rem; border-radius: var(--radius-sm); width: auto; min-width: auto; }
+        .btn-danger { background: linear-gradient(135deg, var(--error-color) 0%, #b91c1c 100%); color: white; }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-info { background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%); color: white; }
+        .btn-info:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .empty-state { text-align: center; padding: 2rem; color: var(--text-muted); }
+        .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.5; }
+        .alert { padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem; border: 1px solid; }
+        .alert-success { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+        .alert-error { background-color: #fef2f2; border-color: #fecaca; color: #991b1b; }
+        .alert-warning { background-color: #fffbeb; border-color: #fed7aa; color: #92400e; }
+        .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; }
+        .status-success { background-color: var(--success-color); } .status-error { background-color: var(--error-color); } .status-warning { background-color: var(--warning-color); }
+        .file-display { display: flex; align-items: center; justify-content: space-between; background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 0.5rem 1rem; border-radius: var(--radius-md); margin-top: 1rem; font-size: 0.85rem; }
+        .file-display span { color: var(--primary-blue-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 1rem; }
+        .remove-file-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--text-muted); padding: 0.25rem; line-height: 1; }
+        .remove-file-btn:hover { color: var(--error-color); }
+        .assistant-preview { display: grid; grid-template-columns: 64px 1fr; gap: 1.5rem; padding: 1.5rem; margin-bottom: 1rem; background: linear-gradient(135deg, var(--bg-light) 0%, #f1f5f9 100%); border: 1px solid var(--border-light); border-left: 4px solid var(--primary-orange); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: all var(--transition-fast); }
+        .assistant-preview:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .assistant-avatar img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: var(--shadow-md); }
+        .assistant-details h4 { font-size: 1.1rem; font-weight: 700; color: var(--text-dark); margin: 0 0 0.5rem 0; }
+        .assistant-prompt { font-size: 0.9rem; color: var(--text-medium); line-height: 1.6; background-color: #f8fafc; padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-light); }
+        .assistant-prompt strong { color: var(--text-dark); }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; gap: 1.5rem; } .main-wrapper { padding: 1rem; } .content-body, .sidebar-section { padding: 1.5rem; } .board-preview { padding: 1rem; gap: 1rem; } .column-preview { flex: 0 0 280px; } }
+        @media (max-width: 640px) { .header-content { padding: 0 1rem; } .main-wrapper { padding: 0.5rem; } .content-body, .sidebar-section { padding: 1rem; } .content-header { padding: 1.5rem 1rem 1rem 1rem; } h1 { font-size: 1.75rem; } .column-preview { flex: 0 0 260px; } }
+        .fade-in { animation: fadeIn var(--transition-normal); } .slide-down { animation: slideDown var(--transition-slow); } .hidden { display: none !important; } .mt-2 { margin-top: 0.5rem; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🚀</div>
+                <span>Generador de Tableros IA</span>
+            </div>
+            <div class="status-indicator status-success" title="Conectado"></div>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <div class="container">
+            <div class="main-content">
+                <div class="content-header">
+                    <h1>Crea tu tablero perfecto</h1>
+                    <p class="subtitle">Describe el objetivo de tu tablero o sube un documento (PDF, TXT) para que la IA genere un plan de acción completo.</p>
+                </div>
+                
+                <div class="content-body">
+                    <div class="form-group">
+                        <label for="prompt-input">1. Describe tu objetivo o pega texto aquí</label>
+                        <textarea id="prompt-input" rows="5" placeholder="Ej: 'Lanzar una nueva app de fitness al mercado en 3 meses, enfocada en entrenamientos personalizados con IA y seguimiento nutricional.'"></textarea>
+                    </div>
+
+                    <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label for="start-date-input">2. Fecha de Inicio (Opcional)</label>
+                            <input type="date" id="start-date-input">
+                        </div>
+                        <div>
+                            <label for="end-date-input">3. Fecha de Fin (Opcional)</label>
+                            <input type="date" id="end-date-input">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="file-input" class="btn btn-secondary">
+                            <span>📄</span>
+                            <span>Opcional: Subir Documento de Contexto (PDF/TXT)</span>
+                        </label>
+                        <input type="file" id="file-input" class="hidden" accept=".pdf,.txt">
+                        <div id="file-display-area" class="hidden"></div>
+                    </div>
+
+                    <button id="generate-btn" class="btn btn-primary">
+                        <span>✨</span>
+                        <span>Generar Tablero Completo con IA</span>
+                    </button>
+                    
+                    <div id="loader" class="loading-container">
+                        <div class="spinner"></div>
+                        <p id="loading-text-p" class="loading-text"></p>
+                    </div>
+                    
+                    <div id="preview-area" class="preview-area">
+                        <div class="divider"></div>
+                        <h2 id="preview-title">Vista Previa del Tablero Generado</h2>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3>📋 Columnas y Tarjetas</h3>
+                            <button id="regenerate-board-btn" class="btn btn-secondary btn-small hidden">
+                                <span>🔄</span>
+                                <span>Regenerar Tablero</span>
+                            </button>
+                        </div>
+                        <div id="board-preview-content" class="board-preview"></div>
+                        
+                        <div class="notes-section">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <h3>📝 Notas de Apoyo</h3>
+                                <button id="regenerate-notes-btn" class="btn btn-secondary btn-small hidden">
+                                    <span>🔄</span>
+                                    <span>Regenerar Notas</span>
+                                </button>
+                            </div>
+                            <div id="notes-preview-content"></div>
+                        </div>
+
+                        <div id="assistants-section" class="notes-section hidden">
+                            <div class="divider"></div>
+                            <h2>🤖 Asistentes de IA Sugeridos</h2>
+                            <p class="subtitle" style="font-size: 0.9rem;">Estos asistentes pueden ser guardados en tu sistema para ayudarte con las tareas del proyecto.</p>
+                            <div id="suggested-assistants-content"></div>
+                            <div id="assistants-actions" class="hidden" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+                                <button id="regenerate-assistants-btn" class="btn btn-secondary">
+                                    <span>🔄</span>
+                                    <span>Sugerir Otros</span>
+                                </button>
+                                <button id="save-assistants-btn" class="btn btn-primary">
+                                    <span>💾</span>
+                                    <span>Guardar Asistentes</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div id="assignment-section" class="sidebar-section">
+                    <h3>🎯 Asignar Tablero</h3>
+                    <div id="assignment-content" class="hidden">
+                        <div class="form-group">
+                            <label for="db-select">Bases de datos de destino</label>
+                            <select id="db-select" multiple></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="user-select">Usuarios a asignar</label>
+                            <select id="user-select" multiple></select>
+                        </div>
+                        <button id="assign-btn" class="btn btn-primary" disabled>
+                            <span>📤</span>
+                            <span>Asignar y Guardar Tablero</span>
+                        </button>
+                    </div>
+                    <div id="assignment-status" class="text-center" style="padding: 1rem 0;"></div>
+                </div>
+                
+                <div id="saved-boards-section" class="sidebar-section">
+                    <h3>💾 Tableros Guardados</h3>
+                    <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Haz clic en un tablero para cargarlo y reasignarlo.</p>
+                    <div id="saved-boards-list"></div>
+                    <button id="reload-saved-btn" class="btn btn-secondary mt-2">
+                        <span>🔄</span>
+                        <span>Actualizar Lista</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = localStorage.getItem('FOCUX_API_BASE') || 'https://focux-app.onrender.com';
+        const DEFAULT_AVATAR_URL = 'https://i.ibb.co/ZR8zNXGn/imagen-2025-08-17-163425695.png';
+        const MAX_FILE_SIZE_MB = 5;
+        const MAX_TEXT_LENGTH = 15000;
+        let generatedBoardData = null;
+
+        // --- UTILITIES ---
+        const UI = {
+            showAlert(message, type = 'success', duration = 5000) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} fade-in`;
+                alertDiv.innerHTML = `<span class="status-indicator status-${type}"></span> ${message}`;
+                document.querySelector('.content-body').insertBefore(alertDiv, document.querySelector('.content-body').firstChild);
+                setTimeout(() => {
+                    alertDiv.style.transition = 'opacity 0.3s';
+                    alertDiv.style.opacity = '0';
+                    setTimeout(() => alertDiv.remove(), 300);
+                }, duration);
+            },
+            toggleLoading(isLoading, message = '🧠 La IA está analizando tu solicitud...') {
+                document.getElementById('loader').classList.toggle('show', isLoading);
+                document.getElementById('generate-btn').disabled = isLoading;
+                document.getElementById('loading-text-p').textContent = message;
+            },
+            showPreview() {
+                const previewArea = document.getElementById('preview-area');
+                if (!previewArea.classList.contains('show')) {
+                    previewArea.classList.add('show');
+                    setTimeout(() => previewArea.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+                }
+                document.getElementById('regenerate-board-btn').classList.remove('hidden');
+                document.getElementById('regenerate-notes-btn').classList.remove('hidden');
+            },
+            showAssignment(show = true) {
+                document.getElementById('assignment-content').classList.toggle('hidden', !show);
+                document.getElementById('assign-btn').disabled = !show;
+            },
+            updateFileDisplay(file) {
+                const displayArea = document.getElementById('file-display-area');
+                if (file) {
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                    displayArea.innerHTML = `<div class="file-display"><span title="${file.name}">📄 ${file.name} (${fileSize} MB)</span><button class="remove-file-btn" onclick="removeFile()" title="Quitar archivo">&times;</button></div>`;
+                    displayArea.classList.remove('hidden');
+                } else {
+                    displayArea.innerHTML = '';
+                    displayArea.classList.add('hidden');
+                }
+            }
+        };
+
+        function removeFile() {
+            document.getElementById('file-input').value = '';
+            UI.updateFileDisplay(null);
+        }
+
+        async function extractContentFromFile(file) {
+            if (file.type === 'application/pdf') {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        try {
+                            const pdf = await pdfjsLib.getDocument(event.target.result).promise;
+                            let fullText = '';
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const textContent = await page.getTextContent();
+                                fullText += textContent.items.map(item => item.str).join(' ');
+                                if (i < pdf.numPages) fullText += '\n\n';
+                            }
+                            resolve(fullText);
+                        } catch (error) { reject(new Error('No se pudo procesar el archivo PDF.')); }
+                    };
+                    reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+                    reader.readAsArrayBuffer(file);
+                });
+            } else if (file.type === 'text/plain') {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => resolve(event.target.result);
+                    reader.onerror = () => reject(new Error('No se pudo leer el archivo de texto.'));
+                    reader.readAsText(file);
+                });
+            } else {
+                throw new Error('Tipo de archivo no soportado. Por favor, sube un PDF o TXT.');
+            }
+        }
+        
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        // --- CORE LOGIC & EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAssignmentData();
+            fetchSavedBoards();
+            document.getElementById('generate-btn').addEventListener('click', generateFullBoard);
+            document.getElementById('assign-btn').addEventListener('click', assignBoard);
+            document.getElementById('reload-saved-btn').addEventListener('click', fetchSavedBoards);
+            document.getElementById('file-input').addEventListener('change', (event) => UI.updateFileDisplay(event.target.files[0]));
+            document.getElementById('regenerate-board-btn').addEventListener('click', regenerateBoardOnly);
+            document.getElementById('regenerate-notes-btn').addEventListener('click', regenerateNotes);
+            document.getElementById('save-assistants-btn').addEventListener('click', saveSuggestedAssistants);
+            document.getElementById('regenerate-assistants-btn').addEventListener('click', () => {
+                const prompt = document.getElementById('prompt-input').value.trim() || (generatedBoardData ? generatedBoardData.board_name : '');
+                if (prompt) generateSuggestedAssistants(prompt);
+                else UI.showAlert('No hay un contexto para generar asistentes.', 'warning');
+            });
+        });
+        
+        async function saveSuggestedAssistants() {
+            const saveBtn = document.getElementById('save-assistants-btn');
+            const originalBtnContent = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span>⏳</span><span>Guardando...</span>';
+
+            const suggestedAssistants = [];
+            document.querySelectorAll('#suggested-assistants-content .assistant-preview').forEach(el => {
+                const profile = el.querySelector('.assistant-details h4')?.textContent.trim();
+                const avatar_url = el.querySelector('.assistant-avatar img')?.src;
+                const promptContainer = el.querySelector('.assistant-prompt');
+                const prompt = promptContainer ? promptContainer.dataset.prompt : '';
+                const knowledge_base = promptContainer ? promptContainer.dataset.knowledge : '';
+
+                if (profile && prompt) {
+                    suggestedAssistants.push({
+                        name: profile,
+                        description: profile,
+                        prompt: prompt,
+                        avatar_url: avatar_url || DEFAULT_AVATAR_URL,
+                        knowledge_base: knowledge_base
+                    });
+                }
+            });
+
+            if (suggestedAssistants.length === 0) {
+                UI.showAlert('No hay asistentes sugeridos para guardar.', 'warning');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalBtnContent;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/ai/save-suggested-assistants`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assistants: suggestedAssistants })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    UI.showAlert(`${data.saved_count} asistente(s) guardado(s) exitosamente. Revisa la página de Asistentes.`, 'success');
+                } else {
+                    throw new Error(data.message || 'Error desconocido del servidor.');
+                }
+            } catch (err) {
+                UI.showAlert(`Error al guardar asistentes: ${err.message}`, 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<span>💾</span><span>Guardar Asistentes</span>';
+            }
+        }
+
+
+
+        async function generateFullBoard() {
+            const originalPrompt = document.getElementById('prompt-input').value.trim();
+            const file = document.getElementById('file-input').files[0];
+            const startDate = document.getElementById('start-date-input').value;
+            const endDate = document.getElementById('end-date-input').value;
+
+            if (!originalPrompt && !file) return UI.showAlert('Por favor, describe tu objetivo o sube un documento.', 'warning');
+            if (file && file.size > MAX_FILE_SIZE_MB * 1024 * 1024) return UI.showAlert(`El archivo es demasiado grande. Límite: ${MAX_FILE_SIZE_MB} MB.`, 'error');
+            
+            UI.toggleLoading(true, 'Iniciando proceso...');
+            document.getElementById('preview-area').classList.remove('show');
+
+            try {
+                let documentText = '';
+                if (file) {
+                    UI.toggleLoading(true, `Extrayendo texto de ${file.name}...`);
+                    documentText = await extractContentFromFile(file);
+                    if (documentText.length > MAX_TEXT_LENGTH) {
+                        documentText = documentText.substring(0, MAX_TEXT_LENGTH);
+                        UI.showAlert('El documento era muy largo y ha sido resumido por la IA.', 'warning', 8000);
+                    }
+                }
+                const finalPrompt = documentText ? `Considerando el siguiente texto de un documento: "${documentText}", y la instrucción: "${originalPrompt}", genera un tablero de proyecto detallado.` : originalPrompt;
+                
+                UI.toggleLoading(true, '🧠 La IA está generando el tablero completo...');
+                const response = await fetch(`${API_BASE}/admin/ai/generate-board`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: finalPrompt,
+                        start_date: startDate,
+                        end_date: endDate
+                    })
+                });
+                if (!response.ok) throw new Error(`Error del servidor (HTTP ${response.status}): ${await response.text()}`);
+                
+                const data = await response.json();
+                if (data.success) {
+                    generatedBoardData = data.board;
+                    renderBoardContent(data.board);
+                    renderNotes(data.board.notes);
+                    UI.showPreview();
+                    generateSuggestedAssistants(originalPrompt || data.board.board_name);
+                } else {
+                    throw new Error(data.message || 'Error en la respuesta de la IA');
+                }
+            } catch (err) {
+                UI.showAlert(`Error al generar: ${err.message}`, 'error');
+            } finally {
+                UI.toggleLoading(false);
+                removeFile();
+            }
+        }
+        
+
+        async function regenerateBoardOnly() {
+            const prompt = document.getElementById('prompt-input').value.trim() || (generatedBoardData ? generatedBoardData.board_name : '');
+            if (!prompt) return UI.showAlert('No hay un contexto para regenerar el tablero.', 'warning');
+
+            const boardContainer = document.getElementById('board-preview-content');
+            const regenBtn = document.getElementById('regenerate-board-btn');
+            const originalBtnContent = regenBtn.innerHTML;
+            
+            regenBtn.disabled = true;
+            regenBtn.innerHTML = '<span>⏳</span> Generando...';
+            boardContainer.style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/ai/generate-board-content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                if (!response.ok) throw new Error(`Error del servidor (HTTP ${response.status})`);
+                const data = await response.json();
+                if (data.success && data.board) {
+                    generatedBoardData = { ...generatedBoardData, ...data.board };
+                    renderBoardContent(generatedBoardData);
+                    UI.showAlert('Nuevo tablero generado.', 'success');
+                } else {
+                    throw new Error(data.message || 'No se recibió nuevo contenido del tablero.');
+                }
+            } catch (err) {
+                UI.showAlert(`Error al regenerar tablero: ${err.message}`, 'error');
+            } finally {
+                regenBtn.disabled = false;
+                regenBtn.innerHTML = originalBtnContent;
+                boardContainer.style.opacity = '1';
+            }
+        }
+
+
+
+        async function regenerateNotes() {
+            const prompt = document.getElementById('prompt-input').value.trim() || (generatedBoardData ? generatedBoardData.board_name : '');
+            if (!prompt) return UI.showAlert('No hay un contexto para generar notas.', 'warning');
+            
+            const notesContainer = document.getElementById('notes-preview-content');
+            const regenBtn = document.getElementById('regenerate-notes-btn');
+            const originalBtnContent = regenBtn.innerHTML;
+            
+            regenBtn.disabled = true;
+            regenBtn.innerHTML = '<span>⏳</span> Generando...';
+            notesContainer.style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/ai/regenerate-notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                if (!response.ok) throw new Error(`Error del servidor (HTTP ${response.status})`);
+                const data = await response.json();
+                if (data.success && data.notes) {
+                    generatedBoardData.notes = data.notes;
+                    renderNotes(data.notes);
+                    UI.showAlert('Nuevas notas de apoyo generadas.', 'success');
+                } else {
+                    throw new Error(data.message || 'No se recibieron nuevas notas.');
+                }
+            } catch (err) {
+                UI.showAlert(`Error al regenerar notas: ${err.message}`, 'error');
+            } finally {
+                regenBtn.disabled = false;
+                regenBtn.innerHTML = originalBtnContent;
+                notesContainer.style.opacity = '1';
+            }
+        }
+
+        async function generateSuggestedAssistants(prompt) {
+            const assistantsSection = document.getElementById('assistants-section');
+            const container = document.getElementById('suggested-assistants-content');
+            const actionsContainer = document.getElementById('assistants-actions');
+            
+            assistantsSection.classList.remove('hidden');
+            actionsContainer.classList.add('hidden');
+            container.innerHTML = '<div class="spinner" style="margin-top: 2rem;"></div><p class="loading-text">🤖 La IA está diseñando asistentes para ti...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/ai/suggest-assistants`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                if (!response.ok) throw new Error(`Error del servidor (HTTP ${response.status})`);
+                const data = await response.json();
+                if (data.success && data.assistants.length > 0) {
+                    renderSuggestedAssistants(data.assistants);
+                    actionsContainer.classList.remove('hidden');
+                } else {
+                    throw new Error(data.message || 'No se recibieron sugerencias de asistentes.');
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-warning">No se pudieron generar sugerencias de asistentes en este momento.</div>`;
+            }
+        }
+        
+        // --- RENDERING FUNCTIONS ---
+        function renderBoardContent(board) {
+            document.getElementById('preview-title').textContent = `Vista Previa: ${board.board_name}`;
+            const boardContent = document.getElementById('board-preview-content');
+            boardContent.innerHTML = '';
+
+            board.columns.forEach(col => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column-preview';
+                colDiv.innerHTML = `<h3>${col.title}</h3>`;
+                const cardsInCol = board.cards.filter(c => c.columnId === col.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+                if (cardsInCol.length === 0) {
+                    colDiv.innerHTML += '<div class="text-muted text-center" style="padding: 2rem;">Sin tarjetas</div>';
+                }
+                cardsInCol.forEach(card => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card-preview';
+                    let checklistHTML = card.checklist?.length > 0 ? '<ul>' + card.checklist.map(item => `<li>${item.text}</li>`).join('') + '</ul>' : '';
+                    cardDiv.innerHTML = `<h4>${card.title}</h4>${card.description ? `<p>${card.description.substring(0, 150)}...</p>` : ''}${checklistHTML}`;
+                    colDiv.appendChild(cardDiv);
+                });
+                boardContent.appendChild(colDiv);
+            });
+        }
+        
+        function renderNotes(notes) {
+            const notesContent = document.getElementById('notes-preview-content');
+            notesContent.innerHTML = '';
+            if (notes?.length > 0) {
+                notes.forEach(note => {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'note-preview fade-in';
+                    noteDiv.innerHTML = `<h4>${note.title}</h4><p>${note.content.substring(0, 200)}...</p>`;
+                    notesContent.appendChild(noteDiv);
+                });
+            } else {
+                notesContent.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📝</div><div class="text-muted">No se generaron notas</div></div>`;
+            }
+        }
+
+        function renderSuggestedAssistants(assistants) {
+            const container = document.getElementById('suggested-assistants-content');
+            container.innerHTML = '';
+            assistants.forEach(assistant => {
+                const assistantDiv = document.createElement('div');
+                assistantDiv.className = 'assistant-preview fade-in';
+                assistantDiv.innerHTML = `
+                    <div class="assistant-avatar"><img src="${assistant.avatar_url || DEFAULT_AVATAR_URL}" alt="Avatar"></div>
+                    <div class="assistant-details">
+                        <h4>${escapeHTML(assistant.profile)}</h4>
+                        <div class="assistant-prompt" 
+                             data-prompt="${escapeHTML(assistant.prompt)}" 
+                             data-knowledge="${escapeHTML(assistant.knowledge_base)}">
+                            <p><strong>Prompt:</strong> ${escapeHTML(assistant.prompt)}</p>
+                            <p class="mt-2"><strong>Base de Conocimiento:</strong> ${escapeHTML(assistant.knowledge_base)}</p>
+                        </div>
+                    </div>`;
+                container.appendChild(assistantDiv);
+            });
+        }
+        
+        function assignBoard() {
+            const selectedUsers = Array.from(document.getElementById('user-select').selectedOptions).map(opt => opt.value);
+            
+            // --- INICIO DE LA MODIFICACIÓN ---
+            // 1. Obtener los valores de las bases de datos seleccionadas
+            const selectedDbs = Array.from(document.getElementById('db-select').selectedOptions).map(opt => opt.value);
+            // --- FIN DE LA MODIFICACIÓN ---
+
+            if ((selectedUsers.length === 0 && selectedDbs.length === 0)) return UI.showAlert('Debes seleccionar al menos un usuario o base de datos.', 'warning');
+            if (!generatedBoardData) return UI.showAlert('Primero debes generar un tablero.', 'warning');
+
+            // Se obtienen los asistentes sugeridos que están actualmente en la vista
+            const suggestedAssistants = [];
+            document.querySelectorAll('#suggested-assistants-content .assistant-preview').forEach(el => {
+                const name = el.querySelector('.assistant-details h4')?.textContent.trim();
+                const promptContainer = el.querySelector('.assistant-prompt');
+                if (name && promptContainer) {
+                    suggestedAssistants.push({
+                        name: name,
+                        prompt: promptContainer.dataset.prompt,
+                        knowledge_base: promptContainer.dataset.knowledge,
+                        avatar_url: el.querySelector('.assistant-avatar img')?.src || DEFAULT_AVATAR_URL
+                    });
+                }
+            });
+
+            const payload = { 
+                board_data: generatedBoardData, 
+                target_users: selectedUsers,
+                suggested_assistants: suggestedAssistants, // <-- Se envían los asistentes
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // 2. Añadir las bases de datos seleccionadas al payload
+                target_databases: selectedDbs
+                // --- FIN DE LA MODIFICACIÓN ---
+            };
+
+            const assignBtn = document.getElementById('assign-btn');
+            assignBtn.disabled = true;
+            assignBtn.innerHTML = '<span>⏳</span><span>Asignando Tablero...</span>';
+
+            fetch(`${API_BASE}/admin/ai/assign-board`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    UI.showAlert('¡Tablero y asistentes asignados correctamente!', 'success');
+                    fetchSavedBoards();
+                } else { throw new Error(data.message || 'Error desconocido al asignar'); }
+            })
+            .catch(err => UI.showAlert('Error al asignar el tablero: ' + err.message, 'error'))
+            .finally(() => {
+                assignBtn.disabled = false;
+                assignBtn.innerHTML = '<span>📤</span><span>Asignar y Guardar Tablero</span>';
+            });
+        }
+
+        async function fetchAssignmentData() {
+            const statusDiv = document.getElementById('assignment-status');
+            UI.showAssignment(false);
+            statusDiv.innerHTML = '<div class="text-muted">Cargando datos de asignación...</div>';
+            try {
+                const response = await fetch(`${API_BASE}/admin/ai/assignment-data`);
+                if (!response.ok) throw new Error(`Error de red: ${response.statusText}`);
+                const data = await response.json();
+                if (data.success && data.databases && data.users) {
+                    populateSelect('db-select', data.databases, 'name', 'name');
+                    populateSelect('user-select', data.users, 'email', u => `${u.first_name} ${u.last_name} (${u.email})`);
+                    statusDiv.innerHTML = '';
+                    UI.showAssignment(true);
+                } else { throw new Error('Los datos recibidos no son válidos.'); }
+            } catch (err) {
+                statusDiv.innerHTML = `<div class="text-muted" style="color: var(--error-color);">Error al cargar.</div><button class="btn btn-secondary btn-small mt-2" onclick="fetchAssignmentData()">Reintentar</button>`;
+                UI.showAssignment(false);
+            }
+        }
+        
+        function fetchSavedBoards() {
+            const listEl = document.getElementById('saved-boards-list');
+            listEl.innerHTML = '<div class="text-center text-muted">Cargando...</div>';
+            fetch(`${API_BASE}/admin/ai/list-saved-boards`).then(res => res.json()).then(data => {
+                listEl.innerHTML = '';
+                if (data.success && data.boards.length > 0) {
+                    data.boards.forEach(board => listEl.appendChild(createSavedBoardElement(board)));
+                } else {
+                    listEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><div class="text-muted">No hay tableros guardados</div></div>`;
+                }
+            }).catch(err => listEl.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="text-muted">Error al cargar tableros</div></div>`);
+        }
+
+        function createSavedBoardElement(board) {
+            const div = document.createElement('div');
+            div.className = 'saved-board-item';
+            div.innerHTML = `<div class="saved-board-header"><div class="saved-board-info" onclick="loadSavedBoard('${board.id}', '${board.name}')"><div class="saved-board-name">${board.name}</div><div class="saved-board-date">${new Date(board.created_at).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}</div></div><div class="saved-board-actions"><button class="btn btn-info btn-small" onclick="event.stopPropagation(); loadSavedBoard('${board.id}', '${board.name}')" title="Cargar"><span>📋</span></button><button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteSavedBoard('${board.id}', '${board.name}', this)" title="Eliminar"><span>🗑️</span></button></div></div>`;
+            return div;
+        }
+
+        function populateSelect(elementId, items, valueKey, textLambda) {
+            const select = document.getElementById(elementId);
+            if (!select) return;
+            select.innerHTML = '';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item[valueKey];
+                option.textContent = typeof textLambda === 'function' ? textLambda(item) : item[textLambda];
+                select.appendChild(option);
+            });
+        }
+
+        function loadSavedBoard(boardId, boardName) {
+            UI.showAlert('Cargando tablero guardado...', 'warning');
+            fetch(`${API_BASE}/admin/ai/get-saved-board/${boardId}`).then(res => res.json()).then(data => {
+                if (data.success && data.board) {
+                    generatedBoardData = data.board;
+                    renderBoardContent(data.board);
+                    renderNotes(data.board.notes);
+                    UI.showPreview();
+                    generateSuggestedAssistants(data.board.board_name);
+                    document.getElementById('prompt-input').value = `Tablero cargado: "${boardName}". Listo para reasignar.`;
+                    UI.showAlert(`Tablero "${boardName}" cargado.`, 'success');
+                } else { throw new Error(data.message || 'No se pudo cargar el tablero'); }
+            }).catch(err => UI.showAlert('Error al cargar el tablero: ' + err.message, 'error'));
+        }
+
+        function deleteSavedBoard(boardId, boardName, buttonElement) {
+            if (!confirm(`¿Seguro que quieres eliminar "${boardName}"?`)) return;
+            const originalContent = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<span>⏳</span>';
+            buttonElement.disabled = true;
+            fetch(`${API_BASE}/admin/ai/delete-saved-board/${boardId}`, { method: 'DELETE' }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    UI.showAlert(`Tablero "${boardName}" eliminado.`, 'success');
+                    fetchSavedBoards();
+                    if (generatedBoardData && generatedBoardData.id === boardId) {
+                        generatedBoardData = null;
+                        document.getElementById('preview-area').classList.remove('show');
+                    }
+                } else { throw new Error(data.message || 'No se pudo eliminar'); }
+            }).catch(err => UI.showAlert('Error al eliminar: ' + err.message, 'error')).finally(() => {
+                buttonElement.innerHTML = originalContent;
+                buttonElement.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>

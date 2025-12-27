@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Configuración • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+  :root{
+    --primary:#f97316;
+    --primary-700:#ea580c;
+    --secondary:#dc2626;
+    --bg:#0f172a;
+    --panel:#ffffffF2;
+    --ink:#0b1020;
+    --muted:#64748b;
+    --ring:#fed7aa;
+    --ok:#16a34a;
+    --warn:#d97706;
+    --danger:#dc2626;
+
+    --radius:18px;
+    --shadow:0 10px 25px rgba(0,0,0,.12);
+    --shadow-strong:0 20px 50px rgba(0,0,0,.22);
+    --t:300ms cubic-bezier(.4,0,.2,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    min-height:100vh;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(249,115,22,.25), transparent 65%),
+      radial-gradient(900px 600px at 110% 10%, rgba(220,38,38,.15), transparent 60%),
+      linear-gradient(135deg,#0b1226,#101a36 60%,#0b1226);
+  }
+  .card{ background:#fff; border:1px solid rgba(2,6,23,.06); border-radius: var(--radius); padding:18px; box-shadow: var(--shadow); }
+  .header{ display:flex; justify-content:space-between; align-items:center; gap:16px; border-bottom:1px solid rgba(2,6,23,.06); padding-bottom:18px; margin-bottom:18px; }
+  .header h2{ font-size:1.55rem; font-weight:800; letter-spacing:-.02em; }
+  .pill{ display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; background: rgba(249,115,22,.08); color: var(--primary-700); font-size:.8rem; font-weight:700; border:1px solid rgba(249,115,22,.25); }
+  .btn{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:2px solid transparent; background:#fff; color:var(--ink); font-weight:700; cursor:pointer; transition:all var(--t); box-shadow: var(--shadow); }
+  .btn:hover{ transform: translateY(-1px); }
+  .btn.primary{ background: linear-gradient(135deg, var(--primary), var(--primary-700)); color:white; box-shadow: 0 12px 26px rgba(249,115,22,.35); }
+  .btn.ghost{ background: rgba(0,0,0,.04); }
+  .btn.icon{ padding:10px; }
+  .grid{ display:grid; gap:18px; }
+  .cards-4{ grid-template-columns: repeat(4, minmax(200px,1fr)); }
+  @media (max-width:1200px){ .cards-4{ grid-template-columns: repeat(2, 1fr);} }
+  @media (max-width:960px){ .cards-4{ grid-template-columns: 1fr;} }
+  table{ width:100%; border-collapse:collapse; }
+  th{ position:sticky; top:0; z-index:1; text-align:left; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; background: linear-gradient(135deg, rgba(249,115,22,.08), rgba(220,38,38,.08)); padding:12px; border-bottom: 2px solid rgba(249,115,22,.25); }
+  td{ padding:12px; border-bottom: 1px solid rgba(2,6,23,.06); }
+  .toast{ position:fixed; right:18px; bottom:18px; z-index:1000; background:#0b1226; color:#fff; padding:12px 14px; border-radius:12px; box-shadow: var(--shadow-strong); display:none; font-weight:700; }
+  .toast.show{ display:block; animation: fadein .2s ease-out, fadeout .2s ease-in 3.2s forwards; }
+  @keyframes fadein{ from{ opacity:0; transform: translateY(6px) } to { opacity:1; transform: translateY(0)} }
+  @keyframes fadeout{ to { opacity:0; transform: translateY(6px) } }
+ main{ padding:28px; }</style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Configuración</h2>
+        <div class="pill">Ajustes locales del panel</div>
+      </div>
+    </div>
+    <div class="card">
+      <label for="api-base">API Base URL</label>
+      <input id="api-base" placeholder="https://focux-app.onrender.com" class="btn" />
+      <div style="margin-top:10px; display:flex; gap:10px;">
+        <button class="btn" id="btn-apply-api">Aplicar</button>
+        <span class="pill">Recuerda habilitar CORS en el backend</span>
+      </div>
+      <p style="margin-top:12px; color:var(--muted)">Este valor se guarda en <strong>localStorage</strong> y lo leen todas las páginas del panel.</p>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script>
+    
+  const API_BASE_DEFAULT = 'https://focux-app.onrender.com';
+  let API_BASE_URL = window.API_BASE_URL || localStorage.getItem('FOCUX_API_BASE') || API_BASE_DEFAULT;
+
+  function apiUrl(path){
+    if (!path) return API_BASE_URL;
+    if (/^https?:\/\//i.test(path)) return path;
+    return API_BASE_URL.replace(/\/$/, '') + (path.startsWith('/') ? path : '/' + path);
+  }
+
+  async function fetchJSON(path, {method='GET', body=null, headers={}} = {}){
+    const opts = {
+      method,
+      headers: { 'ngrok-skip-browser-warning':'true', ...headers },
+      mode:'cors',
+      credentials:'omit'
+    };
+    if (body !== null){
+      if (body instanceof FormData){
+        opts.body = body;
+      } else {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+      }
+    }
+    const res = await fetch(apiUrl(path), opts);
+    if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const contentType = res.headers.get('Content-Type') || '';
+    return contentType.includes('application/json') ? res.json() : res.text();
+  }
+  function toast(msg){
+    const t = document.getElementById('toast');
+    if (!t) return alert(msg);
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 3200);
+  }
+
+    const input = document.getElementById('api-base');
+    input.value = API_BASE_URL;
+    document.getElementById('btn-apply-api').addEventListener('click', () => {
+      const value = (input.value||'').trim();
+      if (!value) return;
+      localStorage.setItem('FOCUX_API_BASE', value);
+      toast('✅ API actualizada');
+      try{ parent && parent.dispatchEvent(new StorageEvent('storage', { key:'FOCUX_API_BASE', newValue:value })); }catch{}
+    });
+  </script>
+</body>
+</html>

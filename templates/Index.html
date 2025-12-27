@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focux - Tu Centro de Comando Inteligente con IA</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
+
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+        }
+
+        .bg-accent-orange { background-color: #F97316; }
+        .bg-accent-blue { background-color: #3B82F6; }
+        .text-accent-orange { color: #F97316; }
+        .text-accent-blue { color: #3B82F6; }
+        .border-accent-orange { border-color: #F97316; }
+        .border-accent-blue { border-color: #3B82F6; }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, #F97316, #3B82F6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .cta-button {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.3), 0 10px 10px -5px rgba(249, 115, 22, 0.2);
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .feature-card:hover {
+            border-color: #F97316;
+            transform: translateY(-4px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+
+        .swiper-container { width: 100%; height: 100%; }
+        .swiper-slide {
+            text-align: center;
+            font-size: 18px;
+            background: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
+        .modal.hidden .modal-overlay { opacity: 0; }
+        .modal.hidden .modal-content { transform: scale(0.95); opacity: 0; }
+
+        .floating-badge {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="relative">
+
+        <header class="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200">
+            <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <a href="#" class="flex items-center space-x-3">
+                    <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo Focux" class="h-10 w-auto">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl font-bold text-gray-800">Focux</span>
+                        <span class="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs px-2 py-1 rounded-full font-semibold floating-badge">
+                            Powered by AI
+                        </span>
+                    </div>
+                </a>
+                
+                <div class="hidden md:flex items-center space-x-8 text-lg">
+                    <a href="#ai-features" class="text-gray-600 hover:text-accent-orange transition-colors">IA Generativa</a>
+                    <a href="#features" class="text-gray-600 hover:text-accent-orange transition-colors">Características</a>
+                    <a href="#integrations" class="text-gray-600 hover:text-accent-orange transition-colors">Integraciones</a>
+                    <a href="#assistants" class="text-gray-600 hover:text-accent-orange transition-colors">Asistentes</a>
+                    <a href="#pricing" class="text-gray-600 hover:text-accent-orange transition-colors">Planes</a>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <button id="login-dropdown-btn" class="text-gray-600 hover:text-accent-orange font-semibold transition-colors flex items-center gap-1">
+                            <span>Ingresar</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                        
+                        <div id="login-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-20 border border-gray-200 py-1">
+                            <a href="#" id="login-user-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Usuario</a>
+                            <a href="/admin/index.html" id="login-admin-btn" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ingresar Admin</a>
+                        </div>
+
+
+                    </div>
+                    <button id="register-btn" class="cta-button bg-accent-orange text-white font-bold py-2 px-6 rounded-lg shadow-md">
+                        Registrarse
+                    </button>
+                </div>
+            </nav>
+        </header>
+
+        <main class="bg-gradient-to-br from-white via-orange-50 to-blue-50">
+            <div class="container mx-auto px-6 pt-20 pb-16 md:pt-28 md:pb-24">
+                <div class="text-center max-w-5xl mx-auto">
+                    <div data-aos="fade-down" class="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full mb-6">
+                        <span class="pulse-dot w-2 h-2 bg-purple-600 rounded-full"></span>
+                        <span class="text-sm font-semibold">🚀 Nuevo: Generación de Proyectos con IA en segundos</span>
+                    </div>
+                    
+                    <h1 data-aos="fade-up" class="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight mb-6">
+                        Tu productividad<br/>
+                        <span class="gradient-text">amplificada por IA</span>
+                    </h1>
+                    
+                    <p data-aos="fade-up" data-aos-delay="100" class="text-xl md:text-2xl max-w-3xl mx-auto text-gray-600 mb-8">
+                        Genera tableros completos con 60+ tareas, recibe recordatorios inteligentes en Telegram, 
+                        y deja que nuestros asistentes IA gestionen tu flujo de trabajo.
+                    </p>
+
+                    <div data-aos="fade-up" data-aos-delay="200" class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
+                        <button id="register-btn-hero" class="cta-button bg-accent-orange text-white font-bold py-4 px-10 rounded-lg shadow-xl text-lg">
+                            <span class="flex items-center gap-2">
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                                Comienza Gratis con IA
+                            </span>
+                        </button>
+                        <button class="flex items-center gap-2 text-gray-700 font-semibold py-4 px-8 border-2 border-gray-300 rounded-lg hover:border-accent-blue transition-colors">
+                            <i data-lucide="play-circle" class="w-5 h-5"></i>
+                            Ver Demo (2 min)
+                        </button>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="300" class="flex justify-center gap-8 md:gap-16 text-center">
+                        <div>
+                            <p class="text-3xl md:text-4xl font-bold text-accent-orange">50K+</p>
+                            <p class="text-sm text-gray-600">Tareas Generadas por IA</p>
+                        </div>
+                        <div>
+                            <p class="text-3xl md:text-4xl font-bold text-accent-blue">98%</p>
+                            <p class="text-sm text-gray-600">Precisión en Recordatorios</p>
+                        </div>
+                        <div>
+                            <p class="text-3xl md:text-4xl font-bold text-purple-600">24/7</p>
+                            <p class="text-sm text-gray-600">Asistentes IA Activos</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div data-aos="zoom-in-up" data-aos-delay="400" class="mt-16 relative">
+                    <div class="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-full font-bold shadow-lg z-10">
+                        ⚡ Tiempo Real
+                    </div>
+                    <img src="https://i.ibb.co/G3cv4yL3/imagen-2025-08-12-133845129.png" alt="Dashboard de Focux" 
+                         class="rounded-2xl shadow-2xl mx-auto border-4 border-white">
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="bg-white/20 backdrop-blur-sm p-6 rounded-full">
+                            <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo Focux Centrado" class="h-48 w-48 md:h-64 md:w-64">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <section id="ai-features" class="py-20 bg-gradient-to-r from-purple-50 to-pink-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <span class="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold">INTELIGENCIA ARTIFICIAL</span>
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mt-6">
+                        Crea proyectos completos en <span class="gradient-text">30 segundos</span>
+                    </h2>
+                    <p class="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+                        Describe tu proyecto y nuestra IA generará instantáneamente un tablero con 40-60 tareas 
+                        organizadas, fechas, checklists y notas de apoyo estratégicas.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <div data-aos="fade-right">
+                        <div class="bg-white rounded-2xl shadow-xl p-8">
+                            <h3 class="text-2xl font-bold mb-4">Tu escribes:</h3>
+                            <div class="bg-gray-100 rounded-lg p-4 font-mono text-sm">
+                                "Necesito lanzar una tienda online de ropa sostenible en 3 meses"
+                            </div>
+                            
+                            <div class="my-6 flex justify-center">
+                                <i data-lucide="arrow-down" class="w-8 h-8 text-accent-orange"></i>
+                            </div>
+
+                            <h3 class="text-2xl font-bold mb-4">La IA genera:</h3>
+                            <ul class="space-y-3">
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-1"></i>
+                                    <span><strong>56 tareas</strong> organizadas en fases</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="calendar" class="w-5 h-5 text-blue-500 mt-1"></i>
+                                    <span><strong>Timeline completo</strong> con fechas de inicio y fin</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="list-checks" class="w-5 h-5 text-purple-500 mt-1"></i>
+                                    <span><strong>200+ items</strong> en checklists detallados</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="lightbulb" class="w-5 h-5 text-yellow-500 mt-1"></i>
+                                    <span><strong>5 notas estratégicas</strong> con consejos clave</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div data-aos="fade-left" class="space-y-6">
+                        <div class="feature-card bg-white rounded-xl p-6 shadow-lg">
+                            <div class="flex items-start gap-4">
+                                <div class="bg-purple-100 p-3 rounded-lg">
+                                    <i data-lucide="cpu" class="w-6 h-6 text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-lg mb-2">Modelo Gemini 2.0 Flash</h4>
+                                    <p class="text-gray-600">Última generación en IA para comprensión contextual y generación precisa de proyectos.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature-card bg-white rounded-xl p-6 shadow-lg">
+                            <div class="flex items-start gap-4">
+                                <div class="bg-blue-100 p-3 rounded-lg">
+                                    <i data-lucide="users" class="w-6 h-6 text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-lg mb-2">Asignación Automática</h4>
+                                    <p class="text-gray-600">Asigna el proyecto generado a múltiples usuarios o bases de datos con un clic.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="feature-card bg-white rounded-xl p-6 shadow-lg">
+                            <div class="flex items-start gap-4">
+                                <div class="bg-green-100 p-3 rounded-lg">
+                                    <i data-lucide="refresh-cw" class="w-6 h-6 text-green-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-lg mb-2">Regeneración Inteligente</h4>
+                                    <p class="text-gray-600">No te gusta el resultado? Regenera partes específicas o todo el proyecto.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="integrations" class="py-20 bg-gray-900 text-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <h2 class="text-4xl md:text-5xl font-bold">Conectado con tu mundo</h2>
+                    <p class="mt-4 text-xl text-gray-400 max-w-3xl mx-auto">
+                        Sincroniza Focux con las herramientas que ya usas y recibe notificaciones donde más las necesitas.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div data-aos="zoom-in" class="bg-gray-800 rounded-2xl p-8 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500 opacity-10 rounded-full -mr-16 -mt-16"></div>
+                        <div class="relative z-10">
+                            <div class="bg-blue-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                                <i data-lucide="send" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4">Telegram Bot Inteligente</h3>
+                            <ul class="space-y-3 text-gray-300">
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="bell" class="w-5 h-5 text-blue-400 mt-0.5"></i>
+                                    <span>Recordatorios 10 min antes de cada tarea</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="image" class="w-5 h-5 text-blue-400 mt-0.5"></i>
+                                    <span>Notificaciones con imágenes y formato rico</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="users" class="w-5 h-5 text-blue-400 mt-0.5"></i>
+                                    <span>Broadcasts a equipos completos</span>
+                                </li>
+                            </ul>
+                            <button class="mt-6 bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
+                                Conectar Telegram
+                            </button>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="100" class="bg-gray-800 rounded-2xl p-8 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500 opacity-10 rounded-full -mr-16 -mt-16"></div>
+                        <div class="relative z-10">
+                            <div class="bg-purple-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                                <i data-lucide="file-text" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4">Gestor de Documentos</h3>
+                            <ul class="space-y-3 text-gray-300">
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="cloud-upload" class="w-5 h-5 text-purple-400 mt-0.5"></i>
+                                    <span>Sube PDFs a Cloudinary seguro</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="lock" class="w-5 h-5 text-purple-400 mt-0.5"></i>
+                                    <span>Protección con contraseña</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="palette" class="w-5 h-5 text-purple-400 mt-0.5"></i>
+                                    <span>Portadas personalizables</span>
+                                </li>
+                            </ul>
+                            <div class="mt-6 text-sm text-gray-400">
+                                Incluido en todos los planes
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="200" class="bg-gray-800 rounded-2xl p-8 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-green-500 opacity-10 rounded-full -mr-16 -mt-16"></div>
+                        <div class="relative z-10">
+                            <div class="bg-green-500 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                                <i data-lucide="message-circle" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4">Chat en Tiempo Real</h3>
+                            <ul class="space-y-3 text-gray-300">
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="message-square" class="w-5 h-5 text-green-400 mt-0.5"></i>
+                                    <span>Chat dentro de cada tablero</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="mail" class="w-5 h-5 text-green-400 mt-0.5"></i>
+                                    <span>Mensajes directos entre usuarios</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <i data-lucide="zap" class="w-5 h-5 text-green-400 mt-0.5"></i>
+                                    <span>WebSockets para sincronización instantánea</span>
+                                </li>
+                            </ul>
+                            <div class="mt-6 flex items-center gap-2">
+                                <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
+                                <span class="text-sm text-gray-400">Siempre activo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900">
+                        Todo lo que necesitas, <span class="gradient-text">potenciado</span>
+                    </h2>
+                    <p class="mt-4 text-xl text-gray-600">Más que herramientas: un ecosistema inteligente de productividad.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div data-aos="fade-up" class="feature-card bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="layout-dashboard" class="w-7 h-7 text-accent-orange"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Tableros Kanban Avanzados</h3>
+                        <p class="text-gray-600">Columnas personalizables, drag & drop fluido, y vista en tiempo real de colaboradores.</p>
+                        <div class="mt-4 text-sm font-semibold text-accent-orange">+ Permisos Editor/Viewer</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="50" class="feature-card bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="grid-3x3" class="w-7 h-7 text-accent-blue"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Matriz Eisenhower</h3>
+                        <p class="text-gray-600">Prioriza tareas por importancia y urgencia. Vista exclusiva para decisiones estratégicas.</p>
+                        <div class="mt-4 text-sm font-semibold text-accent-blue">Plan Estándar+</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="100" class="feature-card bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="clock" class="w-7 h-7 text-purple-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">TimeBoxing Inteligente</h3>
+                        <p class="text-gray-600">Asigna bloques de tiempo específicos. La IA sugiere duraciones óptimas.</p>
+                        <div class="mt-4 text-sm font-semibold text-purple-600">Con recordatorios Telegram</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="150" class="feature-card bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="bar-chart-3" class="w-7 h-7 text-green-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Dashboard Analytics</h3>
+                        <p class="text-gray-600">Métricas de productividad, tareas vencidas, eficiencia del equipo en tiempo real.</p>
+                        <div class="mt-4 text-sm font-semibold text-green-600">100% Automático</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="200" class="feature-card bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="edit-3" class="w-7 h-7 text-yellow-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Editor con IA</h3>
+                        <p class="text-gray-600">Mejora textos, corrige ortografía, y obtén 3 versiones alternativas al instante.</p>
+                        <div class="mt-4 text-sm font-semibold text-yellow-600">Gemini AI integrado</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="250" class="feature-card bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="sticky-note" class="w-7 h-7 text-pink-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Notas Colaborativas</h3>
+                        <p class="text-gray-600">Notas con colores, formato rico HTML, visibles para todo el equipo del tablero.</p>
+                        <div class="mt-4 text-sm font-semibold text-pink-600">Sincronización instantánea</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="300" class="feature-card bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="database" class="w-7 h-7 text-indigo-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Multi-Base de Datos</h3>
+                        <p class="text-gray-600">Crea espacios separados para diferentes equipos con logos y fondos personalizados.</p>
+                        <div class="mt-4 text-sm font-semibold text-indigo-600">Gestión empresarial</div>
+                    </div>
+
+                    <div data-aos="fade-up" data-aos-delay="350" class="feature-card bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-2xl">
+                        <div class="bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                            <i data-lucide="bell-ring" class="w-7 h-7 text-red-600"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Sistema de Notificaciones</h3>
+                        <p class="text-gray-600">Push notifications, mensajes Focux personalizados, y alertas por fecha de vencimiento.</p>
+                        <div class="mt-4 text-sm font-semibold text-red-600">Multi-canal</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="advanced-views" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900">
+                        Visualiza tu éxito con <span class="gradient-text">herramientas avanzadas</span>
+                    </h2>
+                    <p class="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">Desde la línea de tiempo de tu proyecto hasta métricas de rendimiento, Focux te da claridad total.</p>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-8 items-center">
+                    <div class="bg-white rounded-2xl shadow-xl p-8 lg:p-10" data-aos="fade-right">
+                                                <div class="flex items-center gap-4 mb-4">
+                            <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <i data-lucide="gantt-chart-square" class="w-8 h-8 text-blue-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900">Diagrama de Gantt Interactivo</h3>
+                                <p class="text-gray-500">Planificación profesional al alcance de tu mano.</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-6">
+                            Visualiza la línea de tiempo completa de tu proyecto. Ajusta fechas, identifica dependencias y sigue el progreso de cada tarea y subtarea en una vista clara y profesional.
+                        </p>
+                        <ul class="space-y-3">
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="move-horizontal" class="w-5 h-5 text-blue-500"></i>
+                                <span>Líneas de tiempo dinámicas</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="clipboard-check" class="w-5 h-5 text-blue-500"></i>
+                                <span>Seguimiento de tareas y subtareas</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="file-down" class="w-5 h-5 text-blue-500"></i>
+                                <span>Exportación a PDF para informes profesionales</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-xl p-8 lg:p-10" data-aos="fade-left">
+                                                <div class="flex items-center gap-4 mb-4">
+                            <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <i data-lucide="area-chart" class="w-8 h-8 text-purple-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-900">Panel de Analíticas Detallado</h3>
+                                <p class="text-gray-500">Toma decisiones basadas en datos reales.</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 mb-6">
+                            Obtén una vista de 360° sobre tu productividad. Mide el rendimiento, detecta cuellos de botella y analiza la carga de trabajo de tu equipo con métricas y gráficos en tiempo real.
+                        </p>
+                        <ul class="space-y-3">
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="target" class="w-5 h-5 text-purple-500"></i>
+                                <span>KPIs de rendimiento y eficiencia</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="bar-chart-big" class="w-5 h-5 text-purple-500"></i>
+                                <span>Gráficos de carga de trabajo por columna</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <i data-lucide="alert-triangle" class="w-5 h-5 text-purple-500"></i>
+                                <span>Identificación de tareas vencidas y próximas</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="assistants" class="py-20 bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <span class="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-semibold">
+                        ASISTENTES PERSONALIZABLES
+                    </span>
+                    <h2 class="text-4xl md:text-5xl font-bold mt-6">
+                        Tu equipo de expertos <span class="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-pink-400">virtuales 24/7</span>
+                    </h2>
+                    <p class="mt-4 text-xl text-gray-300 max-w-3xl mx-auto">
+                        Crea asistentes personalizados con prompts específicos y bases de conocimiento propias, 
+                        o usa los pre-configurados para tareas comunes.
+                    </p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div data-aos="zoom-in" class="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-blue-400 to-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center">
+                                <i data-lucide="briefcase" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold">Project Manager</h3>
+                                <p class="text-gray-400">Pre-configurado</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-300 mb-4">
+                            Analiza tus tableros, sugiere prioridades, detecta cuellos de botella y propone optimizaciones.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Análisis de riesgos</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Cronogramas</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">KPIs</span>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="100" class="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-green-400 to-green-600 w-16 h-16 rounded-2xl flex items-center justify-center">
+                                <i data-lucide="code" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold">Dev Assistant</h3>
+                                <p class="text-gray-400">Personalizable</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-300 mb-4">
+                            Revisa código, sugiere mejoras, explica bugs y genera documentación técnica automática.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Code Review</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Testing</span>
+                            <span class="bg-white/20 px-3 py-1 rounded-full text-xs">Docs</span>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="200" class="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="bg-gradient-to-br from-purple-400 to-purple-600 w-16 h-16 rounded-2xl flex items-center justify-center">
+                                <i data-lucide="plus-circle" class="w-8 h-8 text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-bold">Tu Asistente</h3>
+                                <p class="text-gray-400">Crea el tuyo</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-300 mb-4">
+                            Define tu propio prompt, agrega conocimiento específico y compártelo con tu equipo.
+                        </p>
+                        <button class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all">
+                            Crear Asistente Personalizado
+                        </button>
+                    </div>
+                </div>
+
+                <div data-aos="fade-up" class="mt-12 text-center">
+                    <p class="text-gray-400 mb-4">Powered by</p>
+                    <div class="flex justify-center items-center gap-8">
+                        <div class="bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg">
+                            <span class="text-2xl font-bold">Google Gemini 2.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="pricing" class="py-20 bg-gray-50">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900">
+                        Una solución completa para tu <span class="gradient-text">productividad</span>
+                    </h2>
+                    <p class="mt-4 text-xl text-gray-600">Todas las herramientas y funcionalidades en un solo plan personalizado.</p>
+                </div>
+
+                <div class="max-w-4xl mx-auto">
+                    <div data-aos="zoom-in" class="bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 p-1 rounded-3xl shadow-2xl">
+                        <div class="bg-white rounded-3xl p-10">
+                            <div class="text-center mb-8">
+                                <span class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-sm font-bold px-6 py-2 rounded-full">
+                                    ✨ PLAN EMPRESARIAL COMPLETO
+                                </span>
+                                <h3 class="text-4xl font-bold mt-6 mb-3">Focux Enterprise</h3>
+                                <p class="text-gray-600 text-lg">Solución integral adaptada a las necesidades de tu equipo</p>
+                                <div class="mt-8">
+                                    <p class="text-5xl font-extrabold gradient-text">Por Cotización</p>
+                                    <p class="text-gray-500 mt-2">Precio personalizado según tu organización</p>
+                                </div>
+                            </div>
+
+                            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                                <div class="space-y-4">
+                                    <h4 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <i data-lucide="cpu" class="w-5 h-5 text-purple-600"></i>
+                                        Inteligencia Artificial
+                                    </h4>
+                                    <ul class="space-y-3 text-gray-700">
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Generación ilimitada</strong> de proyectos con IA</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Asistentes IA personalizados</strong> ilimitados</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Editor con mejoras IA</strong> avanzadas</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Sugerencias inteligentes</strong> de escritura</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <h4 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <i data-lucide="layout-dashboard" class="w-5 h-5 text-blue-600"></i>
+                                        Gestión de Proyectos
+                                    </h4>
+                                    <ul class="space-y-3 text-gray-700">
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Tableros Kanban</strong> ilimitados</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Matriz Eisenhower</strong> para priorización</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>TimeBoxing</strong> con recordatorios</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Permisos</strong> Editor/Viewer avanzados</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <h4 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <i data-lucide="send" class="w-5 h-5 text-orange-600"></i>
+                                        Integraciones & Comunicación
+                                    </h4>
+                                    <ul class="space-y-3 text-gray-700">
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Telegram Bot</strong> con recordatorios inteligentes</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Chat en tiempo real</strong> con WebSockets</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Notificaciones</strong> multi-canal</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Mensajes directos</strong> entre usuarios</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <h4 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                        <i data-lucide="shield" class="w-5 h-5 text-green-600"></i>
+                                        Seguridad & Administración
+                                    </h4>
+                                    <ul class="space-y-3 text-gray-700">
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Multi-base de datos</strong> con logos personalizados</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Documentos seguros</strong> en Cloudinary</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Dashboard Analytics</strong> completo</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mt-0.5"></i>
+                                            <span><strong>Panel de administración</strong> avanzado</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-8">
+                                <div class="text-center mb-8">
+                                    <h4 class="font-bold text-lg text-gray-900 mb-4">Incluye además:</h4>
+                                    <div class="flex flex-wrap justify-center gap-3">
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ Notas colaborativas HTML</span>
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ Automatización completa</span>
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ API completa</span>
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ Soporte prioritario 24/7</span>
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ Capacitación personalizada</span>
+                                        <span class="bg-gray-100 px-4 py-2 rounded-full text-sm font-medium">✓ Backup automático</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <button id="register-btn-enterprise" class="bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold py-4 px-10 rounded-lg shadow-xl text-lg hover:from-orange-600 hover:to-pink-600 transition-all">
+                                        Solicitar Cotización
+                                    </button>
+                                    <button class="bg-gray-100 text-gray-700 font-bold py-4 px-10 rounded-lg text-lg hover:bg-gray-200 transition-colors">
+                                        Agendar Demo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 text-center">
+                                <p class="text-gray-600">
+                                    <i data-lucide="phone" class="inline w-4 h-4 mr-2"></i>
+                                    ¿Necesitas más información? Contáctanos: <strong>support@focux.io</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div data-aos="fade-up" class="mt-16 grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+                    <div class="text-center">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="users" class="w-8 h-8 text-purple-600"></i>
+                        </div>
+                        <h4 class="font-bold mb-2">Usuarios Ilimitados</h4>
+                        <p class="text-gray-600 text-sm">Sin costos adicionales por usuario</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="globe" class="w-8 h-8 text-blue-600"></i>
+                        </div>
+                        <h4 class="font-bold mb-2">Acceso Global</h4>
+                        <p class="text-gray-600 text-sm">Disponible 24/7 desde cualquier lugar</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="shield-check" class="w-8 h-8 text-green-600"></i>
+                        </div>
+                        <h4 class="font-bold mb-2">Garantía de Satisfacción</h4>
+                        <p class="text-gray-600 text-sm">30 días de prueba sin compromiso</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12" data-aos="fade-up">
+                    <h2 class="text-4xl md:text-5xl font-bold text-gray-900">
+                        Equipos que <span class="gradient-text">transformaron</span> su productividad
+                    </h2>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div data-aos="zoom-in" class="bg-gray-50 rounded-2xl p-8">
+                        <div class="flex gap-1 mb-4">
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                        </div>
+                        <p class="text-gray-600 mb-6">
+                            "La generación de proyectos con IA nos ahorra 10 horas semanales. 
+                            Es como tener un project manager senior disponible 24/7."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold">Carlos Mendoza</p>
+                                <p class="text-sm text-gray-500">CEO, TechStartup</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="100" class="bg-gray-50 rounded-2xl p-8">
+                        <div class="flex gap-1 mb-4">
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                        </div>
+                        <p class="text-gray-600 mb-6">
+                            "Los recordatorios de Telegram son un game-changer. 
+                            Nunca más olvidamos una tarea importante."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold">Ana García</p>
+                                <p class="text-sm text-gray-500">Product Manager, FinTech Co</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" data-aos-delay="200" class="bg-gray-50 rounded-2xl p-8">
+                        <div class="flex gap-1 mb-4">
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                            <i data-lucide="star" class="w-5 h-5 text-yellow-400 fill-current"></i>
+                        </div>
+                        <p class="text-gray-600 mb-6">
+                            "El sistema de permisos y las bases de datos separadas 
+                            nos permiten gestionar 5 equipos sin conflictos."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full"></div>
+                            <div>
+                                <p class="font-semibold">Luis Rodríguez</p>
+                                <p class="text-sm text-gray-500">CTO, AgenciaDigital</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-20 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 text-white relative overflow-hidden">
+            <div class="absolute inset-0 bg-black/20"></div>
+            <div class="container mx-auto px-6 text-center relative z-10" data-aos="zoom-in">
+                <h2 class="text-4xl md:text-6xl font-bold mb-6">
+                    Únete a la revolución de la productividad
+                </h2>
+                <p class="text-xl md:text-2xl max-w-3xl mx-auto mb-8 opacity-95">
+                    Miles de equipos ya generan proyectos completos en segundos, 
+                    reciben recordatorios inteligentes y colaboran sin fricciones.
+                </p>
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-6">
+                    <button id="register-btn-final" class="bg-white text-purple-600 font-bold py-4 px-10 rounded-lg shadow-2xl text-xl hover:scale-105 transition-transform">
+                        Empieza Gratis Ahora
+                    </button>
+                    <div class="text-white/90">
+                        <p class="text-2xl font-bold">30 días</p>
+                        <p class="text-sm">Garantía de devolución</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <footer class="bg-gray-900 text-white">
+            <div class="container mx-auto px-6 py-12">
+                <div class="grid md:grid-cols-4 gap-8">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-4">
+                            <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo Focux" class="h-8 w-auto filter brightness-0 invert">
+                            <span class="text-xl font-bold">Focux</span>
+                        </div>
+                        <p class="text-gray-400">
+                            Tu centro de comando inteligente para la productividad del futuro.
+                        </p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Producto</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="#" class="hover:text-white transition-colors">Características</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">Integraciones</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">API</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">Roadmap</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Recursos</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">Tutoriales</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">Soporte</a></li>
+                            <li><a href="#" class="hover:text-white transition-colors">Estado del Sistema</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-4">Conecta</h4>
+                        <div class="flex gap-4 mb-4">
+                            <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                                <i data-lucide="twitter" class="w-5 h-5"></i>
+                            </a>
+                            <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                                <i data-lucide="github" class="w-5 h-5"></i>
+                            </a>
+                            <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                                <i data-lucide="linkedin" class="w-5 h-5"></i>
+                            </a>
+                        </div>
+                        <p class="text-gray-400 text-sm">
+                            support@focux.io
+                        </p>
+                    </div>
+                </div>
+                <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                    <p>&copy; 2025 Focux. Todos los derechos reservados. | 
+                        <a href="#" class="hover:text-white transition-colors">Privacidad</a> | 
+                        <a href="#" class="hover:text-white transition-colors">Términos</a>
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="login-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="modal-content bg-white rounded-2xl p-8 z-10 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo" class="h-12 w-auto mx-auto mb-4">
+                <h2 class="text-2xl font-bold">Bienvenido de vuelta</h2>
+                <p class="text-gray-600">Ingresa a tu centro de comando</p>
+            </div>
+
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="login-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+
+                <div hidden>
+                    <label for="login-manager-id" class="block text-sm font-medium text-gray-700">Base de Datos</label>
+                    <select id="login-manager-id" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange"></select>
+                </div>
+                <p id="login-status" class="text-sm text-center font-medium h-4"></p>
+                <button type="submit" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
+                    Ingresar
+                </button>
+            </form>
+
+
+            <button id="login-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <div id="register-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="modal-content bg-white rounded-2xl p-8 z-10 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo" class="h-12 w-auto mx-auto mb-4">
+                <h2 class="text-2xl font-bold">Únete a Focux</h2>
+                <p class="text-gray-600">Comienza tu prueba gratuita</p>
+            </div>
+
+
+            <form id="register-form" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="register-firstName" class="block text-sm font-medium text-gray-700">Nombre</label>
+                        <input type="text" id="register-firstName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                    </div>
+                    <div>
+                        <label for="register-lastName" class="block text-sm font-medium text-gray-700">Apellido</label>
+                        <input type="text" id="register-lastName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                    </div>
+                </div>
+                <div>
+                    <label for="register-email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="register-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+                <div>
+                    <label for="register-password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="register-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+                <div>
+                    <label for="register-confirmPassword" class="block text-sm font-medium text-gray-700">Confirmar Contraseña</label>
+                    <input type="password" id="register-confirmPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+
+                <!-- Campos ocultos sin el atributo 'required' para evitar errores -->
+                <div hidden>
+                    <label for="register-manager-id" class="block text-sm font-medium text-gray-700">Base de Datos</label>
+                    <select id="register-manager-id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange"></select>
+                </div>
+                <div hidden>
+                    <label for="register-db-password" class="block text-sm font-medium text-gray-700">Contraseña de la Base de Datos</label>
+                    <input type="password" id="register-db-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+
+                <!-- Contenedor para mensajes de estado y barra de progreso -->
+                <div id="register-feedback-container" class="h-12">
+                    <p id="register-status" class="text-sm text-center font-medium h-4"></p>
+                    <div id="register-progress-container" class="hidden w-full space-y-2 pt-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="register-progress-bar" class="bg-accent-orange h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <p id="register-progress-text" class="text-sm text-center font-medium text-gray-600 h-4"></p>
+                    </div>
+                </div>
+
+                <!-- Botón de envío con ID para controlarlo desde JavaScript -->
+                <button type="submit" id="register-submit-btn" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
+                    Crear Cuenta Gratis
+                </button>
+            </form>
+
+            <button id="register-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <div id="admin-password-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="modal-content bg-white rounded-2xl p-8 z-10 w-full max-w-md shadow-2xl">
+            <div class="text-center mb-6">
+                <img src="https://i.postimg.cc/Qt6r571n/Adobe-Express-file.png" alt="Logo" class="h-12 w-auto mx-auto mb-4">
+                <h2 class="text-2xl font-bold">Acceso de Administrador</h2>
+                <p class="text-gray-600">Ingresa la contraseña para continuar</p>
+            </div>
+            <form id="admin-password-form" class="space-y-4">
+                <div>
+                    <label for="admin-password" class="block text-sm font-medium text-gray-700">Contraseña de Administrador</label>
+                    <input type="password" id="admin-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-orange focus:border-accent-orange">
+                </div>
+                <p id="admin-password-status" class="text-sm text-center font-medium h-4"></p>
+                <button type="submit" class="w-full cta-button bg-accent-orange text-white font-bold py-3 px-6 rounded-lg shadow-md">
+                    Verificar
+                </button>
+            </form>
+            <button id="admin-password-close-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script>
+        const API_BASE_URL = 'https://focux-app.onrender.com';
+
+        AOS.init({ duration: 800, once: true });
+        lucide.createIcons();
+
+        var swiper = new Swiper('.swiper-container', {
+            slidesPerView: 1,
+            spaceBetween: 20,
+            loop: true,
+            autoplay: { delay: 3000, disableOnInteraction: false },
+            navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+            breakpoints: {
+                768: { slidesPerView: 2, spaceBetween: 30 },
+                1024: { slidesPerView: 2, spaceBetween: 40 },
+            }
+        });
+
+        const loginModal = document.getElementById('login-modal');
+        const registerModal = document.getElementById('register-modal');
+
+
+        function showModal(modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-overlay').classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+
+            // --- LÓGICA AÑADIDA ---
+            // Si estamos abriendo el modal de login, revisamos si hay un email guardado
+            if (modal.id === 'login-modal') {
+                const registeredEmail = localStorage.getItem('registeredEmail');
+                if (registeredEmail) {
+                    document.getElementById('login-email').value = registeredEmail;
+                    document.getElementById('login-password').focus(); // Pone el cursor en la contraseña
+                    localStorage.removeItem('registeredEmail'); // Limpiamos para no usarlo de nuevo
+                }
+            }
+            // --- FIN LÓGICA AÑADIDA ---
+
+            fetchDatabasesForSelects();
+        }
+
+
+        function hideModal(modal) {
+            modal.querySelector('.modal-overlay').classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        const registerButtons = ['register-btn', 'register-btn-hero', 'register-btn-enterprise', 'register-btn-final'];
+        registerButtons.forEach(id => document.getElementById(id).addEventListener('click', () => showModal(registerModal)));
+
+        document.getElementById('login-close-btn').addEventListener('click', () => hideModal(loginModal));
+        document.getElementById('login-modal').querySelector('.modal-overlay').addEventListener('click', () => hideModal(loginModal));
+        document.getElementById('register-close-btn').addEventListener('click', () => hideModal(registerModal));
+        document.getElementById('register-modal').querySelector('.modal-overlay').addEventListener('click', () => hideModal(registerModal));
+
+        async function fetchDatabasesForSelects() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/available-databases`);
+                const data = await response.json();
+                if (data.success) {
+                    const loginSelect = document.getElementById('login-manager-id');
+                    const registerSelect = document.getElementById('register-manager-id');
+                    loginSelect.innerHTML = '';
+                    registerSelect.innerHTML = '';
+                    data.databases.forEach(db => {
+                        const option = `<option value="${db.filename}">${db.display_name}</option>`;
+                        loginSelect.innerHTML += option;
+                        registerSelect.innerHTML += option;
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching databases:", error);
+            }
+        }
+
+
+
+        const loginDropdownBtn = document.getElementById('login-dropdown-btn');
+        const loginDropdownMenu = document.getElementById('login-dropdown-menu');
+        const loginUserBtn = document.getElementById('login-user-btn');
+
+        // 1. Muestra/oculta el menú al hacer clic en "Ingresar"
+        loginDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita que el clic se propague y cierre el menú inmediatamente
+            loginDropdownMenu.classList.toggle('hidden');
+        });
+
+        // 2. Muestra el modal de login al hacer clic en "Ingresar Usuario"
+        loginUserBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Evita que el enlace recargue la página
+            loginDropdownMenu.classList.add('hidden'); // Oculta el menú
+            showModal(loginModal); // Llama a tu función existente para mostrar el modal
+        });
+
+        // 3. Cierra el menú si se hace clic en cualquier otro lugar de la página
+        document.addEventListener('click', (e) => {
+            if (!loginDropdownBtn.contains(e.target) && !loginDropdownMenu.contains(e.target)) {
+                loginDropdownMenu.classList.add('hidden');
+            }
+        });
+
+
+        const adminPasswordModal = document.getElementById('admin-password-modal');
+        const loginAdminBtn = document.getElementById('login-admin-btn');
+
+        // Se agrega una verificación para evitar el error si el botón no existe
+        if (loginAdminBtn) {
+            // Muestra el modal de admin al hacer clic en el enlace
+            loginAdminBtn.addEventListener('click', (e) => {
+                e.preventDefault(); // Evita que el navegador vaya al enlace
+                loginDropdownMenu.classList.add('hidden'); // Oculta el menú desplegable
+                showModal(adminPasswordModal);
+            });
+        }
+
+        // Lógica para cerrar el modal de admin
+        document.getElementById('admin-password-close-btn').addEventListener('click', () => hideModal(adminPasswordModal));
+        adminPasswordModal.querySelector('.modal-overlay').addEventListener('click', () => hideModal(adminPasswordTodal));
+
+        // Lógica para verificar la contraseña del admin
+        document.getElementById('admin-password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('admin-password-status');
+            const passwordInput = document.getElementById('admin-password').value;
+            const correctPassword = '1032491753Focux*+';
+
+            if (passwordInput === correctPassword) {
+                statusEl.textContent = '¡Contraseña correcta! Redirigiendo...';
+                statusEl.className = 'text-sm text-center font-medium h-4 text-green-600';
+                // Redirige a la página de admin si la contraseña es correcta
+                window.location.href = loginAdminBtn.href;
+            } else {
+                statusEl.textContent = 'Contraseña incorrecta. Inténtalo de nuevo.';
+                statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+            }
+        });
+
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusEl = document.getElementById('login-status');
+            statusEl.textContent = 'Ingresando...';
+            statusEl.className = 'text-sm text-center font-medium h-4 text-yellow-600';
+
+            const payload = {
+                email: document.getElementById('login-email').value,
+                password: document.getElementById('login-password').value,
+                manager_id: "Principal", // Valor por defecto
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    statusEl.textContent = '¡Éxito! Redirigiendo...';
+                    statusEl.className = 'text-sm text-center font-medium h-4 text-green-600';
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    window.location.href = 'Tablero.html?firstLogin=true';
+                } else {
+                    statusEl.textContent = `Error: ${data.message}`;
+                    statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+                }
+            } catch (error) {
+                statusEl.textContent = 'Error de conexión.';
+                statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Elementos de la UI
+            const statusEl = document.getElementById('register-status');
+            const progressContainer = document.getElementById('register-progress-container');
+            const progressBar = document.getElementById('register-progress-bar');
+            const progressText = document.getElementById('register-progress-text');
+            const submitBtn = document.getElementById('register-submit-btn');
+
+            // Ocultar elementos y mostrar progreso
+            statusEl.textContent = '';
+            submitBtn.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+
+            // --- Lógica de la animación ---
+            const messages = [
+                "Organizando tu oficina virtual...",
+                "Asignándote algunos agentes IA...",
+                "Limpiando para que lo veas bonito...",
+                "Casi listo, ¡a la velocidad de la luz!"
+            ];
+            let messageIndex = 0;
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                progress = Math.min(progress + 25, 100);
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = messages[messageIndex % messages.length];
+                messageIndex++;
+            }, 800); // Cambia el mensaje cada 0.8 segundos
+            // --- Fin de la animación ---
+
+            const payload = {
+                firstName: document.getElementById('register-firstName').value,
+                lastName: document.getElementById('register-lastName').value,
+                email: document.getElementById('register-email').value,
+                password: document.getElementById('register-password').value,
+                confirmPassword: document.getElementById('register-confirmPassword').value,
+                manager_id: "Principal",
+                db_password: "123456",
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                
+                clearInterval(interval); // Detener la animación
+                
+                if (data.success) {
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '¡Bienvenido a Focux!';
+                    statusEl.className = 'text-sm text-center font-medium h-4 text-green-600';
+                    
+                    setTimeout(() => {
+                        hideModal(registerModal);
+                        // Guardamos el email para auto-rellenarlo en el login
+                        localStorage.setItem('registeredEmail', payload.email); 
+                        showModal(loginModal);
+                    }, 1500);
+                } else {
+                    throw new Error(data.message); // Lanza el error para ser atrapado abajo
+                }
+            } catch (error) {
+                clearInterval(interval); // Detener la animación también en caso de error
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.className = 'text-sm text-center font-medium h-4 text-red-600';
+                // Volver a mostrar el botón y ocultar el progreso
+                progressContainer.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+            }
+        });
+
+    </script>
+</body>
+</html>

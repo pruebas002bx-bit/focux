@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bases de Datos • Focux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-orange: #f97316;
+      --primary-orange-dark: #ea580c;
+      --bg-light: #f4f5f7;
+      --panel-bg: #ffffff;
+      --text-dark: #1f2937;
+      --text-muted: #6b7280;
+      --border-light: #e5e7eb;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      --transition: 200ms cubic-bezier(.4,0,.2,1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Inter', sans-serif; color: var(--text-dark); background-color: var(--bg-light); }
+    main { padding: 28px; height: 100vh; display: flex; flex-direction: column; gap: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-shrink: 0; }
+    .header h2 { font-size: 1.8rem; font-weight: 800; }
+    .header .pill { display: inline-block; margin-top: 4px; padding: 4px 10px; background-color: #f3f4f6; color: var(--text-muted); font-size: 0.75rem; font-weight: 500; border-radius: 999px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: var(--panel-bg); color: var(--text-dark); font-weight: 600; cursor: pointer; transition: all var(--transition); box-shadow: var(--shadow-sm); }
+    .btn:hover { transform: translateY(-1px); border-color: #d1d5db; }
+    .btn.primary { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
+    .btn.primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+    .btn.danger { background-color: var(--danger-light); color: var(--danger); }
+    .btn.danger:hover { background-color: var(--danger); color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .card { background: var(--panel-bg); border: 1px solid var(--border-light); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); padding: 24px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+    .form-input { width: 100%; padding: 10px 12px; border-radius: var(--radius-lg); border: 1px solid var(--border-light); background: #f9fafb; font: inherit; font-size: 0.95rem; }
+    .grid-layout-main { display: grid; grid-template-columns: .8fr 1.2fr; gap: 24px; flex-grow: 1; min-height: 0; }
+    .table-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .table-card-header { padding: 24px 24px 16px; flex-shrink: 0; }
+    .table-container { flex-grow: 1; overflow-y: auto; min-height: 0; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); background-color: #f9fafb; padding: 12px 24px; position: sticky; top: 0; }
+    tbody td { padding: 14px 24px; border-top: 1px solid var(--border-light); font-size: 0.9rem; vertical-align: middle; }
+    .modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, .6); backdrop-filter: blur(4px); z-index: 999; opacity: 0; visibility: hidden; transition: all var(--transition); }
+    .modal.show { opacity: 1; visibility: visible; }
+    .modal-card { width: min(450px, 90vw); background: var(--panel-bg); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); transform: scale(0.95); transition: all var(--transition); padding: 24px; text-align: center; }
+    .modal.show .modal-card { transform: scale(1); }
+    .modal h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+    .modal p { color: var(--text-muted); margin-bottom: 24px; }
+    .modal-actions { display: flex; gap: 12px; justify-content: center; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 1000; background: var(--text-dark); color: #fff; padding: 12px 18px; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); opacity: 0; transform: translateY(10px); visibility: hidden; transition: all var(--transition); font-weight: 600; }
+    .toast.show { opacity: 1; transform: translateY(0); visibility: visible; }
+    .table-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .muted { color: var(--text-muted); font-size: 0.9rem; }
+    @media (max-width: 980px) {
+      .grid-layout-main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="header">
+      <div>
+        <h2>Gestión de Bases de Datos</h2>
+        <div class="pill">Crea, respalda y elimina bases de datos de Manager ID</div>
+      </div>
+      <button class="btn" id="btn-refresh" title="Actualizar lista">🔄 Actualizar</button>
+    </div>
+
+    <div class="grid-layout-main">
+      <div class="card">
+        <form id="create-db-form" style="display: flex; flex-direction: column; gap: 20px;" autocomplete="off" novalidate>
+            <h3 style="font-size:1.2rem; font-weight:700;">Crear Nueva Base de Datos</h3>
+            <div class="form-group">
+                <label for="db-name">Nombre (Manager ID)</label>
+                <input
+                  id="db-name"
+                  class="form-input"
+                  placeholder="Ej: Empresa_A, Sucursal-B"
+                  required
+                  maxlength="64"
+                  inputmode="latin"
+                  spellcheck="false"
+                  aria-describedby="db-help"
+                />
+                <small id="db-help" class="muted">
+                  Se permiten letras, números, <code>_</code> y <code>-</code>. Los espacios se convierten en <code>_</code> y se eliminan símbolos no permitidos automáticamente.
+                </small>
+            </div>
+            <div class="form-group">
+                <label for="db-password">Contraseña de Administrador</label>
+                <input id="db-password" type="password" class="form-input" required minlength="4" />
+                <small class="muted">Esta contraseña será para el usuario <b>admin</b> de esta base de datos.</small>
+            </div>
+            <button class="btn primary" type="submit" id="btn-create-db">Crear Base de Datos</button>
+        </form>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-card-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size: 1.2rem;">Bases de Datos Existentes</strong>
+          <span id="db-count" class="muted">—</span>
+        </div>
+        <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tamaño</th>
+                  <th>Última Modificación</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-databases">
+                <tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-muted);">Cargando...</td></tr>
+              </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <div class="modal" id="background-modal">
+    <div class="modal-card" style="text-align: left;">
+      <h3 id="background-title" style="margin-bottom: 20px;">Establecer Fondo</h3>
+      <form id="background-form" autocomplete="off">
+        <div class="form-group">
+          <label for="background-url-input">URL de la Imagen de Fondo</label>
+          <input id="background-url-input" class="form-input" placeholder="https://ejemplo.com/imagen.jpg" type="url" required>
+          <small class="muted">Pega la URL de una imagen. Déjalo en blanco para quitar el fondo personalizado.</small>
+        </div>
+      </form>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button class="btn" id="background-cancel">Cancelar</button>
+        <button class="btn primary" id="background-save">Guardar Fondo</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="modal" id="logo-modal">
+    <div class="modal-card" style="text-align: left;">
+      <h3 id="logo-title" style="margin-bottom: 20px;">Establecer Logo</h3>
+      <form id="logo-form" autocomplete="off">
+        <div class="form-group">
+          <label for="logo-url-input">URL de la Imagen del Logo</label>
+          <input id="logo-url-input" class="form-input" placeholder="https://ejemplo.com/logo.png" type="url" required>
+          <small class="muted">Pega la URL de un logo. Déjalo en blanco para quitar el logo personalizado.</small>
+        </div>
+      </form>
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button class="btn" id="logo-cancel">Cancelar</button>
+        <button class="btn primary" id="logo-save">Guardar Logo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="confirm-modal">
+    <div class="modal-card">
+      <h3 id="confirm-title">Confirmar Acción</h3>
+      <p id="confirm-message">¿Estás seguro?</p>
+      <div class="modal-actions">
+        <button class="btn" id="confirm-cancel">Cancelar</button>
+        <button class="btn primary" style="background:var(--danger);" id="confirm-ok">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API_BASE_DEFAULT = 'https://focux-app.onrender.com';
+    function apiBase() { return localStorage.getItem('FOCUX_API_BASE') || API_BASE_DEFAULT; }
+
+    async function fetchJSON(path, {method='GET', body=null, headers={}} = {}){
+      const url = `${apiBase()}${path}`;
+      const opts = { method, headers: { 'ngrok-skip-browser-warning': 'true', ...headers }, mode: 'cors' };
+      if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+      const res = await fetch(url, opts);
+      let data = null; try { data = await res.json(); } catch(_) {}
+      if(!res.ok){
+        const msg = (data && (data.message || data.error)) || `HTTP ${res.status} ${res.statusText}`;
+        const err = new Error(msg); err.status = res.status; throw err;
+      }
+      return data;
+    }
+
+    function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3200); }
+
+    const confirmModal = {
+      el: document.getElementById('confirm-modal'),
+      title: document.getElementById('confirm-title'),
+      message: document.getElementById('confirm-message'),
+      okBtn: document.getElementById('confirm-ok'),
+      cancelBtn: document.getElementById('confirm-cancel'),
+      show(title, message) {
+        return new Promise(resolve => {
+          this.title.textContent = title || 'Confirmar Acción';
+          this.message.textContent = message || '¿Estás seguro?';
+          this.el.classList.add('show');
+          const done = v => { this.el.classList.remove('show'); this.okBtn.onclick = this.cancelBtn.onclick = null; resolve(v); };
+          this.okBtn.onclick = () => done(true);
+          this.cancelBtn.onclick = () => done(false);
+        });
+      }
+    };
+
+    const backgroundModal = {
+      el: document.getElementById('background-modal'),
+      title: document.getElementById('background-title'),
+      input: document.getElementById('background-url-input'),
+      saveBtn: document.getElementById('background-save'),
+      cancelBtn: document.getElementById('background-cancel'),
+      show(dbName, currentUrl = '') {
+        return new Promise(resolve => {
+          this.title.textContent = `Fondo para <${dbName}>`;
+          this.input.value = currentUrl;
+          this.el.classList.add('show');
+          const done = (value) => {
+            this.el.classList.remove('show');
+            this.saveBtn.onclick = this.cancelBtn.onclick = null;
+            resolve(value);
+          };
+          this.saveBtn.onclick = () => done(this.input.value.trim());
+          this.cancelBtn.onclick = () => done(null);
+        });
+      }
+    };
+
+
+    const logoModal = {
+      el: document.getElementById('logo-modal'),
+      title: document.getElementById('logo-title'),
+      input: document.getElementById('logo-url-input'),
+      saveBtn: document.getElementById('logo-save'),
+      cancelBtn: document.getElementById('logo-cancel'),
+      show(dbName, currentUrl = '') {
+        return new Promise(resolve => {
+          this.title.textContent = `Logo para <${dbName}>`;
+          this.input.value = currentUrl;
+          this.el.classList.add('show');
+          const done = (value) => {
+            this.el.classList.remove('show');
+            this.saveBtn.onclick = this.cancelBtn.onclick = null;
+            resolve(value);
+          };
+          this.saveBtn.onclick = () => done(this.input.value.trim());
+          this.cancelBtn.onclick = () => done(null);
+        });
+      }
+    };
+
+
+    function fmtDateTime(v){ if(!v) return 'N/A'; try { return new Date(v).toLocaleString('es-CO'); } catch { return String(v); } }
+
+    function sanitizeDbName(input){
+      if (!input) return '';
+      let s = input.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      s = s.replace(/\s+/g, '_');
+      const ALLOWED = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+      let out = '';
+      for (const ch of s) { if (ALLOWED.indexOf(ch) !== -1) out += ch; }
+      return out;
+    }
+
+    function isValidDbName(name){
+      if (!name) return false;
+      for (const ch of name) {
+        const code = ch.charCodeAt(0);
+        const isAZ = code >= 65 && code <= 90;
+        const isaz = code >= 97 && code <= 122;
+        const is09 = code >= 48 && code <= 57;
+        if (!(isAZ || isaz || is09 || ch === '_' || ch === '-')) return false;
+      }
+      return true;
+    }
+
+    async function loadDatabases(){
+      const T = document.getElementById('tbl-databases');
+      const C = document.getElementById('db-count');
+      T.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-muted);">Cargando...</td></tr>';
+      C.textContent = '—';
+      try{
+        const json = await fetchJSON('/admin/databases/details');
+        const list = json.databases || [];
+        C.textContent = `${list.length} base${list.length===1?'':'s'}`;
+
+        if (!list.length){
+          T.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">No hay bases de datos creadas.</td></tr>';
+          return;
+        }
+
+        T.innerHTML = list.map(db => {
+          const name = db.display_name || db.filename || '(sin nombre)';
+          const size = db.size || 'N/D';
+          const lm = db.last_modified ? fmtDateTime(db.last_modified) : 'N/D';
+          const filename = db.filename || name;
+          const backgroundUrl = db.background_url || '';
+          const logoUrl = db.logo_url || ''; // Obtener la URL del logo
+          return `
+            <tr data-db-name="${encodeURIComponent(filename)}" 
+                data-background-url="${encodeURIComponent(backgroundUrl)}"
+                data-logo-url="${encodeURIComponent(logoUrl)}">
+              <td><strong>${name}</strong></td>
+              <td>${size}</td>
+              <td>${lm}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="btn" data-action="logo" title="Establecer Logo">🖼️ Logo</button>
+                  <button class="btn" data-action="background" title="Cambiar Fondo">🏞️ Fondo</button>
+                  <button class="btn" data-action="backup" title="Respaldar">💾 Respaldar</button>
+                  <button class="btn danger" data-action="delete" title="Eliminar">🗑️ Eliminar</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        T.querySelectorAll('button[data-action]').forEach(btn=>{
+          btn.addEventListener('click', async (ev)=>{
+            const tr = ev.currentTarget.closest('tr');
+            const dbName = decodeURIComponent(tr.dataset.dbName || '');
+            const action = ev.currentTarget.dataset.action;
+
+            if (action === 'delete') {
+              const ok = await confirmModal.show('Eliminar Base de Datos', `¿Eliminar la base <${dbName}>? Esta acción no se puede deshacer.`);
+              if (!ok) return;
+              try {
+                await fetchJSON('/admin/database/delete', { method: 'DELETE', body: { db_name: dbName } });
+                toast('Base de datos eliminada.');
+                loadDatabases();
+              } catch(e){ toast(`Error al eliminar: ${e.message}`); }
+            }
+            
+            else if (action === 'logo') {
+              const currentUrl = decodeURIComponent(tr.dataset.logoUrl || '');
+              const newUrl = await logoModal.show(dbName, currentUrl);
+              if (newUrl !== null) { // Si el usuario no canceló
+                try {
+                  await fetchJSON('/admin/database/logo', {
+                    method: 'POST',
+                    body: { db_name: dbName, logo_url: newUrl }
+                  });
+                  toast(`Logo para <${dbName}> guardado.`);
+                  tr.dataset.logoUrl = encodeURIComponent(newUrl); // Actualizar en el DOM
+                } catch(e) {
+                  toast(`Error al guardar logo: ${e.message}`);
+                }
+              }
+            }
+
+            else if (action === 'background') {
+              const currentUrl = decodeURIComponent(tr.dataset.backgroundUrl || '');
+              const newUrl = await backgroundModal.show(dbName, currentUrl);
+              if (newUrl !== null) {
+                try {
+                  await fetchJSON('/admin/database/background', {
+                    method: 'POST',
+                    body: { db_name: dbName, background_url: newUrl }
+                  });
+                  toast(`Fondo para <${dbName}> guardado.`);
+                  tr.dataset.backgroundUrl = encodeURIComponent(newUrl);
+                } catch(e) {
+                  toast(`Error al guardar fondo: ${e.message}`);
+                }
+              }
+            }
+            
+            else if (action === 'backup') {
+              try {
+                const res = await fetchJSON('/admin/database/backup', { method: 'POST', body: { db_name: dbName } });
+                toast(res?.message || 'Respaldo creado.');
+              } catch(e){ toast(`Error al respaldar: ${e.message}`); }
+            }
+          });
+        });
+
+      } catch(err){
+        console.error(err);
+        T.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--danger);">Error: ${err.message}</td></tr>`;
+      }
+    }
+    
+    async function createDatabase(name, adminPassword){
+      try {
+        return await fetchJSON('/admin/database/create', {
+          method: 'POST',
+          body: { db_name: name, password: adminPassword }
+        });
+      } catch(e){
+        if (e.status === 404 || e.status === 405) {
+          return await fetchJSON('/admin/databases', {
+            method: 'POST',
+            body: { db_name: name, password: adminPassword }
+          });
+        }
+        throw e;
+      }
+    }
+
+    function wireForm(){
+      const form = document.getElementById('create-db-form');
+      const nameInput = document.getElementById('db-name');
+      const passInput = document.getElementById('db-password');
+      const btn = document.getElementById('btn-create-db');
+
+      nameInput.addEventListener('input', ()=>{
+        const cursor = nameInput.selectionStart;
+        const sanitized = sanitizeDbName(nameInput.value);
+        if (sanitized !== nameInput.value) {
+          nameInput.value = sanitized;
+          try { nameInput.setSelectionRange(cursor, cursor); } catch(_){}
+        }
+        nameInput.setAttribute('aria-invalid', String(!isValidDbName(sanitized)));
+      });
+
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        nameInput.value = sanitizeDbName(nameInput.value);
+        const name = nameInput.value.trim();
+        const adminPass = passInput.value;
+
+        if (!isValidDbName(name)) {
+          toast('Nombre inválido. Usa letras, números, "_" o "-".');
+          nameInput.focus();
+          return;
+        }
+        if (!adminPass || adminPass.length < 4) {
+          toast('La contraseña debe tener al menos 4 caracteres.');
+          passInput.focus();
+          return;
+        }
+
+        btn.disabled = true; const oldTxt = btn.textContent; btn.textContent = 'Creando...';
+
+        try {
+          const res = await createDatabase(name, adminPass);
+          toast(res?.message || 'Base de datos creada correctamente.');
+          form.reset(); nameInput.setAttribute('aria-invalid','false');
+          btn.disabled = false; btn.textContent = oldTxt;
+          loadDatabases();
+        } catch(err){
+          toast(`Error al crear: ${err.message}`);
+          btn.disabled = false; btn.textContent = oldTxt;
+        }
+      });
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', loadDatabases);
+
+    wireForm();
+    loadDatabases();
+
+    window.addEventListener('storage', (e)=>{ if (e.key === 'FOCUX_API_BASE') location.reload(); });
+  </script>
+</body>
+</html>

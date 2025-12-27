@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Sender • Focux</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-orange: #f97316;
+            --primary-orange-dark: #ea580c;
+            --info-blue: #3b82f6;
+            --info-blue-dark: #2563eb;
+            --bg-light: #f4f5f7;
+            --panel-bg: #ffffff;
+            --text-dark: #1f2937;
+            --text-muted: #6b7280;
+            --border-light: #e5e7eb;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --success: #16a34a;
+            --success-light: #dcfce7;
+
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: 200ms cubic-bezier(.4,0,.2,1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            min-height: 100vh;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+        }
+
+        main { padding: 28px; max-width: 1400px; margin: 0 auto; }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 16px; margin-bottom: 24px;
+        }
+        .header h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; }
+        .header .pill {
+            display: inline-block; margin-top: 4px; padding: 4px 10px;
+            background-color: #f3f4f6; color: var(--text-muted);
+            font-size: 0.75rem; font-weight: 500; border-radius: 999px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--panel-bg); border: 1px solid var(--border-light);
+            border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+            display: flex; flex-direction: column;
+        }
+        .card-header {
+            padding: 16px 24px; border-bottom: 1px solid var(--border-light); flex-shrink: 0;
+        }
+        .card-body {
+            padding: 24px;
+        }
+        .card-footer {
+            padding: 16px 24px; border-top: 1px solid var(--border-light);
+            background-color: #f9fafb;
+            border-bottom-left-radius: var(--radius-xl);
+            border-bottom-right-radius: var(--radius-xl);
+            display: flex; gap: 12px; justify-content: flex-end;
+        }
+
+        .section { margin-bottom: 28px; }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i { color: var(--text-muted); width: 20px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-dark); }
+        .form-input, .form-textarea {
+            width: 100%; padding: 10px 12px; border-radius: var(--radius-lg);
+            border: 1px solid var(--border-light); background: #f9fafb;
+            font: inherit; font-size: 0.95rem; transition: all var(--transition);
+        }
+        .form-input:focus, .form-textarea:focus {
+            border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, .2);
+            outline: none; background-color: var(--panel-bg);
+        }
+        .form-textarea { min-height: 120px; resize: vertical; }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 16px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);
+            background: var(--panel-bg); color: var(--text-dark); font-weight: 600;
+            cursor: pointer; transition: all var(--transition); box-shadow: var(--shadow-sm);
+        }
+        .btn:hover { transform: translateY(-1px); border-color: #d1d5db; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn.primary { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
+        .btn.primary:hover { background: var(--primary-orange-dark); border-color: var(--primary-orange-dark); }
+        .btn.success { background-color: var(--success-light); border-color: transparent; color: var(--success); }
+        .btn.success:hover { background-color: var(--success); color: white; }
+        .btn.info { background-color: #dbeafe; border-color: transparent; color: var(--info-blue); }
+        .btn.info:hover { background-color: var(--info-blue); color: white; }
+
+        .target-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .radio-card {
+            border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+            padding: 16px; text-align: center; cursor: pointer;
+            transition: all var(--transition); background: var(--bg-light);
+        }
+        .radio-card:hover { border-color: #d1d5db; background: var(--panel-bg); }
+        .radio-card.active {
+            border-color: var(--primary-orange); background: var(--panel-bg);
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, .2);
+        }
+        .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
+        .radio-card i { font-size: 1.25rem; color: var(--primary-orange); margin-bottom: 8px; }
+        .radio-card label { font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+
+        .users-list {
+            max-height: 250px; overflow-y: auto; border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg); background: #f9fafb; padding: 6px;
+        }
+        .user-item {
+            display: flex; align-items: center; gap: 12px; padding: 10px;
+            border-radius: var(--radius-lg); transition: background-color var(--transition);
+        }
+        .user-item:hover { background-color: var(--bg-light); }
+        .user-item-info { flex: 1; }
+        .user-item-name { font-weight: 600; }
+        .user-item-email { font-size: 0.85rem; color: var(--text-muted); }
+
+        .image-upload-section {
+            border: 2px dashed var(--border-light); border-radius: var(--radius-lg);
+            padding: 20px; text-align: center; transition: all var(--transition);
+        }
+        .image-upload-section.dragover { border-color: var(--primary-orange); background: #fff7ed; }
+
+        .telegram-preview {
+            background: linear-gradient(160deg, #0088cc, #00aaff);
+            border-radius: var(--radius-xl); padding: 20px;
+        }
+        .telegram-preview-box {
+            background: rgba(255, 255, 255, 0.95); color: var(--text-dark);
+            padding: 16px; border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+        .telegram-preview-box img {
+            width: 100%; border-radius: var(--radius-lg); margin-bottom: 12px;
+            max-height: 180px; object-fit: cover;
+        }
+        #preview-text { word-wrap: break-word; }
+
+        .toast {
+            position: fixed; right: 24px; bottom: 24px; z-index: 1000;
+            background: var(--text-dark); color: #fff; padding: 12px 18px;
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); opacity: 0;
+            transform: translateY(10px); visibility: hidden;
+            transition: all var(--transition); font-weight: 600;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); visibility: visible; }
+        .hidden { display: none !important; }
+
+        /* --- NUEVO --- Barra de herramientas de formato */
+        .format-tools {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-light);
+            background-color: #f9fafb;
+            padding: 6px;
+            border-radius: var(--radius-lg);
+        }
+        .btn-format {
+            background: var(--panel-bg);
+            border: 1px solid transparent;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all var(--transition);
+        }
+        .btn-format:hover {
+            background: var(--bg-light);
+            color: var(--text-dark);
+            border-color: var(--border-light);
+        }
+        /* --- FIN NUEVO --- */
+
+        @media (max-width: 1024px) {
+            .main-content { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="header">
+            <div>
+                <h2><i class="fab fa-telegram-plane" style="color: #0088cc;"></i> Telegram Sender</h2>
+                <div class="pill">Envía notificaciones a usuarios conectados</div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-users">--</div>
+                <div class="stat-label">Usuarios Registrados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="connected-users">--</div>
+                <div class="stat-label">Conectados a Telegram</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="selected-users">0</div>
+                <div class="stat-label">Usuarios Seleccionados</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-body">
+                    <div id="toast" class="toast"></div>
+
+                    <div class="section">
+                        <h3 class="section-title"><i class="fas fa-users"></i> Destinatarios</h3>
+                        <div class="target-options">
+                            <div class="radio-card active" data-target="all">
+                                <input type="radio" id="target-all" name="target" value="all" checked>
+                                <i class="fas fa-globe"></i>
+                                <label for="target-all">Todos</label>
+                            </div>
+                            <div class="radio-card" data-target="database">
+                                <input type="radio" id="target-database" name="target" value="database">
+                                <i class="fas fa-database"></i>
+                                <label for="target-database">Por DB</label>
+                            </div>
+                            <div class="radio-card" data-target="specific">
+                                <input type="radio" id="target-specific" name="target" value="specific">
+                                <i class="fas fa-user-check"></i>
+                                <label for="target-specific">Específicos</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="database-selector" class="section hidden">
+                        <div class="form-group">
+                            <label for="database-select">Seleccionar Base de Datos</label>
+                            <select id="database-select" class="form-input"></select>
+                        </div>
+                    </div>
+
+                    <div id="users-selector" class="section hidden">
+                        <div class="form-group">
+                            <label for="user-search">Seleccionar Usuarios</label>
+                            <input type="text" id="user-search" class="form-input" placeholder="🔍 Buscar por nombre o email...">
+                        </div>
+                        <div id="users-list" class="users-list" style="margin-top: 8px;"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title"><i class="fas fa-image"></i> Imagen (Opcional)</h3>
+                        <div class="image-upload-section" id="image-upload-section">
+                            <p style="color: var(--text-muted); margin-bottom: 12px;">Arrastra una imagen o pega una URL</p>
+                            <input id="image-url" class="form-input" placeholder="https://... o pega una imagen aquí">
+                            <input type="file" id="file-input" class="hidden" accept="image/*">
+                            <img id="image-preview" class="hidden" style="max-width: 100%; border-radius: var(--radius-lg); margin-top: 16px;">
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title"><i class="fas fa-envelope"></i> Mensaje</h3>
+                        <div class="form-group">
+                            <div class="format-tools">
+                                <button type="button" class="btn-format" data-format="bold" title="Negrita"><i class="fas fa-bold"></i></button>
+                                <button type="button" class="btn-format" data-format="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
+                                <button type="button" class="btn-format" data-format="code" title="Código"><i class="fas fa-code"></i></button>
+                                <button type="button" class="btn-format" data-format="link" title="Enlace"><i class="fas fa-link"></i></button>
+                            </div>
+                            <textarea id="message-text" class="form-textarea" rows="6" placeholder="Escribe tu mensaje aquí... Los saltos de línea se respetan."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="button" id="diagnose-btn" class="btn"><i class="fas fa-stethoscope"></i> Diagnosticar</button>
+                    <button type="button" id="test-btn" class="btn info"><i class="fas fa-vial"></i> Enviar Prueba</button>
+                    <button type="button" id="send-btn" class="btn success"><i class="fas fa-paper-plane"></i> Enviar Mensaje</button>
+                </div>
+            </div>
+
+            <div class="preview-container">
+                <div class="card" style="position: sticky; top: 28px;">
+                    <div class="card-header">
+                        <h3 class="section-title" style="margin:0; font-size: 1rem;"><i class="fab fa-telegram-plane"></i> Vista Previa</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="telegram-preview">
+                            <div class="telegram-preview-box">
+                                <div id="preview-image" class="hidden">
+                                    <img id="preview-img" src="" alt="Vista previa">
+                                </div>
+                                <div id="preview-text">
+                                    Escribe un mensaje para ver la vista previa...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = localStorage.getItem('FOCUX_API_BASE') || 'https://focux-app.onrender.com';
+        const IMGBB_API_KEY = 'd482776ffb2a6adc337a1074c9f27732';
+        let allUsers = [];
+        let connectedUsers = [];
+
+        let selectedUsers = new Set();
+        let databases = [];
+        let currentImageUrl = '';
+
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => document.querySelectorAll(selector);
+
+        // --- DOM Elements ---
+        const imageUrlInput = $('#image-url');
+        const messageText = $('#message-text');
+        const previewImg = $('#preview-img');
+        const previewImage = $('#preview-image');
+        const previewText = $('#preview-text');
+        const usersList = $('#users-list');
+        const userSearch = $('#user-search');
+        const databaseSelect = $('#database-select');
+        const databaseSelector = $('#database-selector');
+        const usersSelector = $('#users-selector');
+        const fileInput = $('#file-input');
+        const imageUploadSection = $('#image-upload-section');
+        const imagePreview = $('#image-preview');
+
+        // --- Helper Functions ---
+        async function apiRequest(path, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE_URL}${path}`, {
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...options.headers },
+                    ...options
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                return response.json();
+            } catch (error) {
+                console.error('API Request Error:', error);
+                toast(`❌ Error de Red: ${error.message}`, 'danger');
+                throw error;
+            }
+        }
+
+        function toast(msg, type = 'info') {
+            const t = $('#toast');
+            if(!t) return;
+            t.textContent = msg;
+            t.className = 'toast show';
+            if (type === 'danger') t.style.backgroundColor = 'var(--danger)';
+            else t.style.backgroundColor = 'var(--text-dark)';
+            setTimeout(() => t.classList.remove('show'), 3200);
+        }
+        
+        // --- Image Handling ---
+        async function uploadToImgBB(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('key', IMGBB_API_KEY);
+            try {
+                const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Error al subir a ImgBB');
+                const data = await response.json();
+                return data.success ? data.data.url : null;
+            } catch (error) {
+                console.error('ImgBB upload error:', error);
+                return null;
+            }
+        }
+
+        async function handleImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            toast('Subiendo imagen...');
+            const uploadedUrl = await uploadToImgBB(file);
+            if (uploadedUrl) {
+                currentImageUrl = uploadedUrl;
+                imageUrlInput.value = uploadedUrl;
+                toast('✅ Imagen subida', 'success');
+                updatePreview();
+            } else {
+                toast('❌ Error al subir imagen', 'danger');
+            }
+        }
+        
+        async function loadInitialData() {
+            try {
+                const [stats, dbs] = await Promise.all([
+                    apiRequest('/telegram/stats'),
+                    apiRequest('/admin/databases')
+                ]);
+
+                if (stats.success) {
+                    $('#total-users').textContent = stats.stats.total_users;
+                    $('#connected-users').textContent = stats.stats.connected_users;
+                }
+                if (dbs.success) {
+                    databases = dbs.databases;
+                    databaseSelect.innerHTML = '<option value="">Seleccionar...</option>' + databases.map(db => `<option value="${db.name}">${db.name}</option>`).join('');
+                }
+            } catch (error) {
+                console.error('Error cargando datos iniciales:', error);
+            }
+        }
+        
+        async function loadUsers() {
+            // Mantenemos la caché para no recargar innecesariamente
+            if (connectedUsers.length > 0 && allUsers.length > 0) {
+                renderUsers(connectedUsers);
+                return;
+            }
+            try {
+                usersList.innerHTML = 'Cargando...';
+                // --- INICIO DE CORRECCIÓN ---
+                // Se apunta al nuevo endpoint que devuelve SOLO los usuarios conectados.
+                const response = await apiRequest('/admin/telegram/connected-users-details');
+                if (response.success) {
+                    // Ya no es necesario filtrar. La respuesta del backend es la lista final.
+                    connectedUsers = response.users;
+                    allUsers = response.users; // Actualizamos ambas listas por consistencia.
+                    renderUsers(connectedUsers);
+                } else {
+                    // Si el backend falla, mostramos un error claro
+                    throw new Error(response.message || 'El servidor no pudo procesar la solicitud.');
+                }
+                // --- FIN DE CORRECCIÓN ---
+            } catch (e) {
+                usersList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger);">Error al cargar: ${e.message}</div>`;
+            }
+        }
+        
+        function renderUsers(usersToRender) {
+            if (usersToRender.length === 0) {
+                usersList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">No se encontraron usuarios conectados a Telegram.</div>`;
+                return;
+            }
+            usersList.innerHTML = usersToRender.map(user => `
+                <label class="user-item" for="user-${user.email}">
+                    <input type="checkbox" id="user-${user.email}" value="${user.email}" ${selectedUsers.has(user.email) ? 'checked' : ''}>
+                    <div class="user-item-info">
+                        <div class="user-item-name">${user.first_name || ''} ${user.last_name || ''}</div>
+                        <div class="user-item-email">${user.email}</div>
+                    </div>
+                </label>
+            `).join('');
+        }
+        
+        // --- UI Logic & Event Handlers ---
+        function updatePreview() {
+            const imgUrl = currentImageUrl || imageUrlInput.value.trim();
+            if (imgUrl) {
+                previewImg.src = imgUrl;
+                previewImage.classList.remove('hidden');
+                imagePreview.src = imgUrl;
+                imagePreview.classList.remove('hidden');
+            } else {
+                previewImage.classList.add('hidden');
+                imagePreview.classList.add('hidden');
+            }
+            // Los saltos de línea en la textarea se convierten en <br> para la vista previa
+            const text = messageText.value;
+            previewText.innerHTML = text ? text.replace(/\n/g, '<br>') : 'Escribe un mensaje...';
+        }
+        
+        function updateSelectedUserCount() {
+            $('#selected-users').textContent = selectedUsers.size;
+        }
+
+        // --- NUEVO: Lógica para aplicar formato al texto ---
+        function applyFormat(format) {
+            const textarea = messageText;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selectedText = textarea.value.substring(start, end);
+            let replacement = '';
+
+            switch (format) {
+                case 'bold':
+                    replacement = `<b>${selectedText || 'texto en negrita'}</b>`;
+                    break;
+                case 'italic':
+                    replacement = `<i>${selectedText || 'texto en cursiva'}</i>`;
+                    break;
+                case 'code':
+                    replacement = `<code>${selectedText || 'código'}</code>`;
+                    break;
+                case 'link':
+                    const url = prompt('Ingresa la URL del enlace:');
+                    if (url) {
+                        replacement = `<a href="${url.startsWith('http') ? url : 'https://' + url}">${selectedText || url}</a>`;
+                    }
+                    break;
+            }
+
+            if (replacement) {
+                textarea.setRangeText(replacement, start, end, 'end');
+                textarea.focus();
+                updatePreview();
+            }
+        }
+
+        $$('.btn-format').forEach(btn => {
+            btn.addEventListener('click', () => applyFormat(btn.dataset.format));
+        });
+        // --- FIN NUEVO ---
+
+
+        $$('.radio-card').forEach(card => {
+            card.addEventListener('click', () => {
+                $$('.radio-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                card.querySelector('input').checked = true;
+                
+                const target = card.dataset.target;
+                databaseSelector.classList.toggle('hidden', target !== 'database');
+                usersSelector.classList.toggle('hidden', target !== 'specific');
+                
+                if (target === 'specific') loadUsers();
+            });
+        });
+        
+        userSearch.addEventListener('input', () => {
+            const term = userSearch.value.toLowerCase();
+            // --- INICIO DE CORRECCIÓN ---
+            // Se filtra sobre la lista de usuarios ya conectados a Telegram
+            const filtered = connectedUsers.filter(u => 
+            // --- FIN DE CORRECCIÓN ---
+                u.email.toLowerCase().includes(term) || 
+                `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase().includes(term)
+            );
+            renderUsers(filtered);
+        });
+
+        usersList.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox') {
+                if (e.target.checked) selectedUsers.add(e.target.value);
+                else selectedUsers.delete(e.target.value);
+                updateSelectedUserCount();
+            }
+        });
+        
+        imageUploadSection.addEventListener('paste', e => {
+            const item = (e.clipboardData || e.originalEvent.clipboardData).items[0];
+            if (item.kind === 'file') handleImageFile(item.getAsFile());
+        });
+
+        imageUploadSection.addEventListener('dragover', e => { e.preventDefault(); imageUploadSection.classList.add('dragover'); });
+        imageUploadSection.addEventListener('dragleave', () => imageUploadSection.classList.remove('dragleave'));
+        imageUploadSection.addEventListener('drop', e => {
+            e.preventDefault();
+            imageUploadSection.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleImageFile(e.dataTransfer.files[0]);
+        });
+        
+        [imageUrlInput, messageText].forEach(el => el.addEventListener('input', updatePreview));
+
+        // --- Actions ---
+        async function sendMessage(isTest = false) {
+            // Se usa .value directamente para preservar los saltos de línea. trim() los quitaría.
+            const text = messageText.value;
+            if (!text.trim()) { return toast('❌ El mensaje está vacío', 'danger'); }
+
+            let payload = {
+                message: text,
+                image_url: currentImageUrl || imageUrlInput.value.trim() || null,
+                target_mode: $('input[name="target"]:checked').value,
+                target_value: null,
+                target_emails: []
+            };
+
+            if (payload.target_mode === 'database') {
+                if (!databaseSelect.value) return toast('❌ Selecciona una base de datos', 'danger');
+                payload.target_value = databaseSelect.value;
+            } else if (payload.target_mode === 'specific') {
+                if (selectedUsers.size === 0) return toast('❌ Selecciona al menos un usuario', 'danger');
+                payload.target_emails = Array.from(selectedUsers);
+            }
+
+            const endpoint = isTest ? '/telegram/test-message' : '/telegram/notify-advanced';
+            const btn = isTest ? $('#test-btn') : $('#send-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            btn.disabled = true;
+
+            try {
+                const response = await apiRequest(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+                if (response.success) {
+                    toast(isTest ? '✅ Prueba enviada' : `✅ Enviado a ${response.sent_count || 0} usuarios`, 'success');
+                    if (!isTest) {
+                        messageText.value = '';
+                        imageUrlInput.value = '';
+                        currentImageUrl = '';
+                        updatePreview();
+                    }
+                } else {
+                    throw new Error(response.message || 'Error desconocido');
+                }
+            } catch (e) {
+                toast(`❌ Error: ${e.message}`, 'danger');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+        
+        $('#diagnose-btn').addEventListener('click', async () => {
+            toast('🔍 Diagnosticando...');
+            try {
+                const res = await apiRequest('/admin/telegram/diagnose');
+                if (res.success) {
+                    const diag = res.diagnosis;
+                    alert(`Diagnóstico:\n- Tabla Existe: ${diag.table_exists}\n- Conexiones Activas: ${diag.active_connections}\n- Conexiones Totales: ${diag.total_connections}`);
+                    loadInitialData(); // Refresh stats
+                } else { throw new Error(res.message); }
+            } catch (e) { toast(`❌ ${e.message}`, 'danger'); }
+        });
+
+        $('#send-btn').addEventListener('click', () => sendMessage(false));
+        $('#test-btn').addEventListener('click', () => sendMessage(true));
+        
+        document.addEventListener('DOMContentLoaded', loadInitialData);
+    </script>
+</body>
+</html>
