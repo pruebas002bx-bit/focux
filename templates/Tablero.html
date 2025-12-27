@@ -13160,12 +13160,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 scheduleAutoSave();
 
             } else if (deleteTargetType === 'board') {
-                // La función deleteBoard ya es asíncrona, esperamos a que termine
+                // --- CORRECCIÓN: Evitar errores de "Tablero no encontrado" ---
+                // Si estamos borrando el tablero actual, anulamos el ID global inmediatamente.
+                // Esto evita que el auto-save intente guardar cambios en un tablero que está muriendo.
+                if (currentBoardId === deleteTargetId) {
+                    currentBoardId = null;
+                }
+                
+                // Esperamos a que la eliminación termine
                 await deleteBoard(deleteTargetId);
             }
         } catch (error) {
             console.error('Error durante la eliminación:', error);
-            alert('Ocurrió un error inesperado. Por favor verifique su conexión.');
+            // Solo alertamos si NO es un error de tablero (para evitar alertas confusas si ya se borró)
+            if (deleteTargetType !== 'board') {
+                alert('Ocurrió un error inesperado. Por favor verifique su conexión.');
+            }
         } finally {
             // 3. Ocultar el modal una vez finalizado (o si hubo error)
             hideConfirmDelete();
