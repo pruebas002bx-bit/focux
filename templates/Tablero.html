@@ -13103,31 +13103,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     confirmDeleteOk.addEventListener('click', async () => {
-        // 1. UI: Ocultar botones y mostrar barra de progreso
+        // 1. UI: Ocultar botones
         const btnContainer = confirmDeleteModal.querySelector('.flex.justify-end');
         if (btnContainer) btnContainer.classList.add('hidden');
 
-        // Inyectar HTML de la barra de progreso
+        // 2. Cambiar texto por mensajes de "sistema" dinámicos
+        const systemMessages = [
+            "Conectando con base de datos...",
+            "Eliminando registros del sistema...",
+            "Limpiando caché y dependencias...",
+            "Sincronizando cambios..."
+        ];
+        
+        let msgIndex = 0;
+        confirmDeleteMessage.textContent = systemMessages[0];
+        confirmDeleteMessage.className = "text-sm font-mono text-orange-700 mb-4 animate-pulse"; // Estilo técnico
+        
+        // Rotar mensajes cada 800ms para dar sensación de actividad
+        const msgInterval = setInterval(() => {
+            msgIndex = (msgIndex + 1) % systemMessages.length;
+            confirmDeleteMessage.textContent = systemMessages[msgIndex];
+        }, 800);
+
+        // 3. Inyectar barra de progreso
         const loaderHTML = `
             <div id="delete-progress-loader" class="mt-4 w-full">
-                <div class="flex justify-between mb-1">
-                    <span class="text-sm font-medium text-orange-700">Procesando...</span>
-                    <span class="text-sm font-medium text-orange-700 animate-pulse">Por favor espere</span>
-                </div>
                 <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div class="bg-orange-600 h-2.5 rounded-full animate-[progress_1.5s_ease-in-out_infinite]" style="width: 50%"></div>
+                    <div class="bg-orange-600 h-2.5 rounded-full animate-[progress_1s_ease-in-out_infinite]" style="width: 70%"></div>
                 </div>
-                <style>
-                    @keyframes progress {
-                        0% { transform: translateX(-100%); }
-                        100% { transform: translateX(200%); }
-                    }
-                </style>
             </div>
         `;
         confirmDeleteMessage.insertAdjacentHTML('afterend', loaderHTML);
 
-        // 2. Ejecutar la lógica de eliminación según el tipo
         try {
             if (deleteTargetType === 'card') {
                 const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
@@ -13135,14 +13142,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'ngrok-skip-browser-warning': 'true' }
                 });
                 const result = await response.json();
-                if (!result.success) {
-                    alert(`Error al eliminar la tarjeta: ${result.message}`);
+                
+                if (result.success) {
+                    // ELIMINACIÓN VISUAL INMEDIATA (Sin esperas)
+                    const cardEl = document.getElementById(deleteTargetId);
+                    if (cardEl) cardEl.remove();
+                    
+                    // Limpiar datos locales
+                    cardDataStore.delete(deleteTargetId);
+                    updateColumnHeaders();
+                } else {
+                    alert(`Error: ${result.message}`);
                 }
+
             } else if (deleteTargetType === 'column') {
                 const columnIdToDelete = deleteTargetId;
                 const firstColumnId = columnsConfig[0].id;
 
-                // Mover tarjetas localmente antes de borrar
                 cardDataStore.forEach(task => {
                     if (task.columnId === columnIdToDelete) {
                         task.columnId = firstColumnId;
@@ -13160,24 +13176,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 scheduleAutoSave();
 
             } else if (deleteTargetType === 'board') {
-                // --- CORRECCIÓN: Evitar errores de "Tablero no encontrado" ---
-                // Si estamos borrando el tablero actual, anulamos el ID global inmediatamente.
-                // Esto evita que el auto-save intente guardar cambios en un tablero que está muriendo.
+                // Evitar conflictos de auto-guardado
                 if (currentBoardId === deleteTargetId) {
                     currentBoardId = null;
                 }
+
+                // Llamada manual al API para controlar el error 404
+                const response = await fetch(`${API_BASE_URL}/boards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
                 
-                // Esperamos a que la eliminación termine
-                await deleteBoard(deleteTargetId);
+                const data = await response.json();
+
+                // CORRECCIÓN CLAVE: Si es éxito O si dice "no encontrado", asumimos que se borró bien y no mostramos error.
+                if (data.success || (data.message && data.message.toLowerCase().includes('no encontrado'))) {
+                    await loadUserBoards();
+                } else {
+                    // Solo mostrar alerta si es un error real distinto a "no encontrado"
+                    console.error('Error eliminando tablero:', data.message);
+                    alert('Error del servidor: ' + data.message);
+                }
             }
         } catch (error) {
-            console.error('Error durante la eliminación:', error);
-            // Solo alertamos si NO es un error de tablero (para evitar alertas confusas si ya se borró)
+            console.error('Error crítico:', error);
+            // Solo alertar si no es un tablero (para evitar spam de alertas si la conexión falló justo al final)
             if (deleteTargetType !== 'board') {
-                alert('Ocurrió un error inesperado. Por favor verifique su conexión.');
+                alert('Ocurrió un error de conexión.');
             }
         } finally {
-            // 3. Ocultar el modal una vez finalizado (o si hubo error)
+            clearInterval(msgInterval);
             hideConfirmDelete();
         }
     });
