@@ -13103,37 +13103,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     confirmDeleteOk.addEventListener('click', async () => {
-        // 1. UI: Ocultar botones
+        // 1. LIMPIEZA TOTAL: Ocultar botones y eliminar cualquier barra vieja (zombie)
         const btnContainer = confirmDeleteModal.querySelector('.flex.justify-end');
         if (btnContainer) btnContainer.classList.add('hidden');
 
-        // 2. Cambiar texto por mensajes de "sistema" dinámicos
-        const systemMessages = [
-            "Conectando con base de datos...",
-            "Eliminando registros del sistema...",
-            "Limpiando caché y dependencias...",
-            "Sincronizando cambios..."
-        ];
-        
-        let msgIndex = 0;
-        confirmDeleteMessage.textContent = systemMessages[0];
-        confirmDeleteMessage.className = "text-sm font-mono text-orange-700 mb-4 animate-pulse"; // Estilo técnico
-        
-        // Rotar mensajes cada 800ms para dar sensación de actividad
-        const msgInterval = setInterval(() => {
-            msgIndex = (msgIndex + 1) % systemMessages.length;
-            confirmDeleteMessage.textContent = systemMessages[msgIndex];
-        }, 800);
+        // Buscamos si ya existe un loader previo y lo borramos para evitar duplicados
+        const oldLoader = document.getElementById('delete-process-container');
+        if (oldLoader) oldLoader.remove();
 
-        // 3. Inyectar barra de progreso
+        // 2. DISEÑO PROFESIONAL: Inyectar HTML limpio y moderno
         const loaderHTML = `
-            <div id="delete-progress-loader" class="mt-4 w-full">
-                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div class="bg-orange-600 h-2.5 rounded-full animate-[progress_1s_ease-in-out_infinite]" style="width: 70%"></div>
+            <div id="delete-process-container" class="w-full py-2 animate__animated animate__fadeIn">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="dynamic-status-text" class="text-sm font-medium text-gray-700">Verificando permisos...</span>
+                    <span id="progress-percentage" class="text-sm font-bold text-orange-600">0%</span>
                 </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-sm">
+                    <div id="dynamic-progress-bar" 
+                         class="bg-gradient-to-r from-orange-500 to-red-600 h-2 rounded-full transition-all duration-300 ease-out" 
+                         style="width: 5%">
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2 text-right font-mono opacity-70">Sincronizando cambios...</p>
             </div>
         `;
-        confirmDeleteMessage.insertAdjacentHTML('afterend', loaderHTML);
+        
+        // Reemplazamos el contenido del mensaje por la barra (asegura que solo haya una)
+        confirmDeleteMessage.style.display = 'block';
+        confirmDeleteMessage.innerHTML = loaderHTML;
+
+        // 3. VARIABLES Y ANIMACIÓN
+        const progressBar = document.getElementById('dynamic-progress-bar');
+        const percentageText = document.getElementById('progress-percentage');
+        const statusText = document.getElementById('dynamic-status-text');
+        
+        const phases = [
+            "Conectando con servidor...",
+            "Limpiando base de datos...",
+            "Eliminando dependencias...",
+            "Finalizando proceso..."
+        ];
+
+        let progress = 5;
+        const progressInterval = setInterval(() => {
+            // Animación suave hasta el 90%
+            if (progress < 90) {
+                progress += Math.random() * 8; // Incrementos variables
+                if (progress > 90) progress = 90;
+                
+                progressBar.style.width = `${progress}%`;
+                percentageText.textContent = `${Math.round(progress)}%`;
+                
+                // Cambiar texto según el avance
+                const phaseIndex = Math.floor((progress / 100) * phases.length);
+                if (phases[phaseIndex]) statusText.textContent = phases[phaseIndex];
+            }
+        }, 300);
 
         try {
             if (deleteTargetType === 'card') {
@@ -13144,44 +13169,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
                 
                 if (result.success) {
-                    // ELIMINACIÓN VISUAL INMEDIATA (Sin esperas)
-                    const cardEl = document.getElementById(deleteTargetId);
-                    if (cardEl) cardEl.remove();
+                    // ÉXITO: Completar barra y borrar
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+                    percentageText.textContent = '100%';
+                    statusText.textContent = "¡Completado!";
                     
-                    // Limpiar datos locales
+                    // Eliminación visual INSTANTÁNEA
+                    const cardEl = document.getElementById(deleteTargetId);
+                    if (cardEl) cardEl.remove(); 
+                    
+                    // Limpieza de datos
                     cardDataStore.delete(deleteTargetId);
                     updateColumnHeaders();
+                    
+                    setTimeout(hideConfirmDelete, 200);
                 } else {
-                    alert(`Error: ${result.message}`);
+                    throw new Error(result.message);
                 }
 
             } else if (deleteTargetType === 'column') {
+                // Lógica de columnas (sin cambios mayores, solo la animación)
                 const columnIdToDelete = deleteTargetId;
                 const firstColumnId = columnsConfig[0].id;
 
                 cardDataStore.forEach(task => {
-                    if (task.columnId === columnIdToDelete) {
-                        task.columnId = firstColumnId;
-                    }
+                    if (task.columnId === columnIdToDelete) task.columnId = firstColumnId;
                 });
-                
                 columnsConfig = columnsConfig.filter(c => c.id !== columnIdToDelete);
                 
-                socket.emit('column_deleted', {
-                    board_id: currentBoardId,
-                    column_id: columnIdToDelete
-                });
+                socket.emit('column_deleted', { board_id: currentBoardId, column_id: columnIdToDelete });
+                
+                // Simular pequeña espera para que se vea la animación
+                await new Promise(r => setTimeout(r, 500));
                 
                 initializeBoard();
                 scheduleAutoSave();
+                
+                clearInterval(progressInterval);
+                hideConfirmDelete();
 
             } else if (deleteTargetType === 'board') {
-                // Evitar conflictos de auto-guardado
+                // Prevenir error de auto-save
                 if (currentBoardId === deleteTargetId) {
-                    currentBoardId = null;
+                    currentBoardId = null; 
                 }
 
-                // Llamada manual al API para controlar el error 404
                 const response = await fetch(`${API_BASE_URL}/boards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
                     method: 'DELETE',
                     headers: { 'ngrok-skip-browser-warning': 'true' }
@@ -13189,23 +13222,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const data = await response.json();
 
-                // CORRECCIÓN CLAVE: Si es éxito O si dice "no encontrado", asumimos que se borró bien y no mostramos error.
-                if (data.success || (data.message && data.message.toLowerCase().includes('no encontrado'))) {
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                percentageText.textContent = '100%';
+
+                // LÓGICA ROBUSTA PARA EVITAR EL ERROR "NO ENCONTRADO"
+                // Convertimos todo a minúsculas para asegurar la coincidencia
+                const msg = (data.message || "").toLowerCase();
+                const isSuccess = data.success === true;
+                const isNotFound = msg.includes('no encontrado') || msg.includes('not found');
+
+                if (isSuccess || isNotFound) {
+                    statusText.textContent = "¡Eliminado!";
                     await loadUserBoards();
+                    setTimeout(hideConfirmDelete, 200);
                 } else {
-                    // Solo mostrar alerta si es un error real distinto a "no encontrado"
-                    console.error('Error eliminando tablero:', data.message);
-                    alert('Error del servidor: ' + data.message);
+                    // Error real del servidor
+                    statusText.textContent = "Error";
+                    statusText.className = "text-sm font-bold text-red-600";
+                    alert('No se pudo eliminar: ' + data.message);
+                    hideConfirmDelete();
                 }
             }
         } catch (error) {
-            console.error('Error crítico:', error);
-            // Solo alertar si no es un tablero (para evitar spam de alertas si la conexión falló justo al final)
-            if (deleteTargetType !== 'board') {
+            console.error('Error:', error);
+            clearInterval(progressInterval);
+            // Si es un error de red al borrar tablero, asumimos que se intentó borrar y recargamos
+            if (deleteTargetType === 'board') {
+                await loadUserBoards(); 
+            } else {
                 alert('Ocurrió un error de conexión.');
             }
-        } finally {
-            clearInterval(msgInterval);
             hideConfirmDelete();
         }
     });
