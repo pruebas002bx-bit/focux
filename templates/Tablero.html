@@ -13089,9 +13089,88 @@ document.addEventListener('DOMContentLoaded', () => {
             message = `¿Está seguro que desea eliminar el tablero "${name}"?`;
         }
         
+        // Restaurar el estado original del modal (texto visible, botones visibles, sin loader)
         confirmDeleteMessage.textContent = message;
+        confirmDeleteMessage.style.display = 'block';
+        
+        const btnContainer = confirmDeleteModal.querySelector('.flex.justify-end');
+        if (btnContainer) btnContainer.classList.remove('hidden');
+        
+        const existingLoader = document.getElementById('delete-progress-loader');
+        if (existingLoader) existingLoader.remove();
+
         confirmDeleteModal.classList.remove('hidden');
     }
+
+    confirmDeleteOk.addEventListener('click', async () => {
+        // 1. UI: Ocultar botones y mostrar barra de progreso
+        const btnContainer = confirmDeleteModal.querySelector('.flex.justify-end');
+        if (btnContainer) btnContainer.classList.add('hidden');
+
+        // Inyectar HTML de la barra de progreso
+        const loaderHTML = `
+            <div id="delete-progress-loader" class="mt-4 w-full">
+                <div class="flex justify-between mb-1">
+                    <span class="text-sm font-medium text-orange-700">Procesando...</span>
+                    <span class="text-sm font-medium text-orange-700 animate-pulse">Por favor espere</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div class="bg-orange-600 h-2.5 rounded-full animate-[progress_1.5s_ease-in-out_infinite]" style="width: 50%"></div>
+                </div>
+                <style>
+                    @keyframes progress {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(200%); }
+                    }
+                </style>
+            </div>
+        `;
+        confirmDeleteMessage.insertAdjacentHTML('afterend', loaderHTML);
+
+        // 2. Ejecutar la lógica de eliminación según el tipo
+        try {
+            if (deleteTargetType === 'card') {
+                const response = await fetch(`${API_BASE_URL}/boards/${currentBoardId}/cards/${deleteTargetId}?email=${encodeURIComponent(currentUser.email)}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                const result = await response.json();
+                if (!result.success) {
+                    alert(`Error al eliminar la tarjeta: ${result.message}`);
+                }
+            } else if (deleteTargetType === 'column') {
+                const columnIdToDelete = deleteTargetId;
+                const firstColumnId = columnsConfig[0].id;
+
+                // Mover tarjetas localmente antes de borrar
+                cardDataStore.forEach(task => {
+                    if (task.columnId === columnIdToDelete) {
+                        task.columnId = firstColumnId;
+                    }
+                });
+                
+                columnsConfig = columnsConfig.filter(c => c.id !== columnIdToDelete);
+                
+                socket.emit('column_deleted', {
+                    board_id: currentBoardId,
+                    column_id: columnIdToDelete
+                });
+                
+                initializeBoard();
+                scheduleAutoSave();
+
+            } else if (deleteTargetType === 'board') {
+                // La función deleteBoard ya es asíncrona, esperamos a que termine
+                await deleteBoard(deleteTargetId);
+            }
+        } catch (error) {
+            console.error('Error durante la eliminación:', error);
+            alert('Ocurrió un error inesperado. Por favor verifique su conexión.');
+        } finally {
+            // 3. Ocultar el modal una vez finalizado (o si hubo error)
+            hideConfirmDelete();
+        }
+    });
 
     function hideConfirmDelete() {
         confirmDeleteModal.classList.add('hidden');
