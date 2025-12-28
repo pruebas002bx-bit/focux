@@ -9284,16 +9284,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function createCardElement(task) {
         const cardColor = task.color || 'bg-white';
         const card = document.createElement('div');
-        // Removemos clases innecesarias de z-index
+        
+        // Clases base + color dinámico
         card.className = `kanban-card group ${cardColor} rounded-lg shadow-sm mb-3 flex flex-col border hover:shadow-md hover:border-red-400 transition-all duration-200 relative`;
         card.draggable = true;
         card.id = task.id;
+        
+        // Borde dinámico basado en el color
         card.style.borderColor = CARD_PASTEL_COLORS[cardColor] || '#e5e7eb';
 
+        // 1. Renderizado de Imagen Adjunta
         const attachmentHtml = task.attachment 
             ? `<img src="${task.attachment}" alt="Adjunto" class="w-full h-32 object-cover rounded-t-lg">` 
             : '';
 
+        // 2. Lógica de Fechas y Estado (Vencido, En curso, etc.)
         let dateRangeHtml = '';
         if (task.startDate && !task.isCompleted) {
             const startDate = new Date(task.startDate + 'T00:00:00');
@@ -9324,12 +9329,14 @@ document.addEventListener('DOMContentLoaded', () => {
             dateRangeHtml = `<div class="mt-2 flex items-center text-xs ${dateColor} font-medium"><svg class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><span class="font-semibold">${dateDisplay}</span><span class="ml-1.5 font-normal">${statusText}</span></div>`;
         }
 
+        // 3. Renderizado de Etiquetas (Tags)
         const tagsHtml = `<div class="flex flex-wrap gap-x-2 gap-y-1 items-center mt-auto pt-2">${
             (Array.isArray(task.tags) && task.tags.length > 0) 
             ? task.tags.map(tag => {
                 const tagText = (typeof tag === 'object' && tag.text) ? tag.text : tag;
                 if (!tagText) return '';
                 let colorClass = '';
+                // Verifica configuración global de colores de etiquetas
                 if (boardOptions.tagColorMode === 'pastel') {
                     colorClass = boardOptions.tagColorClass || PASTEL_TAG_COLORS[0];
                 } else {
@@ -9340,12 +9347,16 @@ document.addEventListener('DOMContentLoaded', () => {
             : ''
         }</div>`;
 
+        // 4. Estadísticas (Checklist, Comentarios) y Asignados
         let statsAndAssigneesHtml = '';
         const hasChecklist = task.checklist && task.checklist.length > 0;
         const hasComments = task.comments && task.comments.length > 0;
         const hasAssignees = task.assignedTo && task.assignedTo.length > 0;
+        
         if (hasChecklist || hasComments || hasAssignees) {
             statsAndAssigneesHtml += '<div class="flex items-center justify-between pt-3 mt-auto">';
+            
+            // Avatares de asignados
             let assigneesHtml = '';
             if (hasAssignees) {
                 const avatarsHtml = task.assignedTo.map(email => {
@@ -9356,6 +9367,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 assigneesHtml = `<div class="flex -space-x-3">${avatarsHtml}</div>`;
             }
             statsAndAssigneesHtml += `<div>${assigneesHtml}</div>`;
+            
+            // Iconos de estadísticas
             let statsIcons = '';
             if (hasChecklist) {
                 const completed = task.checklist.filter(i => i.completed).length;
@@ -9368,13 +9381,14 @@ document.addEventListener('DOMContentLoaded', () => {
             statsAndAssigneesHtml += '</div>';
         }
 
+        // 5. Contenido principal (Título y Descripción)
         const formattedDescription = formatAiResponse(task.description);
         const descriptionHtml = formattedDescription ? `<div class="text-sm text-gray-600 mt-1 line-clamp-2 pointer-events-none trix-preview">${formattedDescription}</div>` : '';
         const completedBadgeHtml = task.isCompleted ? `<span class="absolute top-2 right-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full">Completada</span>` : '';
         
         const contentHtml = `<div class="p-3 flex flex-col flex-grow"><p class="font-semibold text-gray-800 pointer-events-none">${task.title}</p>${descriptionHtml}${dateRangeHtml}${tagsHtml}${statsAndAssigneesHtml}</div>${completedBadgeHtml}`;
         
-        // --- CAMBIO CLAVE: Solo el botón, sin el menú HTML oculto dentro ---
+        // 6. Botón de Acciones (El Lápiz)
         const actionsMenuHtml = `
             <div class="card-actions absolute bottom-2 right-2">
                 <button class="card-actions-btn p-1.5 rounded-full bg-white/50 backdrop-blur-sm hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 text-gray-500 hover:text-orange-600">
@@ -9384,72 +9398,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </div>`;
             
+        // Ensamblar HTML
         card.innerHTML = attachmentHtml + contentHtml + actionsMenuHtml;
+        
+        // Estilo visual si está completada
         if (task.isCompleted) { card.classList.add('opacity-70'); }
         
-        card.addEventListener('dragstart', (e) => { e.stopPropagation(); card.classList.add('dragging-card'); draggedCard = card; });
-        card.addEventListener('dragend', () => { card.classList.remove('dragging-card'); draggedCard = null; setTimeout(updateColumnHeaders, 0); });
-        
-        // Listener simplificado para click en tarjeta
-        card.addEventListener('click', (e) => { 
-            // Si clickeamos el botón del lápiz, no abrimos el drawer
-            if (e.target.closest('.card-actions-btn')) {
-                // Esto se maneja en el listener del 'board' abajo, pero prevenimos bubbling aquí
-                e.stopPropagation(); 
-                return;
-            }
+        // 7. Eventos de Drag & Drop
+        card.addEventListener('dragstart', (e) => { 
             e.stopPropagation(); 
-            openCardDrawer(task.id); 
+            card.classList.add('dragging-card'); 
+            draggedCard = card; 
+        });
+        card.addEventListener('dragend', () => { 
+            card.classList.remove('dragging-card'); 
+            draggedCard = null; 
+            setTimeout(updateColumnHeaders, 0); 
+        });
+        
+        // 8. CORRECCIÓN CLAVE: Listener de Clic Unificado
+        card.addEventListener('click', (e) => {
+            // Detenemos la propagación para evitar conflictos con listeners del tablero
+            e.stopPropagation(); 
+            
+            // A) Si clic en el botón del Lápiz -> Abrir Modal de Opciones
+            const actionsBtn = e.target.closest('.card-actions-btn');
+            if (actionsBtn) {
+                e.preventDefault();
+                openCardOptionsModal(task.id);
+                return; 
+            }
+
+            // B) Si clic en el cuerpo de la tarjeta -> Abrir Editor (Drawer)
+            // (Verificamos que no sea un clic en un enlace u otro botón interno)
+            if (!e.target.closest('a') && !e.target.closest('button')) {
+                openCardDrawer(task.id);
+            }
         });
         
         return card;
     }
-
-    board.addEventListener('click', (e) => {
-        // 1. Detectar si se hizo clic en el botón del lápiz (Acciones)
-        const actionsBtn = e.target.closest('.card-actions-btn');
-        
-        if (actionsBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Buscar la tarjeta contenedora para obtener su ID
-            const card = actionsBtn.closest('.kanban-card');
-            
-            if (card && card.id) {
-                // Llamar directamente a la función que abre la ventana modal
-                openCardOptionsModal(card.id);
-            }
-            return; // Importante: detener aquí para no abrir el drawer de la tarjeta
-        }
-
-        // 2. Si no fue el botón del lápiz, verificar si fue click en el cuerpo de la tarjeta
-        const card = e.target.closest('.kanban-card');
-        const cardId = card ? card.id : null;
-
-        // Si es una tarjeta válida y no se hizo click en otros botones
-        if (cardId) {
-            // Verificamos botones de acciones directas si existieran (ej. duplicar, borrar antiguos)
-            if (e.target.matches('.duplicate-card-btn')) {
-                e.preventDefault(); e.stopPropagation();
-                duplicateCard(cardId);
-            } else if (e.target.matches('.delete-card-btn')) {
-                e.preventDefault(); e.stopPropagation();
-                closeDrawer(addCardOverlay, addCardContent);
-                showConfirmDelete('card', cardId);
-            } else if (e.target.matches('.move-card-column-btn')) {
-                e.preventDefault(); e.stopPropagation();
-                openMoveToColumnModal(cardId);
-            } else if (e.target.matches('.move-card-board-btn')) {
-                e.preventDefault(); e.stopPropagation();
-                openMoveToBoardModal(cardId);
-            } else {
-                // Si no fue ningún botón, abrimos el editor de la tarjeta (Drawer)
-                openCardDrawer(cardId);
-            }
-        }
-    });
-
 
     // === NUEVO: abrir/cerrar modal y pedir snapshot ===
     const openActiveUsersBtn = document.getElementById('open-active-users');
@@ -14570,99 +14558,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
     
-
-        
-
-    board.addEventListener('click', (e) => {
-        const actionsBtn = e.target.closest('.card-actions-btn');
-        if (actionsBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const menu = actionsBtn.parentElement.querySelector('.card-actions-menu');
-            if (!menu) return;
-
-            // 1. Cerrar cualquier otro menú abierto y restaurar el z-index de sus tarjetas
-            document.querySelectorAll('.card-actions-menu').forEach(m => {
-                if (m !== menu) {
-                    m.classList.add('hidden');
-                    const parentCard = m.closest('.kanban-card');
-                    if (parentCard) parentCard.style.zIndex = ''; // Restaurar nivel normal
-                }
-            });
-            
-            // 2. Alternar el menú actual
-            menu.classList.toggle('hidden');
-            
-            // 3. Elevar la tarjeta actual para que el menú flote sobre todo lo demás
-            const currentCard = actionsBtn.closest('.kanban-card');
-            if (currentCard) {
-                if (!menu.classList.contains('hidden')) {
-                    currentCard.style.zIndex = '100'; // Traer al frente
-                } else {
-                    currentCard.style.zIndex = ''; // Restaurar
-                }
-            }
-            return;
-        }
-
-        const card = e.target.closest('.kanban-card');
-        const cardId = card ? card.id : null;
-
-        if (e.target.matches('.duplicate-card-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (cardId) duplicateCard(cardId);
-            // Al hacer clic en una acción, cerramos el menú y restauramos z-index
-            const menu = e.target.closest('.card-actions-menu');
-            if (menu) {
-                menu.classList.add('hidden');
-                if (card) card.style.zIndex = '';
-            }
-        } else if (e.target.matches('.delete-card-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (cardId) {
-                closeDrawer(addCardOverlay, addCardContent);
-                showConfirmDelete('card', cardId);
-            }
-            const menu = e.target.closest('.card-actions-menu');
-            if (menu) {
-                menu.classList.add('hidden');
-                if (card) card.style.zIndex = '';
-            }
-        } else if (e.target.matches('.move-card-column-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (cardId) openMoveToColumnModal(cardId);
-            const menu = e.target.closest('.card-actions-menu');
-            if (menu) {
-                menu.classList.add('hidden');
-                if (card) card.style.zIndex = '';
-            }
-        } else if (e.target.matches('.move-card-board-btn')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (cardId) openMoveToBoardModal(cardId);
-            const menu = e.target.closest('.card-actions-menu');
-            if (menu) {
-                menu.classList.add('hidden');
-                if (card) card.style.zIndex = '';
-            }
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.card-actions')) {
-            document.querySelectorAll('.card-actions-menu').forEach(m => m.classList.add('hidden'));
-            // Restaurar el z-index de TODAS las tarjetas para evitar superposiciones
-            document.querySelectorAll('.kanban-card').forEach(c => c.style.zIndex = '');
-        }
-    });
-
-
-
-
     // REEMPLAZA la función 'duplicateCard' con esta
     function duplicateCard(cardId) {
         const originalTask = cardDataStore.get(cardId);
