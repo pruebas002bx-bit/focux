@@ -14407,19 +14407,30 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
 
-            // --- INICIO DE LA CORRECCIÓN ---
-            // La forma anterior de buscar el menú era frágil. Esta nueva forma es más robusta.
             const menu = actionsBtn.parentElement.querySelector('.card-actions-menu');
-            if (!menu) return; // Si por alguna razón no se encuentra el menú, no hacer nada.
-            // --- FIN DE LA CORRECCIÓN ---
-            
-            // Cerrar todos los otros menús abiertos para que solo se vea uno a la vez.
+            if (!menu) return;
+
+            // 1. Cerrar cualquier otro menú abierto y restaurar el z-index de sus tarjetas
             document.querySelectorAll('.card-actions-menu').forEach(m => {
-                if (m !== menu) m.classList.add('hidden');
+                if (m !== menu) {
+                    m.classList.add('hidden');
+                    const parentCard = m.closest('.kanban-card');
+                    if (parentCard) parentCard.style.zIndex = ''; // Restaurar nivel normal
+                }
             });
             
-            // Mostrar u ocultar el menú actual.
+            // 2. Alternar el menú actual
             menu.classList.toggle('hidden');
+            
+            // 3. Elevar la tarjeta actual para que el menú flote sobre todo lo demás
+            const currentCard = actionsBtn.closest('.kanban-card');
+            if (currentCard) {
+                if (!menu.classList.contains('hidden')) {
+                    currentCard.style.zIndex = '100'; // Traer al frente
+                } else {
+                    currentCard.style.zIndex = ''; // Restaurar
+                }
+            }
             return;
         }
 
@@ -14430,7 +14441,12 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
             if (cardId) duplicateCard(cardId);
-            e.target.closest('.card-actions-menu').classList.add('hidden');
+            // Al hacer clic en una acción, cerramos el menú y restauramos z-index
+            const menu = e.target.closest('.card-actions-menu');
+            if (menu) {
+                menu.classList.add('hidden');
+                if (card) card.style.zIndex = '';
+            }
         } else if (e.target.matches('.delete-card-btn')) {
             e.preventDefault();
             e.stopPropagation();
@@ -14438,26 +14454,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeDrawer(addCardOverlay, addCardContent);
                 showConfirmDelete('card', cardId);
             }
-            e.target.closest('.card-actions-menu').classList.add('hidden');
+            const menu = e.target.closest('.card-actions-menu');
+            if (menu) {
+                menu.classList.add('hidden');
+                if (card) card.style.zIndex = '';
+            }
         } else if (e.target.matches('.move-card-column-btn')) {
             e.preventDefault();
             e.stopPropagation();
             if (cardId) openMoveToColumnModal(cardId);
-            e.target.closest('.card-actions-menu').classList.add('hidden');
+            const menu = e.target.closest('.card-actions-menu');
+            if (menu) {
+                menu.classList.add('hidden');
+                if (card) card.style.zIndex = '';
+            }
         } else if (e.target.matches('.move-card-board-btn')) {
             e.preventDefault();
             e.stopPropagation();
             if (cardId) openMoveToBoardModal(cardId);
-            e.target.closest('.card-actions-menu').classList.add('hidden');
+            const menu = e.target.closest('.card-actions-menu');
+            if (menu) {
+                menu.classList.add('hidden');
+                if (card) card.style.zIndex = '';
+            }
         }
     });
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.card-actions')) {
             document.querySelectorAll('.card-actions-menu').forEach(m => m.classList.add('hidden'));
+            // Restaurar el z-index de TODAS las tarjetas para evitar superposiciones
+            document.querySelectorAll('.kanban-card').forEach(c => c.style.zIndex = '');
         }
     });
-
 
 
 
