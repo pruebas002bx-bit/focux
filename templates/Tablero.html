@@ -9420,7 +9420,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Llamar directamente a la función que abre la ventana modal
                 openCardOptionsModal(card.id);
             }
-            return;
+            return; // Importante: detener aquí para no abrir el drawer de la tarjeta
+        }
+
+        // 2. Si no fue el botón del lápiz, verificar si fue click en el cuerpo de la tarjeta
+        const card = e.target.closest('.kanban-card');
+        const cardId = card ? card.id : null;
+
+        // Si es una tarjeta válida y no se hizo click en otros botones
+        if (cardId) {
+            // Verificamos botones de acciones directas si existieran (ej. duplicar, borrar antiguos)
+            if (e.target.matches('.duplicate-card-btn')) {
+                e.preventDefault(); e.stopPropagation();
+                duplicateCard(cardId);
+            } else if (e.target.matches('.delete-card-btn')) {
+                e.preventDefault(); e.stopPropagation();
+                closeDrawer(addCardOverlay, addCardContent);
+                showConfirmDelete('card', cardId);
+            } else if (e.target.matches('.move-card-column-btn')) {
+                e.preventDefault(); e.stopPropagation();
+                openMoveToColumnModal(cardId);
+            } else if (e.target.matches('.move-card-board-btn')) {
+                e.preventDefault(); e.stopPropagation();
+                openMoveToBoardModal(cardId);
+            } else {
+                // Si no fue ningún botón, abrimos el editor de la tarjeta (Drawer)
+                openCardDrawer(cardId);
+            }
         }
     });
 
