@@ -4616,11 +4616,11 @@
                         <label for="card-description-input" class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                         
                         <div class="flex items-center gap-2 mb-2">
-                            <button type="button" id="ai-improve-card-desc" class="flex-1 text-xs font-medium flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200">
+                            <button type="button" id="ai-improve-card-desc" class="flex-1 h-10 text-xs font-medium flex items-center justify-center gap-1.5 px-3 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200 transition-colors">
                                 <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.218 2.232a1.25 1.25 0 00-1.768 0l-8.5 8.5a1.25 1.25 0 000 1.768l2.53 2.53a1.25 1.25 0 001.768 0l8.5-8.5a1.25 1.25 0 000-1.768l-2.53-2.53z" /><path d="M9.213 4.062a1.25 1.25 0 00-1.768 0l-6.25 6.25a1.25 1.25 0 000 1.768l2.53 2.53a1.25 1.25 0 001.768 0l6.25-6.25a1.25 1.25 0 000-1.768L9.213 4.062z" /></svg>
                                 Mejorar Redacción
                             </button>
-                            <button type="button" id="ai-fix-card-spell" class="flex-1 text-xs font-medium flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-md hover:bg-green-100 border border-green-200">
+                            <button type="button" id="ai-fix-card-spell" class="flex-1 h-10 text-xs font-medium flex items-center justify-center gap-1.5 px-3 bg-green-50 text-green-700 rounded-md hover:bg-green-100 border border-green-200 transition-colors">
                                 <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.052-.143z" clip-rule="evenodd" /></svg>
                                 Corregir Ortografía
                             </button>
@@ -4766,13 +4766,16 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="flex-shrink-0 flex justify-between items-center p-4 border-t border-gray-200 bg-gray-50">
+                    <button type="button" id="delete-card-btn" class="px-4 py-2 bg-white border border-gray-300 text-red-600 rounded-md hover:bg-red-50 text-sm font-medium transition-colors">Eliminar Tarjeta</button>
+                    
                     <div class="flex space-x-3">
-                         <button type="button" id="delete-card-btn" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">Eliminar Tarjeta</button>
-                         <button type="button" id="add-card-cancel-btn" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">Cancelar</button>
-                        <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-600 text-sm font-medium">Guardar Tarjeta</button>
+                         <button type="button" id="complete-task-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm">Completar Tarea</button>
+                        <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium transition-colors shadow-sm">Guardar Tarjeta</button>
                     </div>
                 </div>
+
             </form>
         </div>
     </div>
@@ -15195,9 +15198,10 @@ function showMoveSuccessModal() {
       showConfirmDelete('card', currentCardId);
     });
 
-    [addCardCancelBtn, addCardCloseBtn].forEach(btn => 
-        btn.addEventListener('click', () => closeDrawer(addCardOverlay, addCardContent))
-    );
+    if (addCardCloseBtn) {
+        addCardCloseBtn.addEventListener('click', () => closeDrawer(addCardOverlay, addCardContent));
+    }
+
     addCardOverlay.addEventListener('click', (e) => { 
         if(e.target === addCardOverlay) closeDrawer(addCardOverlay, addCardContent); 
     });
