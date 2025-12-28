@@ -814,7 +814,7 @@ def get_board_chat_history(board_id):
 def get_boards():
     """
     [MÉTODO CORREGIDO] Obtiene todos los tableros y sus colaboradores 
-    (incluyendo nombres) en una sola consulta para máxima eficiencia.
+    asegurando que board_data sea un JSON válido.
     """
     email = request.args.get('email', '').lower().strip()
     if not email:
@@ -825,9 +825,6 @@ def get_boards():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # --- INICIO DE LA CORRECCIÓN CLAVE ---
-        # Esta consulta ahora une la tabla 'collaborators' con 'users' para
-        # obtener el nombre y apellido de cada participante, no solo el email.
         cursor.execute("""
             SELECT
                 b.*,
@@ -847,7 +844,6 @@ def get_boards():
             WHERE
                 b.id IN (SELECT board_id FROM collaborators WHERE user_email = %s)
         """, (email,))
-        # --- FIN DE LA CORRECCIÓN CLAVE ---
         
         user_boards = [dict(row) for row in cursor.fetchall()]
 
@@ -855,7 +851,19 @@ def get_boards():
             if board['shared_with'] is None:
                 board['shared_with'] = []
             
-            board['data'] = board.get('board_data') or {}
+            # --- CORRECCIÓN CRÍTICA DE PARSEO JSON ---
+            raw_data = board.get('board_data')
+            if isinstance(raw_data, str):
+                try:
+                    board['data'] = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    print(f"⚠️ Error decodificando board_data para tablero {board.get('id')}")
+                    board['data'] = {"columns": [], "cards": []} # Fallback seguro
+            elif isinstance(raw_data, dict):
+                board['data'] = raw_data
+            else:
+                board['data'] = {"columns": [], "cards": []} # Fallback si es None
+
             if 'board_data' in board:
                 del board['board_data']
 

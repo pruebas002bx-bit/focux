@@ -1807,7 +1807,7 @@
         }
 
 
-        /* --- ESTILOS DEL LOADER DE FOCUX (REEMPLAZAR ANTERIORES) --- */
+        /* --- NUEVOS ESTILOS DEL LOADER PROFESIONAL --- */
         #loader-view {
             display: none;
             position: fixed;
@@ -1816,7 +1816,8 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            background-color: #FFFFFF;
+            /* Fondo con degradado sutil para un look más moderno */
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
             z-index: 9999;
         }
 
@@ -1824,38 +1825,88 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 5px; /* Espacio entre las barras */
-            height: 80px;
+            gap: 6px;
+            height: 60px;
+            margin-bottom: 20px;
         }
 
         .focux-loader .bar {
-            width: 18px;
+            width: 12px;
             height: 45px;
-            border-radius: 3px;
-            background: linear-gradient(45deg, #0057B7, #4DA8DA);
-            animation: focux-loading-animation 0.8s infinite ease-in-out;
+            border-radius: 4px;
+            background: linear-gradient(180deg, #f97316, #ea580c);
+            animation: focux-loading-animation 1s infinite ease-in-out;
         }
 
-        .focux-loader .bar:nth-child(2) {
-            background: linear-gradient(45deg, #4DA8DA, #0057B7);
-            animation-delay: 0.16s;
-        }
+        .focux-loader .bar:nth-child(2) { animation-delay: 0.15s; height: 60px; }
+        .focux-loader .bar:nth-child(3) { animation-delay: 0.3s; }
 
-        .focux-loader .bar:nth-child(3) {
-            background: linear-gradient(45deg, #FFC148, #FFA500);
-            animation-delay: 0.32s;
+        @keyframes focux-loading-animation {
+            0%, 100% { transform: scaleY(1); opacity: 0.8; }
+            50% { transform: scaleY(1.5); opacity: 1; box-shadow: 0 4px 10px rgba(249, 115, 22, 0.3); }
         }
 
         .focus-text {
-            text-align: center;
-            margin-top: 30px;
-            font-family: 'Arial', sans-serif;
-            font-size: 28px;
-            font-weight: bold;
-            color: #0057B7;
-            letter-spacing: 3px;
+            font-family: 'Inter', sans-serif;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            background: linear-gradient(90deg, #1f2937, #4b5563);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
             text-transform: uppercase;
         }
+
+        /* Barra de Progreso y Textos */
+        .loader-status-container {
+            width: 320px;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .loader-progress-track {
+            width: 100%;
+            height: 6px;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-progress-fill {
+            height: 100%;
+            width: 0%; /* Se anima con JS */
+            background: linear-gradient(90deg, #f97316, #fb923c);
+            border-radius: 9999px;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+        }
+
+        .loader-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Inter', monospace; /* Fuente tipo código para efecto técnico */
+            font-size: 12px;
+        }
+
+        #loader-status-text {
+            color: #6b7280;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80%;
+        }
+
+        #loader-percentage {
+            color: #f97316;
+            font-weight: 700;
+        }
+
 
         @keyframes focux-loading-animation {
             0%, 80%, 100% {
@@ -4891,14 +4942,24 @@
 
 
 
-    <div id="loader-view" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; justify-content: center; align-items: center; flex-direction: column; background-color: #FFFFFF; z-index: 9999;">
-            <div class="focux-loader">
-                <div class="bar"></div>
-                <div class="bar"></div>
-                <div class="bar"></div>
-            </div>
-            <div class="focus-text">FOCUX</div>
+    <div id="loader-view">
+        <div class="focux-loader">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
         </div>
+        <div class="focus-text">FOCUX</div>
+        
+        <div class="loader-status-container">
+            <div class="loader-progress-track">
+                <div id="loader-progress-bar" class="loader-progress-fill"></div>
+            </div>
+            <div class="loader-info">
+                <span id="loader-status-text">Inicializando sistema...</span>
+                <span id="loader-percentage">0%</span>
+            </div>
+        </div>
+    </div>
 
 
 
@@ -7835,60 +7896,85 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (currentBoardId && currentBoardId !== boardData.id) {
-            socket.emit('leave_board', { board_id: currentBoardId });
+        try {
+            if (currentBoardId && currentBoardId !== boardData.id) {
+                socket.emit('leave_board', { board_id: currentBoardId });
+            }
+
+            currentBoardId = boardData.id;
+            socket.emit('join_board', { board_id: currentBoardId, email: currentUser.email });
+
+            const ownerEmail = (boardData.owner_email || '').toLowerCase();
+            const currentUserEmail = (currentUser.email || '').toLowerCase();
+
+            if (ownerEmail === currentUserEmail) {
+                currentUserPermissionLevel = 'editor';
+            } else {
+                const self = (boardData.shared_with || []).find(c => c && c.user_email && c.user_email.toLowerCase() === currentUserEmail);
+                currentUserPermissionLevel = self ? self.permission_level : 'viewer';
+            }
+            
+            console.log(`🔒 Nivel de permiso para este tablero: ${currentUserPermissionLevel}`);
+
+            // --- CORRECCIÓN DE PARSEO EN FRONTEND ---
+            let data = boardData.data;
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (e) {
+                    console.error("Error parseando data del tablero en frontend:", e);
+                    data = {};
+                }
+            }
+            data = data || {};
+            // ----------------------------------------
+
+            columnsConfig = data.columns || [];
+            boardOptions = { ...DEFAULT_BOARD_OPTIONS, ...(data.boardOptions || {}) };
+
+            cardDataStore.clear();
+            (data.cards || []).forEach(card => {
+                if (!card.id) card.id = 'card-' + Date.now() + Math.random().toString(36).substr(2, 9);
+                cardDataStore.set(card.id, card);
+            });
+
+            currentBoardName.textContent = boardData.name || 'Tablero';
+
+            const chatContainer = document.getElementById('collaborative-chat-container');
+            const chatBox = document.getElementById('chat-box');
+            const isShared = Array.isArray(boardData.shared_with) && boardData.shared_with.length > 1;
+
+            if (chatContainer) chatContainer.classList.remove('hidden');
+            
+            if (chatBox) {
+                if (isShared) {
+                    chatBox.classList.add('is-shared-board');
+                    chatBox.classList.remove('is-solo-board');
+                    switchChatMode('board');
+                } else {
+                    chatBox.classList.add('is-solo-board');
+                    chatBox.classList.remove('is-shared-board');
+                    switchChatMode('general');
+                }
+            }
+
+            initializeBoard();
+            updateUIForPermissions(currentUserPermissionLevel);
+
+        } catch (error) {
+            console.error("Error crítico renderizando el tablero:", error);
+            alert("Hubo un error visualizando este tablero. Se intentará recargar.");
+        } finally {
+            // Asegura que el loader SIEMPRE se quite, ocurra lo que ocurra
+            isLoading = false;
+            hideMainLoader();
         }
-
-        currentBoardId = boardData.id;
-        socket.emit('join_board', { board_id: currentBoardId, email: currentUser.email });
-
-        const ownerEmail = (boardData.owner_email || '').toLowerCase();
-        const currentUserEmail = (currentUser.email || '').toLowerCase();
-
-        if (ownerEmail === currentUserEmail) {
-            currentUserPermissionLevel = 'editor';
-        } else {
-            const self = (boardData.shared_with || []).find(c => c && c.user_email && c.user_email.toLowerCase() === currentUserEmail);
-            currentUserPermissionLevel = self ? self.permission_level : 'viewer';
-        }
-        
-        console.log(`🔒 Nivel de permiso para este tablero: ${currentUserPermissionLevel}`);
-
-        const data = boardData.data || {};
-        columnsConfig = data.columns || [];
-        boardOptions = { ...DEFAULT_BOARD_OPTIONS, ...(data.boardOptions || {}) };
-
-        cardDataStore.clear();
-        (data.cards || []).forEach(card => {
-            if (!card.id) card.id = 'card-' + Date.now() + Math.random().toString(36).substr(2, 9);
-            cardDataStore.set(card.id, card);
-        });
-
-        currentBoardName.textContent = boardData.name || 'Tablero';
-
-        const chatContainer = document.getElementById('collaborative-chat-container');
-        const chatBox = document.getElementById('chat-box');
-        const isShared = Array.isArray(boardData.shared_with) && boardData.shared_with.length > 1;
-
-        chatContainer.classList.remove('hidden');
-        if (isShared) {
-            chatBox.classList.add('is-shared-board');
-            chatBox.classList.remove('is-solo-board');
-            switchChatMode('board');
-        } else {
-            chatBox.classList.add('is-solo-board');
-            chatBox.classList.remove('is-shared-board');
-            switchChatMode('general');
-        }
-
-        initializeBoard();
-        
-        // El resto de la lógica de carga final
-        isLoading = false;
-        hideMainLoader();
-        updateUIForPermissions(currentUserPermissionLevel);
     }
     
+
+
+
+
     function updateUIForPermissions(level) {
         const isEditor = level === 'editor';
         console.log(`🎨 Aplicando UI para permisos de: ${level}. ¿Es editor? ${isEditor}`);
@@ -9498,14 +9584,90 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+    // --- VARIABLES GLOBALES DEL LOADER ---
+    let loaderInterval = null;
+    let loaderProgress = 0;
+
+    // Textos técnicos para mostrar durante la carga
+    const LOADING_PHASES = [
+        { progress: 10, text: "Estableciendo conexión segura TLS..." },
+        { progress: 25, text: "Verificando credenciales de usuario..." },
+        { progress: 40, text: "Desencriptando claves de seguridad..." },
+        { progress: 55, text: "Sincronizando base de datos en tiempo real..." },
+        { progress: 70, text: "Cargando módulos de productividad..." },
+        { progress: 85, text: "Optimizando interfaz gráfica..." },
+        { progress: 95, text: "Finalizando configuración del entorno..." }
+    ];
+
     function showMainLoader() {
         const loader = document.getElementById('loader-view');
-        if (loader) loader.style.display = 'flex';
+        const progressBar = document.getElementById('loader-progress-bar');
+        const statusText = document.getElementById('loader-status-text');
+        const percentageText = document.getElementById('loader-percentage');
+
+        if (loader) {
+            loader.style.display = 'flex';
+            
+            // Reiniciar estado
+            loaderProgress = 0;
+            progressBar.style.width = '0%';
+            percentageText.textContent = '0%';
+            statusText.textContent = "Iniciando sistema Focux...";
+            
+            // Limpiar intervalo anterior si existía
+            if (loaderInterval) clearInterval(loaderInterval);
+
+            // Iniciar animación simulada
+            loaderInterval = setInterval(() => {
+                // Incremento logarítmico: rápido al principio, lento al final
+                // Nunca llega al 100% por sí solo (se espera a hideMainLoader)
+                if (loaderProgress < 90) {
+                    // Incremento variable para realismo
+                    const increment = Math.random() * 2.5; 
+                    loaderProgress += increment;
+                    
+                    // Actualizar barra y porcentaje
+                    const currentPct = Math.min(Math.round(loaderProgress), 90);
+                    progressBar.style.width = `${currentPct}%`;
+                    percentageText.textContent = `${currentPct}%`;
+
+                    // Buscar el texto correspondiente a la fase actual
+                    // Usamos reverse para encontrar el hito más alto alcanzado
+                    const phase = LOADING_PHASES.slice().reverse().find(p => currentPct >= p.progress);
+                    if (phase && statusText.textContent !== phase.text) {
+                        statusText.textContent = phase.text;
+                    }
+                }
+            }, 100); // Actualización cada 100ms
+        }
     }
 
     function hideMainLoader() {
         const loader = document.getElementById('loader-view');
-        if (loader) loader.style.display = 'none';
+        const progressBar = document.getElementById('loader-progress-bar');
+        const percentageText = document.getElementById('loader-percentage');
+        const statusText = document.getElementById('loader-status-text');
+
+        if (loader) {
+            // Detener la simulación
+            if (loaderInterval) clearInterval(loaderInterval);
+
+            // Forzar completado visualmente
+            if (progressBar) progressBar.style.width = '100%';
+            if (percentageText) percentageText.textContent = '100%';
+            if (statusText) statusText.textContent = "¡Carga completada!";
+
+            // Pequeño delay para que el usuario vea el 100% antes de desaparecer
+            setTimeout(() => {
+                loader.style.opacity = '0';
+                loader.style.transition = 'opacity 0.5s ease';
+                
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                    loader.style.opacity = '1'; // Restaurar para la próxima
+                }, 500);
+            }, 400);
+        }
     }
 
 
