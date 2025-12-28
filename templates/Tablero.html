@@ -9405,18 +9405,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
-    // --- LISTENER GLOBAL DEL TABLERO ACTUALIZADO ---
     board.addEventListener('click', (e) => {
+        // 1. Detectar si se hizo clic en el botón del lápiz (Acciones)
         const actionsBtn = e.target.closest('.card-actions-btn');
         
-        // Si se hizo clic en el botón del lápiz
         if (actionsBtn) {
             e.preventDefault();
             e.stopPropagation();
             
+            // Buscar la tarjeta contenedora para obtener su ID
             const card = actionsBtn.closest('.kanban-card');
+            
             if (card && card.id) {
-                // Abrimos la NUEVA modal profesional
+                // Llamar directamente a la función que abre la ventana modal
                 openCardOptionsModal(card.id);
             }
             return;
