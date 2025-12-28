@@ -870,7 +870,7 @@ def get_boards():
         
 @app.route('/boards', methods=['POST'])
 def create_board():
-    """Crea un nuevo tablero para un usuario, aceptando una plantilla de columnas opcional."""
+    """Crea un nuevo tablero verificando que el nombre no exista previamente."""
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     board_name = data.get('name', 'Nuevo Tablero').strip()
@@ -883,6 +883,13 @@ def create_board():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # --- VERIFICACIÓN DE NOMBRE DUPLICADO ---
+        cursor.execute("SELECT 1 FROM boards WHERE owner_email = %s AND LOWER(name) = LOWER(%s)", (email, board_name))
+        if cursor.fetchone():
+            return jsonify(success=False, message="DUPLICATE_NAME"), 409
+        # ----------------------------------------
+
         now = datetime.now(timezone.utc).isoformat()
         
         # Si el frontend envía una plantilla de columnas, la usamos. Si no, la por defecto.
@@ -892,10 +899,8 @@ def create_board():
             {"id": "col-3", "title": "Hecho", "color": "bg-green-200"}
         ]
         
-        # Aseguramos que cada columna tenga un ID único
         for i, col in enumerate(board_columns):
             if 'id' not in col:
-                # Usamos un método simple para generar un ID si falta
                 col['id'] = f'col-{int(time.time() * 1000)}-{i}'
 
         default_board_data = {"columns": board_columns, "cards": [], "boardOptions": {}}
@@ -913,7 +918,6 @@ def create_board():
     except Exception as e:
         if conn: conn.rollback()
         print(f"🚨 ERROR en POST /boards: {e}")
-        traceback.print_exc()
         return jsonify(success=False, message="Error interno del servidor al crear el tablero."), 500
     finally:
         if conn: conn.close()

@@ -14799,6 +14799,7 @@ function showMoveSuccessModal() {
     }
 
     async function createBoardFromTemplate(name, template) {
+        // Mantenemos el modal abierto un momento para evitar parpadeos bruscos
         hideTemplateSelector();
         showMainLoader();
 
@@ -14814,21 +14815,36 @@ function showMoveSuccessModal() {
                 body: JSON.stringify({
                     email: currentUser.email,
                     name: name,
-                    columns: templateColumns // Enviamos las columnas de la plantilla al backend
+                    columns: templateColumns
                 })
             });
+            
             const data = await response.json();
+            
             if (data.success) {
                 await loadUserBoards();
                 await loadBoardData(data.board_id);
             } else {
+                // --- LÓGICA DE MENSAJE PROFESIONAL ---
+                if (data.message === "DUPLICATE_NAME") {
+                    hideMainLoader(); // Ocultamos el loader para mostrar el modal
+                    showInfoModal(
+                        "Nombre no disponible", 
+                        `Ya dispones de un tablero llamado "${name}". Por favor, intenta con un nombre diferente para mantener tu espacio organizado.`
+                    );
+                    // Opcional: Volver a abrir el modal de creación para que intente de nuevo
+                    setTimeout(showCreateBoardModal, 300); 
+                    return;
+                }
                 throw new Error(data.message);
             }
         } catch (error) {
             console.error('Error creando tablero desde plantilla:', error);
-            alert('Error al crear el tablero: ' + error.message);
-        } finally {
             hideMainLoader();
+            showInfoModal('Error de Sistema', 'No se pudo crear el tablero. Por favor verifica tu conexión e inténtalo nuevamente.');
+        } finally {
+            // Si hubo éxito, el loader se oculta dentro de loadBoardData, 
+            // si hubo error, lo ocultamos arriba.
         }
     }
 
